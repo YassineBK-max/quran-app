@@ -10,8 +10,8 @@ const geistSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Quran App",
-  description: "Read, listen, and study the Holy Quran",
+  title: "القرآن الكريم",
+  description: "Read, listen, memorize and study the Holy Quran",
 };
 
 export default function RootLayout({
@@ -21,6 +21,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Apply dark class synchronously before hydration to prevent flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var s=JSON.parse(localStorage.getItem('quran-app-settings')||'{}');var t=s.theme||'system';if(t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className={`${geistSans.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>

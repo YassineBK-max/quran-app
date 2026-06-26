@@ -5,27 +5,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
 
 :root {
-  --background: #f8f9fa;
-  --foreground: #1a1a2e;
-  --primary: #1b4332;
+  --background: #f0fdf4;
+  --foreground: #14532d;
+  --primary: #16a34a;
   --primary-foreground: #ffffff;
   --card: #ffffff;
-  --card-foreground: #1a1a2e;
-  --border: #e2e8f0;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --card-foreground: #14532d;
+  --border: #bbf7d0;
+  --muted: #dcfce7;
+  --muted-foreground: #4d7c5a;
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
-  --primary: #2dd4bf;
-  --primary-foreground: #0f172a;
-  --card: #1e293b;
-  --card-foreground: #e2e8f0;
-  --border: #334155;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
+  --background: #052e16;
+  --foreground: #dcfce7;
+  --primary: #4ade80;
+  --primary-foreground: #052e16;
+  --card: #14532d;
+  --card-foreground: #dcfce7;
+  --border: #166534;
+  --muted: #14532d;
+  --muted-foreground: #86efac;
 }
 
 body {
@@ -74,3 +74,10 @@ body {
 .dark .bookmark-highlight-green { background-color: rgba(34, 197, 94, 0.15); }
 .dark .bookmark-highlight-yellow { background-color: rgba(234, 179, 8, 0.15); }
 .dark .bookmark-highlight-purple { background-color: rgba(168, 85, 247, 0.15); }
+
+.memorized-row {
+  background-color: rgba(74, 222, 128, 0.08);
+}
+.dark .memorized-row {
+  background-color: rgba(74, 222, 128, 0.1);
+}
