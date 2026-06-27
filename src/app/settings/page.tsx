@@ -1,6 +1,7 @@
 "use client";
 import { Header } from "@/components/layout/Header";
 import { useSettings } from "@/contexts/SettingsContext";
+import { Switch } from "@/components/ui/Switch";
 import { RECITERS, TRANSLATIONS } from "@/lib/constants";
 import { ThemeMode } from "@/lib/types";
 
@@ -78,18 +79,10 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold">Tap to Translate</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Tap an ayah in line-by-line mode to see its translation</p>
             </div>
-            <button
-              onClick={() => updateSettings({ tapToTranslate: !settings.tapToTranslate })}
-              className={`relative w-11 h-6 rounded-full transition-colors ${
-                settings.tapToTranslate ? "bg-primary" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  settings.tapToTranslate ? "translate-x-[22px]" : "translate-x-0.5"
-                }`}
-              />
-            </button>
+            <Switch
+              checked={settings.tapToTranslate}
+              onChange={(v) => updateSettings({ tapToTranslate: v })}
+            />
           </div>
         </section>
 

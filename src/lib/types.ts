@@ -102,7 +102,7 @@ export interface CalendarEvent {
   id: string;
   classId: string;
   title: string;
-  type: "session" | "deadline" | "goal";
+  type: "session" | "deadline" | "goal" | "meeting";
   date: string;        // YYYY-MM-DD
   time?: string;       // HH:MM
   description?: string;
@@ -127,7 +127,7 @@ export interface Message {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: "deadline" | "message" | "award";
+  type: "deadline" | "message" | "award" | "event";
   title: string;
   body: string;
   read: boolean;

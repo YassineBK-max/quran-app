@@ -5,8 +5,8 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 // Hardcoded admin accounts — always seeded
 const SEEDED_ADMINS = [
-  { email: "kassab.salaheddine@gmail.com", name: "Salah Kassab", password: "Academy@2030" },
-  { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine Bouaouda", password: "academy@2030" },
+  { email: "kassab.salaheddine@gmail.com", name: "Salah", password: "Academy@2030" },
+  { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine", password: "academy@2030" },
 ];
 
 const DEFAULT_TEACHER_CODE = "QURAN_ADMIN_2024";
@@ -137,6 +137,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
         return "An account with this email already exists.";
       }
+      if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
+        return "This name is already taken. Please choose another.";
+      }
       if (role === "teacher" || role === "admin") {
         if (code !== teacherCode) return "Invalid admin code.";
       }
@@ -161,6 +164,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (existing) {
         setCurrentUserId(existing.id);
         return null;
+      }
+      if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
+        return "This name is already taken. Please choose another.";
       }
       if ((role === "teacher" || role === "admin") && code !== teacherCode) {
         return "Invalid admin code.";

@@ -14,6 +14,7 @@ interface MessageContextType {
   sendMessage: (recipientId: string, recipientType: "user" | "class", content: string, allowReply?: boolean, replyToId?: string) => void;
   markRead: (messageId: string) => void;
   getInbox: () => Message[];
+  getSent: () => Message[];
   getThread: (messageId: string) => Message[];
   unreadCount: number;
 }
@@ -23,6 +24,7 @@ const MessageCtx = createContext<MessageContextType>({
   sendMessage: () => {},
   markRead: () => {},
   getInbox: () => [],
+  getSent: () => [],
   getThread: () => [],
   unreadCount: 0,
 });
@@ -85,6 +87,13 @@ export function MessageProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [user, messages, userClassIds]);
 
+  const getSent = useCallback((): Message[] => {
+    if (!user) return [];
+    return messages
+      .filter((m) => m.senderId === user.id && !m.replyToId)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }, [user, messages]);
+
   const getThread = useCallback(
     (messageId: string): Message[] =>
       messages.filter((m) => m.id === messageId || m.replyToId === messageId),
@@ -105,7 +114,7 @@ export function MessageProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <MessageCtx.Provider value={{ messages, sendMessage, markRead, getInbox, getThread, unreadCount }}>
+    <MessageCtx.Provider value={{ messages, sendMessage, markRead, getInbox, getSent, getThread, unreadCount }}>
       {children}
     </MessageCtx.Provider>
   );

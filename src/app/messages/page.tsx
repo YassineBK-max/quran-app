@@ -2,24 +2,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
+import { Switch } from "@/components/ui/Switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/contexts/MessageContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { Message } from "@/lib/types";
 
+type Tab = "inbox" | "sent" | "compose" | "thread";
+
 export default function MessagesPage() {
   const { user, users } = useAuth();
-  const { getInbox, sendMessage, markRead, getThread } = useMessages();
+  const { getInbox, getSent, sendMessage, markRead, getThread } = useMessages();
   const { myClass, getTeacherClasses } = useClassroom();
   const router = useRouter();
 
-  const [view, setView] = useState<"inbox" | "compose" | "thread">("inbox");
+  const [view, setView] = useState<Tab>("inbox");
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [composeContent, setComposeContent] = useState("");
   const [composeRecipient, setComposeRecipient] = useState("");
   const [composeType, setComposeType] = useState<"user" | "class">("user");
   const [allowReply, setAllowReply] = useState(true);
+  const [prevTab, setPrevTab] = useState<"inbox" | "sent">("inbox");
 
   if (!user) {
     return (
@@ -34,11 +38,13 @@ export default function MessagesPage() {
   }
 
   const inbox = getInbox();
+  const sent = getSent();
   const teacherClasses = user.role === "teacher" || user.role === "admin" ? getTeacherClasses() : [];
   const myClassObj = myClass;
 
-  const openThread = (msg: Message) => {
+  const openThread = (msg: Message, from: "inbox" | "sent") => {
     markRead(msg.id);
+    setPrevTab(from);
     setSelectedMessage(msg);
     setView("thread");
   };
@@ -56,10 +62,42 @@ export default function MessagesPage() {
   };
 
   const thread = selectedMessage ? getThread(selectedMessage.id) : [];
-
-  // Potential recipients
   const recipientUsers = users.filter((u) => u.id !== user.id);
   const recipientClasses = [...teacherClasses, ...(myClassObj ? [myClassObj] : [])];
+  const unreadInbox = inbox.filter((m) => !m.readBy.includes(user.id)).length;
+
+  const MessageRow = ({ msg, from }: { msg: Message; from: "inbox" | "sent" }) => {
+    const unread = !msg.readBy.includes(user.id);
+    const label = from === "inbox" ? msg.senderName : (
+      msg.recipientType === "class"
+        ? (recipientClasses.find((c) => c.id === msg.recipientId)?.name ?? "Class")
+        : (users.find((u) => u.id === msg.recipientId)?.name ?? "User")
+    );
+    return (
+      <button
+        onClick={() => openThread(msg, from)}
+        className={`w-full text-left rounded-xl border p-4 transition-colors hover:border-primary/30 ${
+          unread && from === "inbox" ? "border-primary/50 bg-primary/5" : "border-border bg-card"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
+            <p className={`text-sm ${unread && from === "inbox" ? "font-bold" : "font-medium"}`}>
+              {from === "sent" && <span className="text-muted-foreground text-xs font-normal mr-1">To:</span>}
+              {label}
+            </p>
+            {msg.recipientType === "class" && (
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">class</span>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground shrink-0">
+            {new Date(msg.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground truncate">{msg.content}</p>
+      </button>
+    );
+  };
 
   return (
     <>
@@ -71,17 +109,21 @@ export default function MessagesPage() {
             onClick={() => setView("inbox")}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === "inbox" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
           >
-            Inbox {inbox.filter((m) => !m.readBy.includes(user.id)).length > 0 && (
-              <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                {inbox.filter((m) => !m.readBy.includes(user.id)).length}
-              </span>
+            Inbox{unreadInbox > 0 && (
+              <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{unreadInbox}</span>
             )}
+          </button>
+          <button
+            onClick={() => setView("sent")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === "sent" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+          >
+            Sent
           </button>
           <button
             onClick={() => setView("compose")}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === "compose" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
           >
-            + New Message
+            + New
           </button>
         </div>
 
@@ -91,29 +133,18 @@ export default function MessagesPage() {
             {inbox.length === 0 ? (
               <p className="text-center text-muted-foreground text-sm py-12">No messages yet.</p>
             ) : (
-              inbox.map((msg) => {
-                const unread = !msg.readBy.includes(user.id);
-                return (
-                  <button
-                    key={msg.id}
-                    onClick={() => openThread(msg)}
-                    className={`w-full text-left rounded-xl border p-4 transition-colors hover:border-primary/30 ${
-                      unread ? "border-primary/50 bg-primary/5" : "border-border bg-card"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <p className={`text-sm ${unread ? "font-bold" : "font-medium"}`}>{msg.senderName}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {new Date(msg.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{msg.content}</p>
-                    {msg.recipientType === "class" && (
-                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded mt-1 inline-block">Class message</span>
-                    )}
-                  </button>
-                );
-              })
+              inbox.map((msg) => <MessageRow key={msg.id} msg={msg} from="inbox" />)
+            )}
+          </div>
+        )}
+
+        {/* Sent */}
+        {view === "sent" && (
+          <div className="space-y-2">
+            {sent.length === 0 ? (
+              <p className="text-center text-muted-foreground text-sm py-12">No sent messages.</p>
+            ) : (
+              sent.map((msg) => <MessageRow key={msg.id} msg={msg} from="sent" />)
             )}
           </div>
         )}
@@ -121,9 +152,12 @@ export default function MessagesPage() {
         {/* Thread view */}
         {view === "thread" && selectedMessage && (
           <div className="space-y-3">
-            <button onClick={() => setView("inbox")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setView(prevTab)}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-              Back to inbox
+              Back to {prevTab}
             </button>
             <div className="space-y-2">
               {thread.sort((a, b) => a.createdAt - b.createdAt).map((msg) => {
@@ -141,7 +175,7 @@ export default function MessagesPage() {
                 );
               })}
             </div>
-            {selectedMessage.allowReply && (
+            {selectedMessage.allowReply && !thread.find((m) => m.senderId === user.id && m.replyToId === selectedMessage.id) && (
               <div className="flex gap-2">
                 <input
                   value={replyContent}
@@ -167,7 +201,6 @@ export default function MessagesPage() {
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
             <h2 className="text-sm font-semibold">New Message</h2>
 
-            {/* Recipient type */}
             <div className="flex gap-2">
               <button
                 onClick={() => setComposeType("user")}
@@ -185,7 +218,6 @@ export default function MessagesPage() {
               )}
             </div>
 
-            {/* Recipient */}
             <select
               value={composeRecipient}
               onChange={(e) => setComposeRecipient(e.target.value)}
@@ -206,15 +238,11 @@ export default function MessagesPage() {
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none"
             />
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAllowReply(!allowReply)}
-                className={`relative w-9 h-5 rounded-full transition-colors ${allowReply ? "bg-primary" : "bg-muted-foreground/30"}`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${allowReply ? "translate-x-4" : "translate-x-0.5"}`} />
-              </button>
-              <span className="text-xs text-muted-foreground">Allow replies</span>
-            </div>
+            <Switch
+              checked={allowReply}
+              onChange={setAllowReply}
+              label="Allow replies"
+            />
 
             <button
               onClick={handleSend}

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
-import { UserRole } from "@/lib/types";
 
 function SignupForm() {
   const { signup, signupGoogle } = useAuth();
@@ -17,11 +16,17 @@ function SignupForm() {
   const prefillEmail = params.get("email") ?? "";
   const prefillName = params.get("name") ?? "";
 
-  const [step, setStep] = useState<"info" | "role">(isGoogle && prefillEmail ? "role" : "info");
+  // When arriving from Google OAuth we may skip to the role step,
+  // but only if BOTH name and email are pre-filled.
+  const [step, setStep] = useState<"info" | "role">(
+    isGoogle && prefillEmail && prefillName ? "role" : "info"
+  );
   const [name, setName] = useState(prefillName);
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("student");
+  const [showPassword, setShowPassword] = useState(false);
+  type SignupRole = "student" | "teacher";
+  const [role, setRole] = useState<SignupRole>("student");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -79,7 +84,7 @@ function SignupForm() {
           </div>
           <h1 className="text-white text-2xl font-bold">Create Account</h1>
           <p className="text-green-300 text-sm mt-1">
-            {step === "info" ? "Your information" : "Choose your role"}
+            {step === "info" ? "Enter your details" : "Choose your role"}
           </p>
         </div>
 
@@ -110,14 +115,34 @@ function SignupForm() {
                 </div>
                 <div>
                   <label className="text-green-200 text-xs font-medium block mb-1.5">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:border-green-400 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-green-300 hover:text-white transition-colors p-1"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                          <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 {error && <p className="text-red-300 text-xs bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">{error}</p>}
                 <button type="submit" className="w-full py-3 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold transition-colors">
@@ -145,11 +170,33 @@ function SignupForm() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Role selection */}
+              {/* Show name/email as read-only for Google users */}
+              {isGoogle && (
+                <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 space-y-1">
+                  <p className="text-white text-sm font-medium">{name}</p>
+                  <p className="text-green-300/70 text-xs">{email}</p>
+                </div>
+              )}
+
+              {/* Name edit when coming via Google without prefill */}
+              {isGoogle && !prefillName && (
+                <div>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">Your Name</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    placeholder="Enter your name"
+                    className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Role — only student or teacher */}
               <div>
                 <label className="text-green-200 text-xs font-medium block mb-2">I am a</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["student", "teacher", "admin"] as UserRole[]).map((r) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(["student", "teacher"] as const).map((r) => (
                     <button
                       key={r}
                       type="button"
@@ -166,7 +213,7 @@ function SignupForm() {
                 </div>
               </div>
 
-              {/* Code input */}
+              {/* Class code for students */}
               {role === "student" && (
                 <div>
                   <label className="text-green-200 text-xs font-medium block mb-1.5">Class Code (from your teacher)</label>
@@ -181,15 +228,16 @@ function SignupForm() {
                 </div>
               )}
 
-              {(role === "teacher" || role === "admin") && (
+              {/* Admin code for teachers */}
+              {role === "teacher" && (
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Admin Code</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">Teacher Code (from your admin)</label>
                   <input
                     type="password"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     required
-                    placeholder="Enter admin code"
+                    placeholder="Enter teacher code"
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
                   />
                 </div>

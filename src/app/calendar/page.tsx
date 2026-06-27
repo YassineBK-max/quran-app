@@ -7,10 +7,22 @@ import { useClassroom } from "@/contexts/ClassroomContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { CalendarEvent } from "@/lib/types";
 
-const TYPE_COLORS: Record<CalendarEvent["type"], string> = {
-  session: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  deadline: "bg-red-500/10 text-red-600 border-red-500/20",
-  goal: "bg-primary/10 text-primary border-primary/20",
+const EVENT_TYPES: { type: CalendarEvent["type"]; label: string; colors: string }[] = [
+  { type: "session",  label: "Session",  colors: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  { type: "meeting",  label: "Meeting",  colors: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  { type: "deadline", label: "Deadline", colors: "bg-red-500/10 text-red-600 border-red-500/20" },
+  { type: "goal",     label: "Goal",     colors: "bg-primary/10 text-primary border-primary/20" },
+];
+
+const TYPE_COLORS: Record<CalendarEvent["type"], string> = Object.fromEntries(
+  EVENT_TYPES.map((e) => [e.type, e.colors])
+) as Record<CalendarEvent["type"], string>;
+
+const TYPE_ICONS: Record<CalendarEvent["type"], string> = {
+  session:  "📚",
+  meeting:  "🤝",
+  deadline: "⏰",
+  goal:     "🎯",
 };
 
 export default function CalendarPage() {
@@ -38,7 +50,7 @@ export default function CalendarPage() {
     );
   }
 
-  const isTeacher = user.role === "teacher";
+  const isTeacher = user.role === "teacher" || user.role === "admin";
   const teacherClasses = isTeacher ? getTeacherClasses() : [];
   const activeClassId = selectedClassId || (teacherClasses[0]?.id ?? myClass?.id ?? "");
 
@@ -92,16 +104,18 @@ export default function CalendarPage() {
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
             />
 
-            <div className="flex gap-2">
-              {(["session", "deadline", "goal"] as CalendarEvent["type"][]).map((t) => (
+            {/* Event type selector */}
+            <div className="grid grid-cols-2 gap-2">
+              {EVENT_TYPES.map(({ type: t, label, colors }) => (
                 <button
                   key={t}
                   onClick={() => setType(t)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-medium capitalize border transition-colors ${
-                    type === t ? TYPE_COLORS[t] : "bg-muted text-muted-foreground border-border"
+                  className={`py-2 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                    type === t ? colors : "bg-muted text-muted-foreground border-border"
                   }`}
                 >
-                  {t}
+                  <span>{TYPE_ICONS[t]}</span>
+                  {label}
                 </button>
               ))}
             </div>
@@ -140,16 +154,19 @@ export default function CalendarPage() {
           <div className="space-y-3">
             {sortedDates.map((d) => (
               <div key={d}>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
                   {new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                 </p>
                 <div className="space-y-2">
                   {grouped[d].map((event) => (
                     <div key={event.id} className={`rounded-xl border p-3 flex items-start gap-3 ${TYPE_COLORS[event.type]}`}>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                      <span className="text-lg mt-0.5 shrink-0">{TYPE_ICONS[event.type]}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold">{event.title}</p>
-                          <span className="text-[10px] capitalize opacity-70 border border-current/30 px-1.5 py-0.5 rounded">{event.type}</span>
+                          <span className="text-[10px] capitalize opacity-70 border border-current/30 px-1.5 py-0.5 rounded">
+                            {event.type}
+                          </span>
                         </div>
                         {event.time && <p className="text-xs opacity-70 mt-0.5">{event.time}</p>}
                         {event.description && <p className="text-xs opacity-70 mt-1">{event.description}</p>}
@@ -157,7 +174,7 @@ export default function CalendarPage() {
                       {isTeacher && (
                         <button
                           onClick={() => removeEvent(event.id)}
-                          className="opacity-50 hover:opacity-100 transition-opacity"
+                          className="opacity-50 hover:opacity-100 transition-opacity shrink-0 p-1"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
