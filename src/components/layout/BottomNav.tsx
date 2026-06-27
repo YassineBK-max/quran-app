@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/contexts/MessageContext";
+import { useT } from "@/hooks/useT";
 
 function BookIcon() {
   return (
@@ -74,34 +75,33 @@ function AdminIcon() {
   );
 }
 
-const DEFAULT_TABS = [
-  { href: "/surahs", label: "Quran", icon: <BookIcon /> },
-  { href: "/search", label: "Search", icon: <SearchIcon /> },
-  { href: "/bookmarks", label: "Bookmarks", icon: <BookmarkIcon /> },
-  { href: "/settings", label: "Settings", icon: <SettingsIcon /> },
-];
-
 export function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { unreadCount } = useMessages();
+  const t = useT();
 
-  let tabs = DEFAULT_TABS;
+  let tabs = [
+    { href: "/surahs",    label: t.nav_quran,     icon: <BookIcon /> },
+    { href: "/search",    label: t.nav_search,    icon: <SearchIcon /> },
+    { href: "/bookmarks", label: t.nav_bookmarks, icon: <BookmarkIcon /> },
+    { href: "/settings",  label: t.nav_settings,  icon: <SettingsIcon /> },
+  ];
 
   if (user?.role === "student" || user?.role === "teacher") {
     tabs = [
-      { href: "/surahs", label: "Quran", icon: <BookIcon /> },
-      { href: "/classroom", label: "Classroom", icon: <ClassroomIcon /> },
-      { href: "/calendar", label: "Calendar", icon: <CalendarIcon /> },
-      { href: "/messages", label: "Messages", icon: <MessageIcon badge={unreadCount} /> },
-      { href: "/settings", label: "Settings", icon: <SettingsIcon /> },
+      { href: "/surahs",    label: t.nav_quran,     icon: <BookIcon /> },
+      { href: "/classroom", label: t.nav_classroom, icon: <ClassroomIcon /> },
+      { href: "/calendar",  label: t.nav_calendar,  icon: <CalendarIcon /> },
+      { href: "/messages",  label: t.nav_messages,  icon: <MessageIcon badge={unreadCount} /> },
+      { href: "/settings",  label: t.nav_settings,  icon: <SettingsIcon /> },
     ];
   } else if (user?.role === "admin") {
     tabs = [
-      { href: "/surahs", label: "Quran", icon: <BookIcon /> },
-      { href: "/admin", label: "Admin", icon: <AdminIcon /> },
-      { href: "/messages", label: "Messages", icon: <MessageIcon badge={unreadCount} /> },
-      { href: "/settings", label: "Settings", icon: <SettingsIcon /> },
+      { href: "/surahs",   label: t.nav_quran,    icon: <BookIcon /> },
+      { href: "/admin",    label: t.nav_admin,    icon: <AdminIcon /> },
+      { href: "/messages", label: t.nav_messages, icon: <MessageIcon badge={unreadCount} /> },
+      { href: "/settings", label: t.nav_settings, icon: <SettingsIcon /> },
     ];
   }
 

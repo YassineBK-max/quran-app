@@ -8,6 +8,7 @@ import { fetchSurahTranslation } from "@/lib/api";
 import { DisplayModeToggle } from "./DisplayModeToggle";
 import { AyahLineDisplay } from "./AyahLineDisplay";
 import { MushafDisplay } from "./MushafDisplay";
+import { useT } from "@/hooks/useT";
 
 interface SurahReaderProps {
   surah: Surah;
@@ -15,6 +16,7 @@ interface SurahReaderProps {
 
 export function SurahReader({ surah }: SurahReaderProps) {
   const { settings } = useSettings();
+  const t = useT();
   const { currentAyah, isPlaying, playAyah, pause, resume, stop } = useAudio();
   const { getProgress, getMemorizedCount } = useMemorization();
   const [translations, setTranslations] = useState<Surah | null>(null);
@@ -67,15 +69,13 @@ export function SurahReader({ surah }: SurahReaderProps) {
 
   return (
     <div className="space-y-4">
-      {/* Surah header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-arabic text-2xl" style={{ fontFamily: '"Amiri", serif' }}>{surah.name}</h2>
-            {/* Play whole surah button */}
             <button
               onClick={handlePlaySurah}
-              title={isThisSurahPlaying ? "Pause surah" : "Play surah"}
+              title={isThisSurahPlaying ? t.surah_pause : t.surah_play}
               className={`p-1.5 rounded-lg transition-colors ${
                 isThisSurahPlaying
                   ? "bg-primary/10 text-primary"
@@ -95,11 +95,10 @@ export function SurahReader({ surah }: SurahReaderProps) {
                 </svg>
               )}
             </button>
-            {/* Stop button — only if this surah is loaded */}
             {isThisSurahLoaded && (
               <button
                 onClick={handleStopSurah}
-                title="Stop"
+                title={t.surah_stop}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -109,14 +108,13 @@ export function SurahReader({ surah }: SurahReaderProps) {
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {surah.englishNameTranslation} · {surah.numberOfAyahs} ayahs · {surah.revelationType}
+            {surah.englishNameTranslation} · {surah.numberOfAyahs} {t.surah_ayahs} · {surah.revelationType === "Meccan" ? t.surahs_meccan : t.surahs_medinan}
           </p>
 
-          {/* Memorization progress */}
           {memorizedCount > 0 && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-muted-foreground">Memorized</span>
+                <span className="text-[10px] text-muted-foreground">{t.surah_memorized}</span>
                 <span className="text-[10px] font-semibold text-primary">
                   {memorizedCount} / {surah.numberOfAyahs} ({progress}%)
                 </span>
@@ -133,7 +131,6 @@ export function SurahReader({ surah }: SurahReaderProps) {
         <DisplayModeToggle />
       </div>
 
-      {/* Bismillah */}
       {surah.number !== 1 && surah.number !== 9 && (
         <div className="text-center py-3">
           <p className="text-muted-foreground" style={{ fontFamily: '"Amiri", serif', fontSize: "1.2rem" }}>

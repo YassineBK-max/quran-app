@@ -1,8 +1,10 @@
 "use client";
 import { useAwards } from "@/contexts/AwardContext";
+import { useT } from "@/hooks/useT";
 
 export function AwardModal() {
   const { pendingAward, dismissAward } = useAwards();
+  const t = useT();
 
   if (!pendingAward) return null;
 
@@ -38,7 +40,7 @@ export function AwardModal() {
           onClick={dismissAward}
           className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
         >
-          {isComplete ? "Alhamdulillah!" : "Keep going!"}
+          {isComplete ? t.award_alhamdulillah : t.award_keep_going}
         </button>
       </div>
     </div>

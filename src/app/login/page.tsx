@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/hooks/useT";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const t = useT();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,7 +40,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-3 text-yellow-300">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
@@ -46,14 +47,14 @@ export default function LoginPage() {
               <polygon points="17,2 17.9,4.8 21,5 18.7,7 19.4,10 17,8.5 14.6,10 15.3,7 13,5 16.1,4.8" />
             </svg>
           </div>
-          <h1 className="text-white text-2xl font-bold">Sign In</h1>
-          <p className="text-green-300 text-sm mt-1">Welcome back to Al-Quran</p>
+          <h1 className="text-white text-2xl font-bold">{t.login_title}</h1>
+          <p className="text-green-300 text-sm mt-1">{t.login_subtitle}</p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 space-y-4 border border-white/20">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-green-200 text-xs font-medium block mb-1.5">Email</label>
+              <label className="text-green-200 text-xs font-medium block mb-1.5">{t.login_email}</label>
               <input
                 type="email"
                 value={email}
@@ -65,7 +66,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="text-green-200 text-xs font-medium block mb-1.5">Password</label>
+              <label className="text-green-200 text-xs font-medium block mb-1.5">{t.login_password}</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -80,7 +81,6 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-green-300 hover:text-white transition-colors p-1"
                   tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -108,7 +108,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold transition-colors disabled:opacity-50"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? t.login_signing_in : t.login_title}
             </button>
           </form>
 
@@ -117,7 +117,7 @@ export default function LoginPage() {
               <div className="w-full border-t border-white/20" />
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 text-green-300 text-xs bg-transparent">or</span>
+              <span className="px-3 text-green-300 text-xs bg-transparent">{t.or}</span>
             </div>
           </div>
 
@@ -136,13 +136,13 @@ export default function LoginPage() {
                 <path fill="#4285F4" d="M23.5 12c0-.79-.07-1.56-.2-2.31H12v4.64h6.46A5.54 5.54 0 0 1 17.23 18l2.77 2.16A11.95 11.95 0 0 0 23.5 12z"/>
               </svg>
             )}
-            Continue with Google
+            {t.google_signin}
           </button>
         </div>
 
         <p className="text-center text-green-300 text-sm mt-5">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-white font-semibold underline">Sign up</Link>
+          {t.no_account}{" "}
+          <Link href="/signup" className="text-white font-semibold underline">{t.signup}</Link>
         </p>
       </div>
     </div>

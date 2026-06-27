@@ -4,8 +4,10 @@ import { SurahInfo } from "@/lib/types";
 import { fetchAllSurahs } from "@/lib/api";
 import { SurahList } from "@/components/surah/SurahList";
 import { Header } from "@/components/layout/Header";
+import { useT } from "@/hooks/useT";
 
 export default function SurahsPage() {
+  const t = useT();
   const [surahs, setSurahs] = useState<SurahInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,7 +21,7 @@ export default function SurahsPage() {
 
   return (
     <>
-      <Header title="Quran" />
+      <Header title={t.nav_quran} />
       <main className="max-w-3xl mx-auto px-4 py-4">
         {loading && (
           <div className="flex justify-center py-20">
@@ -28,8 +30,8 @@ export default function SurahsPage() {
         )}
         {error && (
           <div className="text-center py-20">
-            <p className="text-red-500 mb-2">Failed to load surahs</p>
-            <button onClick={() => window.location.reload()} className="text-primary text-sm underline">Retry</button>
+            <p className="text-red-500 mb-2">{t.surahs_error}</p>
+            <button onClick={() => window.location.reload()} className="text-primary text-sm underline">{t.retry}</button>
           </div>
         )}
         {!loading && !error && <SurahList surahs={surahs} />}

@@ -45,6 +45,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings.theme]);
 
+  // Sync RTL direction and lang attribute when language changes
+  useEffect(() => {
+    const root = document.documentElement;
+    const isAr = settings.language === "ar";
+    root.dir = isAr ? "rtl" : "ltr";
+    root.lang = isAr ? "ar" : "en";
+  }, [settings.language]);
+
   return (
     <SettingsContext.Provider value={{ settings, updateSettings }}>
       {children}

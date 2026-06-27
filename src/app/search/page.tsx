@@ -5,8 +5,10 @@ import { Header } from "@/components/layout/Header";
 import { useDebounce } from "@/hooks/useDebounce";
 import { searchAyahs } from "@/lib/api";
 import { SearchMatch } from "@/lib/types";
+import { useT } from "@/hooks/useT";
 
 export default function SearchPage() {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchMatch[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function SearchPage() {
 
   return (
     <>
-      <Header title="Search" />
+      <Header title={t.search_title} />
       <main className="max-w-3xl mx-auto px-4 py-4">
         <div className="relative mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -48,7 +50,7 @@ export default function SearchPage() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search in Arabic or English..."
+            placeholder={t.search_placeholder}
             className="w-full pl-10 pr-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
           />
           {query && (
@@ -70,12 +72,12 @@ export default function SearchPage() {
         )}
 
         {!loading && searched && results.length === 0 && (
-          <p className="text-center py-10 text-muted-foreground">No results found</p>
+          <p className="text-center py-10 text-muted-foreground">{t.search_no_results}</p>
         )}
 
         {!loading && results.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground mb-3">{results.length} result{results.length !== 1 ? "s" : ""} found</p>
+            <p className="text-xs text-muted-foreground mb-3">{results.length} {t.search_results_suffix}</p>
             {results.slice(0, 50).map((match, i) => (
               <Link
                 key={`${match.number}-${i}`}
@@ -89,7 +91,7 @@ export default function SearchPage() {
                     </span>
                     <span className="text-sm font-semibold">{match.surah.englishName}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">Ayah {match.numberInSurah}</span>
+                  <span className="text-xs text-muted-foreground">{t.search_ayah} {match.numberInSurah}</span>
                 </div>
                 <p className={`text-sm leading-relaxed ${match.edition.direction === "rtl" ? "text-right font-arabic text-base" : ""}`}>
                   {match.text}
@@ -104,8 +106,8 @@ export default function SearchPage() {
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50">
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
             </svg>
-            <p>Search the Quran</p>
-            <p className="text-sm mt-1">Type in Arabic or English to search ayahs</p>
+            <p>{t.search_empty_title}</p>
+            <p className="text-sm mt-1">{t.search_empty_subtitle}</p>
           </div>
         )}
       </main>

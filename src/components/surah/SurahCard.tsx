@@ -3,13 +3,17 @@ import Link from "next/link";
 import { SurahInfo } from "@/lib/types";
 import { usePinnedSurahs } from "@/contexts/PinnedSurahsContext";
 import { useMemorization } from "@/contexts/MemorizationContext";
+import { useT } from "@/hooks/useT";
 
 export function SurahCard({ surah }: { surah: SurahInfo }) {
   const { isPinned, togglePin } = usePinnedSurahs();
   const { getProgress, getMemorizedCount } = useMemorization();
+  const t = useT();
   const pinned = isPinned(surah.number);
   const memorizedCount = getMemorizedCount(surah.number);
   const progress = getProgress(surah.number, surah.numberOfAyahs);
+
+  const revelationLabel = surah.revelationType === "Meccan" ? t.surahs_meccan : t.surahs_medinan;
 
   return (
     <div className="rounded-xl bg-card border border-border hover:border-primary/30 transition-colors overflow-hidden">
@@ -25,14 +29,14 @@ export function SurahCard({ surah }: { surah: SurahInfo }) {
             </div>
             <div className="text-right shrink-0 ml-3">
               <p className="text-lg leading-tight" style={{ fontFamily: '"Amiri", serif' }}>{surah.name}</p>
-              <p className="text-[10px] text-muted-foreground">{surah.numberOfAyahs} ayahs · {surah.revelationType}</p>
+              <p className="text-[10px] text-muted-foreground">{surah.numberOfAyahs} {t.surahs_ayahs} · {revelationLabel}</p>
             </div>
           </div>
         </Link>
         <button
           onClick={(e) => { e.preventDefault(); togglePin(surah.number); }}
           className={`p-1.5 rounded-lg transition-colors shrink-0 ${pinned ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
-          title={pinned ? "Unpin surah" : "Pin surah"}
+          title={pinned ? t.surahs_unpin : t.surahs_pin}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -40,11 +44,10 @@ export function SurahCard({ surah }: { surah: SurahInfo }) {
         </button>
       </div>
 
-      {/* Memorization progress bar — only shown when started */}
       {memorizedCount > 0 && (
         <div className="px-3 pb-2.5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] text-muted-foreground">Memorized</span>
+            <span className="text-[9px] text-muted-foreground">{t.surahs_memorized}</span>
             <span className="text-[9px] font-semibold text-primary">
               {memorizedCount}/{surah.numberOfAyahs} · {progress}%
             </span>

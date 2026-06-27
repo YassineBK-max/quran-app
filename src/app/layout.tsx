@@ -25,7 +25,7 @@ export default function RootLayout({
         {/* Apply dark class synchronously before hydration to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var s=JSON.parse(localStorage.getItem('quran-app-settings')||'{}');var t=s.theme||'system';if(t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}`,
+            __html: `try{var s=JSON.parse(localStorage.getItem('quran-app-settings')||'{}');var t=s.theme||'system';if(t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}if(s.language==='ar'){document.documentElement.dir='rtl';document.documentElement.lang='ar'}}catch(e){}`,
           }}
         />
       </head>

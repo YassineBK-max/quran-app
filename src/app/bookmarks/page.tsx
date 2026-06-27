@@ -5,8 +5,10 @@ import { useBookmarks } from "@/contexts/BookmarkContext";
 import { BOOKMARK_COLORS } from "@/lib/constants";
 import { useState } from "react";
 import { BookmarkColor } from "@/lib/types";
+import { useT } from "@/hooks/useT";
 
 export default function BookmarksPage() {
+  const t = useT();
   const { bookmarks, removeBookmark } = useBookmarks();
   const [filter, setFilter] = useState<BookmarkColor | "all">("all");
 
@@ -15,7 +17,7 @@ export default function BookmarksPage() {
 
   return (
     <>
-      <Header title="Bookmarks" />
+      <Header title={t.bookmarks_title} />
       <main className="max-w-3xl mx-auto px-4 py-4">
         <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
           <button
@@ -24,7 +26,7 @@ export default function BookmarksPage() {
               filter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
-            All ({sorted.length})
+            {t.bookmarks_all} ({sorted.length})
           </button>
           {BOOKMARK_COLORS.map(({ color, label, hex }) => {
             const count = sorted.filter((b) => b.color === color).length;
@@ -48,8 +50,8 @@ export default function BookmarksPage() {
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50">
               <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
             </svg>
-            <p>No bookmarks yet</p>
-            <p className="text-sm mt-1">Tap the bookmark icon on any ayah to save it</p>
+            <p>{t.bookmarks_empty_title}</p>
+            <p className="text-sm mt-1">{t.bookmarks_empty_subtitle}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -60,7 +62,7 @@ export default function BookmarksPage() {
                   <div className="w-3 h-full min-h-[2rem] rounded-full shrink-0" style={{ backgroundColor: colorHex }} />
                   <Link href={`/surah/${bookmark.surahNumber}?ayah=${bookmark.numberInSurah}`} className="flex-1 min-w-0">
                     <p className="text-sm font-semibold">{bookmark.surahName}</p>
-                    <p className="text-xs text-muted-foreground">Surah {bookmark.surahNumber}, Ayah {bookmark.numberInSurah}</p>
+                    <p className="text-xs text-muted-foreground">{t.bookmarks_surah} {bookmark.surahNumber}, {t.bookmarks_ayah} {bookmark.numberInSurah}</p>
                   </Link>
                   <button
                     onClick={() => removeBookmark(bookmark.ayahNumber)}

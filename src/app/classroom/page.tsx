@@ -5,11 +5,13 @@ import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useMemorization } from "@/contexts/MemorizationContext";
+import { useT } from "@/hooks/useT";
 
 export default function ClassroomPage() {
   const { user, users } = useAuth();
   const { myClass, createClass, joinClass, getTeacherClasses, addAssignment, removeAssignment } = useClassroom();
   const { setStudentId } = useMemorization();
+  const t = useT();
   const router = useRouter();
 
   const [newClassName, setNewClassName] = useState("");
@@ -24,10 +26,10 @@ export default function ClassroomPage() {
   if (!user) {
     return (
       <>
-        <Header title="Classroom" />
+        <Header title={t.classroom_title} />
         <main className="max-w-3xl mx-auto px-4 py-8 text-center">
-          <p className="text-muted-foreground mb-4">Sign in to access the classroom.</p>
-          <button onClick={() => router.push("/login")} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl">Sign In</button>
+          <p className="text-muted-foreground mb-4">{t.classroom_signin_required}</p>
+          <button onClick={() => router.push("/login")} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl">{t.signin}</button>
         </main>
       </>
     );
@@ -37,21 +39,19 @@ export default function ClassroomPage() {
   if (user.role === "student") {
     return (
       <>
-        <Header title="Classroom" />
+        <Header title={t.classroom_title} />
         <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
           {myClass ? (
             <>
-              {/* Class info */}
               <div className="bg-card border border-border rounded-xl p-4">
-                <p className="text-xs text-muted-foreground">Your Class</p>
+                <p className="text-xs text-muted-foreground">{t.classroom_your_class}</p>
                 <h2 className="text-xl font-bold mt-0.5">{myClass.name}</h2>
-                <p className="text-sm text-muted-foreground">Teacher: {myClass.teacherName}</p>
-                <p className="text-xs text-muted-foreground mt-1">Code: <span className="font-mono font-bold tracking-widest text-primary">{myClass.code}</span></p>
+                <p className="text-sm text-muted-foreground">{t.classroom_teacher} {myClass.teacherName}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t.classroom_code} <span className="font-mono font-bold tracking-widest text-primary">{myClass.code}</span></p>
               </div>
 
-              {/* Classmates */}
               <div className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-sm font-semibold mb-3">Classmates ({myClass.studentIds.length})</h3>
+                <h3 className="text-sm font-semibold mb-3">{t.classroom_classmates} ({myClass.studentIds.length})</h3>
                 <div className="space-y-2">
                   {myClass.studentIds.map((sid) => {
                     const student = users.find((u) => u.id === sid);
@@ -60,26 +60,25 @@ export default function ClassroomPage() {
                         <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
                           {(student?.name ?? "?")[0].toUpperCase()}
                         </div>
-                        <span>{student?.name ?? "Unknown"}</span>
-                        {sid === user.id && <span className="text-xs text-muted-foreground">(you)</span>}
+                        <span>{student?.name ?? t.unknown}</span>
+                        {sid === user.id && <span className="text-xs text-muted-foreground">{t.you}</span>}
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Assignments */}
               <div className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-sm font-semibold mb-3">Assignments ({myClass.assignments.length})</h3>
+                <h3 className="text-sm font-semibold mb-3">{t.classroom_assignments} ({myClass.assignments.length})</h3>
                 {myClass.assignments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No assignments yet.</p>
+                  <p className="text-sm text-muted-foreground">{t.classroom_no_assignments}</p>
                 ) : (
                   <div className="space-y-2">
                     {myClass.assignments.map((a) => (
                       <div key={a.id} className="border border-border rounded-lg p-3">
                         <p className="text-sm font-medium">{a.title}</p>
                         {a.description && <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>}
-                        {a.dueDate && <p className="text-xs text-primary mt-1">Due: {a.dueDate}</p>}
+                        {a.dueDate && <p className="text-xs text-primary mt-1">{t.due} {a.dueDate}</p>}
                       </div>
                     ))}
                   </div>
@@ -88,8 +87,8 @@ export default function ClassroomPage() {
             </>
           ) : (
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-              <h2 className="text-sm font-semibold">Join a Class</h2>
-              <p className="text-xs text-muted-foreground">Enter the 6-character code from your teacher.</p>
+              <h2 className="text-sm font-semibold">{t.classroom_join_class}</h2>
+              <p className="text-xs text-muted-foreground">{t.classroom_join_hint}</p>
               <input
                 value={classCode}
                 onChange={(e) => setClassCode(e.target.value.toUpperCase())}
@@ -104,11 +103,11 @@ export default function ClassroomPage() {
                   setError(""); setSuccess("");
                   const err = joinClass(classCode);
                   if (err) setError(err);
-                  else setSuccess("Joined successfully!");
+                  else setSuccess(t.classroom_join_success);
                 }}
                 className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold"
               >
-                Join Class
+                {t.classroom_join_btn}
               </button>
             </div>
           )}
@@ -123,16 +122,15 @@ export default function ClassroomPage() {
 
   return (
     <>
-      <Header title="Classroom" />
+      <Header title={t.classroom_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-        {/* Create class */}
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold">Create New Class</h2>
+          <h2 className="text-sm font-semibold">{t.classroom_create_class}</h2>
           <div className="flex gap-2">
             <input
               value={newClassName}
               onChange={(e) => setNewClassName(e.target.value)}
-              placeholder="Class name"
+              placeholder={t.classroom_class_name}
               className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
             />
             <button
@@ -144,17 +142,16 @@ export default function ClassroomPage() {
               }}
               className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium"
             >
-              Create
+              {t.classroom_create_btn}
             </button>
           </div>
           {success && <p className="text-primary text-xs">{success}</p>}
         </div>
 
         {teacherClasses.length === 0 ? (
-          <p className="text-center text-muted-foreground text-sm py-8">No classes yet. Create one above.</p>
+          <p className="text-center text-muted-foreground text-sm py-8">{t.classroom_no_classes}</p>
         ) : (
           <>
-            {/* Class selector */}
             {teacherClasses.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {teacherClasses.map((c) => (
@@ -175,25 +172,23 @@ export default function ClassroomPage() {
 
             {activeClass && (
               <>
-                {/* Class info */}
                 <div className="bg-card border border-border rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="font-bold text-lg">{activeClass.name}</h2>
-                      <p className="text-xs text-muted-foreground">{activeClass.studentIds.length} student(s)</p>
+                      <p className="text-xs text-muted-foreground">{activeClass.studentIds.length} {t.admin_students_label}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Join Code</p>
+                      <p className="text-xs text-muted-foreground">{t.classroom_join_code}</p>
                       <p className="font-mono font-bold text-xl tracking-widest text-primary">{activeClass.code}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Students + progress */}
                 <div className="bg-card border border-border rounded-xl p-4">
-                  <h3 className="text-sm font-semibold mb-3">Students</h3>
+                  <h3 className="text-sm font-semibold mb-3">{t.classroom_students}</h3>
                   {activeClass.studentIds.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No students yet. Share the code above.</p>
+                    <p className="text-sm text-muted-foreground">{t.classroom_no_students}</p>
                   ) : (
                     <div className="space-y-2">
                       {activeClass.studentIds.map((sid) => {
@@ -211,8 +206,8 @@ export default function ClassroomPage() {
                               {(student?.name ?? "?")[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium">{student?.name ?? "Unknown"}</p>
-                              <p className="text-xs text-muted-foreground">View &amp; mark progress →</p>
+                              <p className="text-sm font-medium">{student?.name ?? t.unknown}</p>
+                              <p className="text-xs text-muted-foreground">{t.classroom_view_progress}</p>
                             </div>
                           </button>
                         );
@@ -221,20 +216,19 @@ export default function ClassroomPage() {
                   )}
                 </div>
 
-                {/* Assignments */}
                 <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                  <h3 className="text-sm font-semibold">Assignments</h3>
+                  <h3 className="text-sm font-semibold">{t.classroom_assignments}</h3>
                   <div className="space-y-2">
                     <input
                       value={newAssignmentTitle}
                       onChange={(e) => setNewAssignmentTitle(e.target.value)}
-                      placeholder="Assignment title"
+                      placeholder={t.classroom_assignment_title}
                       className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-sm"
                     />
                     <input
                       value={newAssignmentDesc}
                       onChange={(e) => setNewAssignmentDesc(e.target.value)}
-                      placeholder="Description (optional)"
+                      placeholder={t.classroom_assignment_desc}
                       className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-sm"
                     />
                     <div className="flex gap-2">
@@ -252,7 +246,7 @@ export default function ClassroomPage() {
                         }}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium"
                       >
-                        Add
+                        {t.add}
                       </button>
                     </div>
                   </div>
@@ -261,7 +255,7 @@ export default function ClassroomPage() {
                       <div className="flex-1">
                         <p className="text-sm font-medium">{a.title}</p>
                         {a.description && <p className="text-xs text-muted-foreground">{a.description}</p>}
-                        {a.dueDate && <p className="text-xs text-primary">Due: {a.dueDate}</p>}
+                        {a.dueDate && <p className="text-xs text-primary">{t.due} {a.dueDate}</p>}
                       </div>
                       <button
                         onClick={() => removeAssignment(activeClass.id, a.id)}

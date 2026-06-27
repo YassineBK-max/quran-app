@@ -2,9 +2,11 @@
 import { SurahInfo } from "@/lib/types";
 import { usePinnedSurahs } from "@/contexts/PinnedSurahsContext";
 import { SurahCard } from "./SurahCard";
+import { useT } from "@/hooks/useT";
 
 export function SurahList({ surahs }: { surahs: SurahInfo[] }) {
   const { pinnedSurahs } = usePinnedSurahs();
+  const t = useT();
 
   const pinned = surahs.filter((s) => pinnedSurahs.includes(s.number));
   const rest = surahs.filter((s) => !pinnedSurahs.includes(s.number));
@@ -14,13 +16,13 @@ export function SurahList({ surahs }: { surahs: SurahInfo[] }) {
       {pinned.length > 0 && (
         <>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 pt-2">
-            Pinned
+            {t.surahs_pinned}
           </h2>
           {pinned.map((s) => (
             <SurahCard key={s.number} surah={s} />
           ))}
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 pt-4">
-            All Surahs
+            {t.surahs_all}
           </h2>
         </>
       )}

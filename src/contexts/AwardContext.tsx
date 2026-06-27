@@ -3,8 +3,10 @@ import { createContext, useContext, ReactNode, useCallback, useEffect, useState 
 import { Award } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "./AuthContext";
+import { useSettings } from "./SettingsContext";
 import { useMemorization } from "./MemorizationContext";
 import { getHizbNumber, getHizbName } from "@/data/hizb";
+import { translations } from "@/lib/i18n";
 
 interface AwardContextType {
   pendingAward: Award | null;
@@ -20,6 +22,7 @@ const AwardCtx = createContext<AwardContextType>({
 
 export function AwardProvider({ children, surahTotals }: { children: ReactNode; surahTotals: Record<number, number> }) {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const { getAllMemorized, getMemorizedCount } = useMemorization();
   const [earnedAwardIds, setEarnedAwardIds] = useLocalStorage<string[]>(
     `quran-awards-${user?.id ?? "guest"}`,
@@ -39,27 +42,25 @@ export function AwardProvider({ children, surahTotals }: { children: ReactNode; 
   );
 
   useEffect(() => {
-    if (user?.role === "student") return; // only award the one marking (teacher/guest)
+    if (user?.role === "student") return;
 
+    const t = translations[settings.language];
     const all = getAllMemorized();
     const total = all.length;
 
-    // First page (~15 ayahs)
     if (total >= 15) {
-      grantAward("first_page", "Congrats! You finished your first page!", "first_page");
+      grantAward("first_page", t.award_first_page, "first_page");
     }
 
-    // First surah
     for (const [surahNumStr, count] of Object.entries(surahTotals)) {
       const surahNum = Number(surahNumStr);
       const memorized = getMemorizedCount(surahNum);
       if (memorized >= count && count > 0) {
-        grantAward(`first_surah_${surahNum}`, `Congrats! You finished your first surah!`, "first_surah");
-        break; // only once
+        grantAward(`first_surah_${surahNum}`, t.award_first_surah, "first_surah");
+        break;
       }
     }
 
-    // Hizb milestones (approximate: each hizb ≈ 104 ayahs)
     const hizbMemo: Record<number, number> = {};
     all.forEach((a) => {
       if (!a.hq) return;
@@ -70,18 +71,17 @@ export function AwardProvider({ children, surahTotals }: { children: ReactNode; 
     for (const [hizbStr, count] of Object.entries(hizbMemo)) {
       const h = Number(hizbStr);
       const name = getHizbName(h);
-      if (count >= 26) grantAward(`hizb_q_${h}`, `Excellent! You memorized a quarter of ${name}! Keep going!`, "hizb_quarter");
-      if (count >= 52) grantAward(`hizb_h_${h}`, `Excellent! You memorized half of ${name}! Keep going!`, "hizb_half");
-      if (count >= 78) grantAward(`hizb_3q_${h}`, `Excellent! You memorized three quarters of ${name}! Keep going!`, "hizb_three_quarters");
-      if (count >= 104) grantAward(`hizb_c_${h}`, `Excellent! You finished ${name}!`, "hizb_complete");
+      if (count >= 26) grantAward(`hizb_q_${h}`, `${t.award_hizb_quarter_prefix} ${name}${t.award_hizb_quarter_suffix}`, "hizb_quarter");
+      if (count >= 52) grantAward(`hizb_h_${h}`, `${t.award_hizb_half_prefix} ${name}${t.award_hizb_half_suffix}`, "hizb_half");
+      if (count >= 78) grantAward(`hizb_3q_${h}`, `${t.award_hizb_three_quarters_prefix} ${name}${t.award_hizb_three_quarters_suffix}`, "hizb_three_quarters");
+      if (count >= 104) grantAward(`hizb_c_${h}`, `${t.award_hizb_complete_prefix} ${name}${t.award_hizb_complete_suffix}`, "hizb_complete");
     }
 
-    // Full Quran (6236 ayahs)
     if (total >= 6236) {
-      grantAward("quran_complete", "Congratulations! You finished all Quran ma sha' Allah! There's nothing left for you to learn.", "quran_complete");
+      grantAward("quran_complete", t.award_quran_complete, "quran_complete");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getAllMemorized, getMemorizedCount]);
+  }, [getAllMemorized, getMemorizedCount, settings.language]);
 
   return (
     <AwardCtx.Provider value={{ pendingAward, dismissAward, earnedAwardIds }}>

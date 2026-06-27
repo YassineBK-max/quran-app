@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/contexts/MessageContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { Message } from "@/lib/types";
+import { useT } from "@/hooks/useT";
 
 type Tab = "inbox" | "sent" | "compose" | "thread";
 
@@ -14,6 +15,7 @@ export default function MessagesPage() {
   const { user, users } = useAuth();
   const { getInbox, getSent, sendMessage, markRead, getThread } = useMessages();
   const { myClass, getTeacherClasses } = useClassroom();
+  const t = useT();
   const router = useRouter();
 
   const [view, setView] = useState<Tab>("inbox");
@@ -28,10 +30,10 @@ export default function MessagesPage() {
   if (!user) {
     return (
       <>
-        <Header title="Messages" />
+        <Header title={t.messages_title} />
         <main className="max-w-3xl mx-auto px-4 py-8 text-center">
-          <p className="text-muted-foreground mb-4">Sign in to access messages.</p>
-          <button onClick={() => router.push("/login")} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl">Sign In</button>
+          <p className="text-muted-foreground mb-4">{t.signin_required}</p>
+          <button onClick={() => router.push("/login")} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl">{t.signin}</button>
         </main>
       </>
     );
@@ -62,7 +64,14 @@ export default function MessagesPage() {
   };
 
   const thread = selectedMessage ? getThread(selectedMessage.id) : [];
-  const recipientUsers = users.filter((u) => u.id !== user.id);
+
+  // Only admins can message other admins
+  const recipientUsers = users.filter((u) => {
+    if (u.id === user.id) return false;
+    if (u.role === "admin" && user.role !== "admin") return false;
+    return true;
+  });
+
   const recipientClasses = [...teacherClasses, ...(myClassObj ? [myClassObj] : [])];
   const unreadInbox = inbox.filter((m) => !m.readBy.includes(user.id)).length;
 
@@ -71,7 +80,7 @@ export default function MessagesPage() {
     const label = from === "inbox" ? msg.senderName : (
       msg.recipientType === "class"
         ? (recipientClasses.find((c) => c.id === msg.recipientId)?.name ?? "Class")
-        : (users.find((u) => u.id === msg.recipientId)?.name ?? "User")
+        : (users.find((u) => u.id === msg.recipientId)?.name ?? t.unknown)
     );
     return (
       <button
@@ -83,11 +92,11 @@ export default function MessagesPage() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5">
             <p className={`text-sm ${unread && from === "inbox" ? "font-bold" : "font-medium"}`}>
-              {from === "sent" && <span className="text-muted-foreground text-xs font-normal mr-1">To:</span>}
+              {from === "sent" && <span className="text-muted-foreground text-xs font-normal mr-1">{t.messages_to}</span>}
               {label}
             </p>
             {msg.recipientType === "class" && (
-              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">class</span>
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{t.class_badge}</span>
             )}
           </div>
           <p className="text-[10px] text-muted-foreground shrink-0">
@@ -101,7 +110,7 @@ export default function MessagesPage() {
 
   return (
     <>
-      <Header title="Messages" />
+      <Header title={t.messages_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* Tab bar */}
         <div className="flex gap-2">
@@ -109,7 +118,7 @@ export default function MessagesPage() {
             onClick={() => setView("inbox")}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === "inbox" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
           >
-            Inbox{unreadInbox > 0 && (
+            {t.messages_inbox}{unreadInbox > 0 && (
               <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{unreadInbox}</span>
             )}
           </button>
@@ -117,13 +126,13 @@ export default function MessagesPage() {
             onClick={() => setView("sent")}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === "sent" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
           >
-            Sent
+            {t.messages_sent}
           </button>
           <button
             onClick={() => setView("compose")}
             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === "compose" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
           >
-            + New
+            {t.messages_new}
           </button>
         </div>
 
@@ -131,7 +140,7 @@ export default function MessagesPage() {
         {view === "inbox" && (
           <div className="space-y-2">
             {inbox.length === 0 ? (
-              <p className="text-center text-muted-foreground text-sm py-12">No messages yet.</p>
+              <p className="text-center text-muted-foreground text-sm py-12">{t.messages_empty_inbox}</p>
             ) : (
               inbox.map((msg) => <MessageRow key={msg.id} msg={msg} from="inbox" />)
             )}
@@ -142,7 +151,7 @@ export default function MessagesPage() {
         {view === "sent" && (
           <div className="space-y-2">
             {sent.length === 0 ? (
-              <p className="text-center text-muted-foreground text-sm py-12">No sent messages.</p>
+              <p className="text-center text-muted-foreground text-sm py-12">{t.messages_empty_sent}</p>
             ) : (
               sent.map((msg) => <MessageRow key={msg.id} msg={msg} from="sent" />)
             )}
@@ -157,7 +166,7 @@ export default function MessagesPage() {
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-              Back to {prevTab}
+              {prevTab === "inbox" ? t.messages_back_inbox : t.messages_back_sent}
             </button>
             <div className="space-y-2">
               {thread.sort((a, b) => a.createdAt - b.createdAt).map((msg) => {
@@ -180,7 +189,7 @@ export default function MessagesPage() {
                 <input
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Type a reply..."
+                  placeholder={t.messages_reply_placeholder}
                   onKeyDown={(e) => e.key === "Enter" && handleReply()}
                   className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
                 />
@@ -189,7 +198,7 @@ export default function MessagesPage() {
                   disabled={!replyContent.trim()}
                   className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40"
                 >
-                  Send
+                  {t.send}
                 </button>
               </div>
             )}
@@ -199,21 +208,21 @@ export default function MessagesPage() {
         {/* Compose */}
         {view === "compose" && (
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <h2 className="text-sm font-semibold">New Message</h2>
+            <h2 className="text-sm font-semibold">{t.messages_new_message}</h2>
 
             <div className="flex gap-2">
               <button
                 onClick={() => setComposeType("user")}
                 className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${composeType === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
               >
-                Person
+                {t.messages_person}
               </button>
               {recipientClasses.length > 0 && (
                 <button
                   onClick={() => setComposeType("class")}
                   className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${composeType === "class" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
                 >
-                  Class
+                  {t.messages_class}
                 </button>
               )}
             </div>
@@ -223,7 +232,7 @@ export default function MessagesPage() {
               onChange={(e) => setComposeRecipient(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
             >
-              <option value="">Select recipient...</option>
+              <option value="">{t.messages_select_recipient}</option>
               {composeType === "user"
                 ? recipientUsers.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)
                 : recipientClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
@@ -233,7 +242,7 @@ export default function MessagesPage() {
             <textarea
               value={composeContent}
               onChange={(e) => setComposeContent(e.target.value)}
-              placeholder="Write your message..."
+              placeholder={t.messages_write}
               rows={4}
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none"
             />
@@ -241,7 +250,7 @@ export default function MessagesPage() {
             <Switch
               checked={allowReply}
               onChange={setAllowReply}
-              label="Allow replies"
+              label={t.messages_allow_replies}
             />
 
             <button
@@ -249,7 +258,7 @@ export default function MessagesPage() {
               disabled={!composeContent.trim() || !composeRecipient}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40"
             >
-              Send Message
+              {t.messages_send_btn}
             </button>
           </div>
         )}

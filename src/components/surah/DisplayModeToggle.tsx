@@ -1,9 +1,11 @@
 "use client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { DisplayMode } from "@/lib/types";
+import { useT } from "@/hooks/useT";
 
 export function DisplayModeToggle() {
   const { settings, updateSettings } = useSettings();
+  const t = useT();
 
   const setMode = (mode: DisplayMode) => updateSettings({ displayMode: mode });
 
@@ -15,7 +17,7 @@ export function DisplayModeToggle() {
           settings.displayMode === "mushaf" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
         }`}
       >
-        Mushaf
+        {t.surah_mushaf}
       </button>
       <button
         onClick={() => setMode("ayah-per-line")}
@@ -23,7 +25,7 @@ export function DisplayModeToggle() {
           settings.displayMode === "ayah-per-line" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
         }`}
       >
-        Line by Line
+        {t.surah_line}
       </button>
     </div>
   );

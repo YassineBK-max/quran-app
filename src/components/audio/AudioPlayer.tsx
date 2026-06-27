@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useAudio } from "@/contexts/AudioContext";
 import { PLAYBACK_SPEEDS, REPEAT_OPTIONS } from "@/lib/constants";
+import { useT } from "@/hooks/useT";
 
 export function AudioPlayer() {
   const {
@@ -11,6 +12,7 @@ export function AudioPlayer() {
     pause, resume, stop, playNext, playPrevious,
     seekTo, setSpeed, setRepeatCount,
   } = useAudio();
+  const t = useT();
 
   const [expanded, setExpanded] = useState(false);
 
@@ -34,7 +36,7 @@ export function AudioPlayer() {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate text-foreground">{currentAyah.surahName}</p>
             <p className="text-[10px] text-muted-foreground">
-              Ayah {currentAyah.numberInSurah}
+              {t.audio_ayah} {currentAyah.numberInSurah}
               {currentAyah.totalAyahs ? ` / ${currentAyah.totalAyahs}` : ""}
             </p>
           </div>

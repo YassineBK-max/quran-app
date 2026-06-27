@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useMessages } from "@/contexts/MessageContext";
+import { useT } from "@/hooks/useT";
 
 type Tab = "overview" | "users" | "classes" | "messages";
 
@@ -18,6 +19,7 @@ export default function AdminPage() {
   const { user, users, teacherCode, setTeacherCode } = useAuth();
   const { classes } = useClassroom();
   const { sendMessage } = useMessages();
+  const t = useT();
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("overview");
@@ -32,11 +34,11 @@ export default function AdminPage() {
   if (!user || user.role !== "admin") {
     return (
       <>
-        <Header title="Admin" />
+        <Header title={t.admin_title} />
         <main className="max-w-3xl mx-auto px-4 py-8 text-center">
-          <p className="text-muted-foreground">Access denied. Admin only.</p>
+          <p className="text-muted-foreground">{t.admin_access_denied}</p>
           <button onClick={() => router.push("/")} className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm">
-            Back to home
+            {t.back_home}
           </button>
         </main>
       </>
@@ -77,15 +79,22 @@ export default function AdminPage() {
   };
 
   const TABS: { id: Tab; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "users",    label: "Users" },
-    { id: "classes",  label: "Classes" },
-    { id: "messages", label: "Messages" },
+    { id: "overview", label: t.admin_overview },
+    { id: "users",    label: t.admin_users_tab },
+    { id: "classes",  label: t.admin_classes_tab },
+    { id: "messages", label: t.admin_messages_tab },
   ];
+
+  const roleFilterLabels: Record<string, string> = {
+    all:     t.admin_all,
+    admin:   t.admin_admins,
+    teacher: t.admin_teachers,
+    student: t.admin_students,
+  };
 
   return (
     <>
-      <Header title="Admin Panel" />
+      <Header title={t.admin_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* Tab bar */}
         <div className="grid grid-cols-4 gap-1 bg-muted rounded-xl p-1">
@@ -105,13 +114,12 @@ export default function AdminPage() {
         {/* ── Overview ── */}
         {tab === "overview" && (
           <div className="space-y-4">
-            {/* Stats */}
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Admins",   count: admins.length },
-                { label: "Teachers", count: teachers.length },
-                { label: "Students", count: students.length },
-                { label: "Classes",  count: classes.length },
+                { label: t.admin_admins,       count: admins.length },
+                { label: t.admin_teachers,     count: teachers.length },
+                { label: t.admin_students,     count: students.length },
+                { label: t.admin_classes_count, count: classes.length },
               ].map((s) => (
                 <div key={s.label} className="bg-card border border-border rounded-xl p-3 text-center">
                   <p className="text-xl font-bold text-primary">{s.count}</p>
@@ -120,13 +128,10 @@ export default function AdminPage() {
               ))}
             </div>
 
-            {/* Teacher registration code */}
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <div>
-                <h2 className="text-sm font-semibold">Teacher Registration Code</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Teachers must enter this code when creating an account.
-                </p>
+                <h2 className="text-sm font-semibold">{t.admin_teacher_code_title}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.admin_teacher_code_desc}</p>
               </div>
               <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3">
                 <span className="font-mono font-bold text-primary flex-1 tracking-wider text-sm">{teacherCode}</span>
@@ -145,7 +150,7 @@ export default function AdminPage() {
                 <input
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
-                  placeholder="New code…"
+                  placeholder={t.admin_new_code}
                   className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
                 />
                 <button
@@ -153,10 +158,10 @@ export default function AdminPage() {
                   disabled={!newCode.trim()}
                   className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40"
                 >
-                  Update
+                  {t.update}
                 </button>
               </div>
-              {codeSaved && <p className="text-primary text-xs">Code updated successfully.</p>}
+              {codeSaved && <p className="text-primary text-xs">{t.admin_code_saved}</p>}
             </div>
           </div>
         )}
@@ -165,7 +170,7 @@ export default function AdminPage() {
         {tab === "users" && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground flex-1">{filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}</p>
+              <p className="text-sm text-muted-foreground flex-1">{filteredUsers.length} users</p>
               <div className="flex gap-1">
                 {(["all", "admin", "teacher", "student"] as const).map((r) => (
                   <button
@@ -175,7 +180,7 @@ export default function AdminPage() {
                       roleFilter === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {r}
+                    {roleFilterLabels[r]}
                   </button>
                 ))}
               </div>
@@ -183,7 +188,7 @@ export default function AdminPage() {
 
             <div className="space-y-2">
               {filteredUsers.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No users found.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t.admin_no_users}</p>
               ) : (
                 filteredUsers.map((u) => {
                   const classInfo = getClassInfoForUser(u.id, u.role);
@@ -208,12 +213,12 @@ export default function AdminPage() {
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                         {classInfo && (
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {u.role === "student" ? "Class: " : "Teaching: "}{classInfo}
+                            {u.role === "student" ? t.admin_class_info : t.admin_teaching} {classInfo}
                           </p>
                         )}
                         {!classInfo && u.role !== "admin" && (
                           <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                            {u.role === "student" ? "No class" : "No classes"}
+                            {u.role === "student" ? t.admin_no_class : t.admin_no_classes_user}
                           </p>
                         )}
                       </div>
@@ -232,7 +237,7 @@ export default function AdminPage() {
         {tab === "classes" && (
           <div className="space-y-2">
             {classes.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No classes yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t.admin_no_classes}</p>
             ) : (
               classes.map((c) => (
                 <div key={c.id} className="p-4 bg-card border border-border rounded-xl">
@@ -240,10 +245,10 @@ export default function AdminPage() {
                     <p className="text-sm font-semibold">{c.name}</p>
                     <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">{c.code}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Teacher: {c.teacherName}</p>
+                  <p className="text-xs text-muted-foreground">{t.classroom_teacher} {c.teacherName}</p>
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs text-muted-foreground">{c.studentIds.length} student{c.studentIds.length !== 1 ? "s" : ""}</span>
-                    <span className="text-xs text-muted-foreground">{c.assignments.length} assignment{c.assignments.length !== 1 ? "s" : ""}</span>
+                    <span className="text-xs text-muted-foreground">{c.studentIds.length} {t.admin_students_label}</span>
+                    <span className="text-xs text-muted-foreground">{c.assignments.length} {t.admin_assignments_label}</span>
                   </div>
                 </div>
               ))
@@ -254,15 +259,15 @@ export default function AdminPage() {
         {/* ── Messages ── */}
         {tab === "messages" && (
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Send Message</h2>
+            <h2 className="text-sm font-semibold">{t.admin_send_message}</h2>
             <div className="flex gap-2">
-              {(["user", "class"] as const).map((t) => (
+              {(["user", "class"] as const).map((mt) => (
                 <button
-                  key={t}
-                  onClick={() => setMsgType(t)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${msgType === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  key={mt}
+                  onClick={() => setMsgType(mt)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${msgType === mt ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
                 >
-                  {t}
+                  {mt === "user" ? t.admin_user_recipient : t.admin_class_recipient}
                 </button>
               ))}
             </div>
@@ -271,7 +276,7 @@ export default function AdminPage() {
               onChange={(e) => setMsgRecipient(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
             >
-              <option value="">Select recipient…</option>
+              <option value="">{t.admin_select_recipient}</option>
               {msgType === "user"
                 ? users.filter((u) => u.id !== user.id).map((u) => (
                     <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
@@ -282,17 +287,17 @@ export default function AdminPage() {
             <textarea
               value={msgContent}
               onChange={(e) => setMsgContent(e.target.value)}
-              placeholder="Message content…"
+              placeholder={t.admin_message_content}
               rows={3}
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none"
             />
-            {sent && <p className="text-primary text-xs">Message sent!</p>}
+            {sent && <p className="text-primary text-xs">{t.admin_sent}</p>}
             <button
               onClick={handleSend}
               disabled={!msgContent.trim() || !msgRecipient}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40"
             >
-              Send
+              {t.send}
             </button>
           </div>
         )}

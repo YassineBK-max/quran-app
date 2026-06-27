@@ -6,17 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { CalendarEvent } from "@/lib/types";
-
-const EVENT_TYPES: { type: CalendarEvent["type"]; label: string; colors: string }[] = [
-  { type: "session",  label: "Session",  colors: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { type: "meeting",  label: "Meeting",  colors: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  { type: "deadline", label: "Deadline", colors: "bg-red-500/10 text-red-600 border-red-500/20" },
-  { type: "goal",     label: "Goal",     colors: "bg-primary/10 text-primary border-primary/20" },
-];
-
-const TYPE_COLORS: Record<CalendarEvent["type"], string> = Object.fromEntries(
-  EVENT_TYPES.map((e) => [e.type, e.colors])
-) as Record<CalendarEvent["type"], string>;
+import { useT } from "@/hooks/useT";
 
 const TYPE_ICONS: Record<CalendarEvent["type"], string> = {
   session:  "📚",
@@ -25,10 +15,18 @@ const TYPE_ICONS: Record<CalendarEvent["type"], string> = {
   goal:     "🎯",
 };
 
+const TYPE_COLORS: Record<CalendarEvent["type"], string> = {
+  session:  "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  meeting:  "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  deadline: "bg-red-500/10 text-red-600 border-red-500/20",
+  goal:     "bg-primary/10 text-primary border-primary/20",
+};
+
 export default function CalendarPage() {
   const { user } = useAuth();
   const { myClass, getTeacherClasses } = useClassroom();
   const { getEventsForClass, getEventsForUser, addEvent, removeEvent } = useCalendar();
+  const t = useT();
   const router = useRouter();
 
   const [title, setTitle] = useState("");
@@ -41,14 +39,21 @@ export default function CalendarPage() {
   if (!user) {
     return (
       <>
-        <Header title="Calendar" />
+        <Header title={t.calendar_title} />
         <main className="max-w-3xl mx-auto px-4 py-8 text-center">
-          <p className="text-muted-foreground mb-4">Sign in to access the calendar.</p>
-          <button onClick={() => router.push("/login")} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl">Sign In</button>
+          <p className="text-muted-foreground mb-4">{t.signin_required}</p>
+          <button onClick={() => router.push("/login")} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl">{t.signin}</button>
         </main>
       </>
     );
   }
+
+  const EVENT_TYPES: { type: CalendarEvent["type"]; label: string }[] = [
+    { type: "session",  label: t.calendar_session },
+    { type: "meeting",  label: t.calendar_meeting },
+    { type: "deadline", label: t.calendar_deadline },
+    { type: "goal",     label: t.calendar_goal },
+  ];
 
   const isTeacher = user.role === "teacher" || user.role === "admin";
   const teacherClasses = isTeacher ? getTeacherClasses() : [];
@@ -72,12 +77,11 @@ export default function CalendarPage() {
 
   return (
     <>
-      <Header title="Calendar" />
+      <Header title={t.calendar_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-        {/* Teacher: class selector + add form */}
         {isTeacher && (
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Add Event</h2>
+            <h2 className="text-sm font-semibold">{t.calendar_add_event}</h2>
 
             {teacherClasses.length > 1 && (
               <select
@@ -94,27 +98,26 @@ export default function CalendarPage() {
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Event title"
+              placeholder={t.calendar_event_title}
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
             />
             <input
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              placeholder="Description (optional)"
+              placeholder={t.calendar_description}
               className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
             />
 
-            {/* Event type selector */}
             <div className="grid grid-cols-2 gap-2">
-              {EVENT_TYPES.map(({ type: t, label, colors }) => (
+              {EVENT_TYPES.map(({ type: et, label }) => (
                 <button
-                  key={t}
-                  onClick={() => setType(t)}
+                  key={et}
+                  onClick={() => setType(et)}
                   className={`py-2 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
-                    type === t ? colors : "bg-muted text-muted-foreground border-border"
+                    type === et ? TYPE_COLORS[et] : "bg-muted text-muted-foreground border-border"
                   }`}
                 >
-                  <span>{TYPE_ICONS[t]}</span>
+                  <span>{TYPE_ICONS[et]}</span>
                   {label}
                 </button>
               ))}
@@ -140,15 +143,14 @@ export default function CalendarPage() {
               disabled={!title.trim() || !date}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40"
             >
-              Add Event
+              {t.calendar_add_btn}
             </button>
           </div>
         )}
 
-        {/* Events list */}
         {sortedDates.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">
-            {isTeacher ? "No events yet. Add one above." : "No events scheduled yet."}
+            {isTeacher ? t.calendar_empty_teacher : t.calendar_empty_student}
           </div>
         ) : (
           <div className="space-y-3">
@@ -165,7 +167,7 @@ export default function CalendarPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold">{event.title}</p>
                           <span className="text-[10px] capitalize opacity-70 border border-current/30 px-1.5 py-0.5 rounded">
-                            {event.type}
+                            {EVENT_TYPES.find((et) => et.type === event.type)?.label ?? event.type}
                           </span>
                         </div>
                         {event.time && <p className="text-xs opacity-70 mt-0.5">{event.time}</p>}

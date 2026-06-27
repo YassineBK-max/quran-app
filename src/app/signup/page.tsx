@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
+import { useT } from "@/hooks/useT";
 
 function SignupForm() {
   const { signup, signupGoogle } = useAuth();
   const { joinClass } = useClassroom();
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -16,8 +18,6 @@ function SignupForm() {
   const prefillEmail = params.get("email") ?? "";
   const prefillName = params.get("name") ?? "";
 
-  // When arriving from Google OAuth we may skip to the role step,
-  // but only if BOTH name and email are pre-filled.
   const [step, setStep] = useState<"info" | "role">(
     isGoogle && prefillEmail && prefillName ? "role" : "info"
   );
@@ -60,7 +60,6 @@ function SignupForm() {
 
     if (err) { setError(err); setLoading(false); return; }
 
-    // Join class for students
     if (role === "student" && code) {
       const joinErr = joinClass(code);
       if (joinErr && joinErr !== "You are already in this class.") {
@@ -82,9 +81,9 @@ function SignupForm() {
               <polygon points="17,2 17.9,4.8 21,5 18.7,7 19.4,10 17,8.5 14.6,10 15.3,7 13,5 16.1,4.8" />
             </svg>
           </div>
-          <h1 className="text-white text-2xl font-bold">Create Account</h1>
+          <h1 className="text-white text-2xl font-bold">{t.signup_title}</h1>
           <p className="text-green-300 text-sm mt-1">
-            {step === "info" ? "Enter your details" : "Choose your role"}
+            {step === "info" ? t.signup_info_subtitle : t.signup_role_subtitle}
           </p>
         </div>
 
@@ -93,17 +92,17 @@ function SignupForm() {
             <div className="space-y-4">
               <form onSubmit={handleInfoNext} className="space-y-4">
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Full Name</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_name}</label>
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    placeholder="Your name"
+                    placeholder={t.signup_name_placeholder}
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Email</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_email}</label>
                   <input
                     type="email"
                     value={email}
@@ -114,7 +113,7 @@ function SignupForm() {
                   />
                 </div>
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Password</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_password}</label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
@@ -146,13 +145,13 @@ function SignupForm() {
                 </div>
                 {error && <p className="text-red-300 text-xs bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2">{error}</p>}
                 <button type="submit" className="w-full py-3 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold transition-colors">
-                  Next
+                  {t.next}
                 </button>
               </form>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/20" /></div>
-                <div className="relative flex justify-center"><span className="px-3 text-green-300 text-xs">or</span></div>
+                <div className="relative flex justify-center"><span className="px-3 text-green-300 text-xs">{t.or}</span></div>
               </div>
 
               <button
@@ -165,12 +164,11 @@ function SignupForm() {
                   <path fill="#34A853" d="M12 19c-2.3 0-4.33-1.13-5.6-2.85l-2.78 2.17A11.9 11.9 0 0 0 12 24c3.08 0 5.87-1.16 8-3.06l-2.77-2.16A7.02 7.02 0 0 1 12 19z"/>
                   <path fill="#4285F4" d="M23.5 12c0-.79-.07-1.56-.2-2.31H12v4.64h6.46A5.54 5.54 0 0 1 17.23 18l2.77 2.16A11.95 11.95 0 0 0 23.5 12z"/>
                 </svg>
-                Continue with Google
+                {t.google_signin}
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Show name/email as read-only for Google users */}
               {isGoogle && (
                 <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 space-y-1">
                   <p className="text-white text-sm font-medium">{name}</p>
@@ -178,23 +176,21 @@ function SignupForm() {
                 </div>
               )}
 
-              {/* Name edit when coming via Google without prefill */}
               {isGoogle && !prefillName && (
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Your Name</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_name}</label>
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    placeholder="Enter your name"
+                    placeholder={t.signup_name_placeholder}
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
                   />
                 </div>
               )}
 
-              {/* Role — only student or teacher */}
               <div>
-                <label className="text-green-200 text-xs font-medium block mb-2">I am a</label>
+                <label className="text-green-200 text-xs font-medium block mb-2">{t.signup_role_subtitle}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {(["student", "teacher"] as const).map((r) => (
                     <button
@@ -207,16 +203,15 @@ function SignupForm() {
                           : "bg-white/10 border-white/20 text-green-200 hover:bg-white/20"
                       }`}
                     >
-                      {r}
+                      {r === "student" ? t.signup_student : t.signup_teacher}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Class code for students */}
               {role === "student" && (
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Class Code (from your teacher)</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_class_code}</label>
                   <input
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -224,20 +219,19 @@ function SignupForm() {
                     maxLength={6}
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors uppercase tracking-widest font-mono"
                   />
-                  <p className="text-green-400/70 text-[10px] mt-1">You can join a class later if you don&apos;t have a code yet.</p>
+                  <p className="text-green-400/70 text-[10px] mt-1">{t.signup_class_code_hint}</p>
                 </div>
               )}
 
-              {/* Admin code for teachers */}
               {role === "teacher" && (
                 <div>
-                  <label className="text-green-200 text-xs font-medium block mb-1.5">Teacher Code (from your admin)</label>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_teacher_code}</label>
                   <input
                     type="password"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     required
-                    placeholder="Enter teacher code"
+                    placeholder={t.signup_teacher_code_placeholder}
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
                   />
                 </div>
@@ -252,7 +246,7 @@ function SignupForm() {
                     onClick={() => { setStep("info"); setError(""); }}
                     className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-green-200 font-medium transition-colors border border-white/20"
                   >
-                    Back
+                    {t.back}
                   </button>
                 )}
                 <button
@@ -260,7 +254,7 @@ function SignupForm() {
                   disabled={loading}
                   className="flex-1 py-3 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Creating..." : "Create Account"}
+                  {loading ? t.signup_creating : t.signup_btn}
                 </button>
               </div>
             </form>
@@ -268,8 +262,8 @@ function SignupForm() {
         </div>
 
         <p className="text-center text-green-300 text-sm mt-5">
-          Already have an account?{" "}
-          <Link href="/login" className="text-white font-semibold underline">Sign in</Link>
+          {t.have_account}{" "}
+          <Link href="/login" className="text-white font-semibold underline">{t.signin}</Link>
         </p>
       </div>
     </div>

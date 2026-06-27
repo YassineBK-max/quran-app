@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { useT } from "@/hooks/useT";
 
 function BookIcon() {
   return (
@@ -21,6 +22,7 @@ function GearIcon() {
 
 export default function CoverPage() {
   const { user, logout } = useAuth();
+  const t = useT();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -39,7 +41,7 @@ export default function CoverPage() {
                 onClick={logout}
                 className="text-xs text-green-300 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors"
               >
-                Sign out
+                {t.signout}
               </button>
             </div>
           ) : (
@@ -47,7 +49,7 @@ export default function CoverPage() {
               href="/login"
               className="text-xs text-green-200 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors"
             >
-              Sign in
+              {t.signin}
             </Link>
           )}
         </div>
@@ -75,12 +77,12 @@ export default function CoverPage() {
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/surahs"
-            className="col-span-2 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+            className="col-span-2 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white active:scale-95 transition-transform border border-white/10 hover:bg-white/10"
           >
             <BookIcon />
             <div className="text-center">
               <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>القرآن</p>
-              <p className="text-xs text-green-200 mt-0.5">Read & Listen</p>
+              <p className="text-xs text-green-200 mt-0.5">{t.cover_read_listen}</p>
             </div>
           </Link>
 
@@ -88,7 +90,7 @@ export default function CoverPage() {
             <>
               <Link
                 href={user.role === "admin" ? "/admin" : "/classroom"}
-                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+                className="rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white active:scale-95 transition-transform border border-white/10 hover:bg-white/10"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -98,17 +100,17 @@ export default function CoverPage() {
                 </svg>
                 <div className="text-center">
                   <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>الفصل</p>
-                  <p className="text-xs text-green-200 mt-0.5">{user.role === "admin" ? "Admin Panel" : "Classroom"}</p>
+                  <p className="text-xs text-green-200 mt-0.5">{user.role === "admin" ? t.cover_admin_panel : t.cover_classroom}</p>
                 </div>
               </Link>
               <Link
                 href="/settings"
-                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+                className="rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white active:scale-95 transition-transform border border-white/10 hover:bg-white/10"
               >
                 <GearIcon />
                 <div className="text-center">
                   <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>الإعدادات</p>
-                  <p className="text-xs text-green-200 mt-0.5">Settings</p>
+                  <p className="text-xs text-green-200 mt-0.5">{t.nav_settings}</p>
                 </div>
               </Link>
             </>
@@ -116,7 +118,7 @@ export default function CoverPage() {
             <>
               <Link
                 href="/login"
-                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+                className="rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white active:scale-95 transition-transform border border-white/10 hover:bg-white/10"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
@@ -125,17 +127,17 @@ export default function CoverPage() {
                 </svg>
                 <div className="text-center">
                   <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>تسجيل الدخول</p>
-                  <p className="text-xs text-green-200 mt-0.5">Sign In</p>
+                  <p className="text-xs text-green-200 mt-0.5">{t.signin}</p>
                 </div>
               </Link>
               <Link
                 href="/settings"
-                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+                className="rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white active:scale-95 transition-transform border border-white/10 hover:bg-white/10"
               >
                 <GearIcon />
                 <div className="text-center">
                   <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>الإعدادات</p>
-                  <p className="text-xs text-green-200 mt-0.5">Settings</p>
+                  <p className="text-xs text-green-200 mt-0.5">{t.nav_settings}</p>
                 </div>
               </Link>
             </>

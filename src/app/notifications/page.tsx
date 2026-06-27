@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useT } from "@/hooks/useT";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   deadline: (
@@ -22,22 +23,23 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function NotificationsPage() {
+  const t = useT();
   const { notifications, markRead, markAllRead } = useNotifications();
   const sorted = [...notifications].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <>
-      <Header title="Notifications" />
+      <Header title={t.notifications_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-3">
         {sorted.length > 0 && (
           <div className="flex justify-end">
             <button onClick={markAllRead} className="text-xs text-muted-foreground hover:text-foreground">
-              Mark all read
+              {t.notifications_mark_all}
             </button>
           </div>
         )}
         {sorted.length === 0 ? (
-          <p className="text-center text-muted-foreground text-sm py-12">No notifications yet.</p>
+          <p className="text-center text-muted-foreground text-sm py-12">{t.notifications_empty}</p>
         ) : (
           sorted.map((n) => (
             <button
@@ -57,7 +59,7 @@ export default function NotificationsPage() {
               </div>
               {n.link && (
                 <Link href={n.link} onClick={(e) => e.stopPropagation()} className="text-primary text-xs hover:underline shrink-0 self-center">
-                  View
+                  {t.notifications_view}
                 </Link>
               )}
             </button>

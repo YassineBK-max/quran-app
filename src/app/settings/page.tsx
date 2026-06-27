@@ -4,29 +4,37 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { Switch } from "@/components/ui/Switch";
 import { RECITERS, TRANSLATIONS } from "@/lib/constants";
 import { ThemeMode } from "@/lib/types";
+import { useT } from "@/hooks/useT";
 
 export default function SettingsPage() {
   const { settings, updateSettings } = useSettings();
+  const t = useT();
+
+  const themeLabels: Record<ThemeMode, string> = {
+    light: t.settings_theme_light,
+    dark: t.settings_theme_dark,
+    system: t.settings_theme_system,
+  };
 
   return (
     <>
-      <Header title="Settings" />
+      <Header title={t.settings_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-6">
         {/* Theme */}
         <section className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold">Appearance</h2>
+          <h2 className="text-sm font-semibold">{t.settings_appearance}</h2>
           <div className="flex gap-2">
             {(["light", "dark", "system"] as ThemeMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => updateSettings({ theme: mode })}
-                className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium capitalize transition-colors ${
+                className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
                   settings.theme === mode
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {mode}
+                {themeLabels[mode]}
               </button>
             ))}
           </div>
@@ -34,7 +42,7 @@ export default function SettingsPage() {
 
         {/* Reciter */}
         <section className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold">Reciter</h2>
+          <h2 className="text-sm font-semibold">{t.settings_reciter}</h2>
           <div className="space-y-1">
             {RECITERS.map((reciter) => (
               <button
@@ -54,7 +62,7 @@ export default function SettingsPage() {
 
         {/* Translation */}
         <section className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold">Translation</h2>
+          <h2 className="text-sm font-semibold">{t.settings_translation}</h2>
           <div className="space-y-1">
             {TRANSLATIONS.map((tr) => (
               <button
@@ -76,8 +84,8 @@ export default function SettingsPage() {
         <section className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold">Tap to Translate</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Tap an ayah in line-by-line mode to see its translation</p>
+              <h2 className="text-sm font-semibold">{t.settings_tap_translate}</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">{t.settings_tap_translate_desc}</p>
             </div>
             <Switch
               checked={settings.tapToTranslate}
@@ -88,7 +96,7 @@ export default function SettingsPage() {
 
         {/* Language */}
         <section className="bg-card border border-border rounded-xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold">App Language</h2>
+          <h2 className="text-sm font-semibold">{t.settings_language}</h2>
           <div className="flex gap-2">
             <button
               onClick={() => updateSettings({ language: "en" })}
