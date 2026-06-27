@@ -1,13 +1,24 @@
 "use client";
-import { createContext, useContext, ReactNode, useCallback } from "react";
+import { createContext, useContext, ReactNode, useCallback, useEffect, useState, useRef } from "react";
 import { User, UserRole } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { ADMIN_CODE } from "@/lib/constants";
+
+// Hardcoded admin accounts — always seeded
+const SEEDED_ADMINS = [
+  { email: "kassab.salaheddine@gmail.com", name: "Salah Kassab", password: "Academy@2030" },
+  { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine Bouaouda", password: "academy@2030" },
+];
+
+const DEFAULT_TEACHER_CODE = "QURAN_ADMIN_2024";
 
 interface AuthContextType {
   user: User | null;
   users: User[];
+  isLoaded: boolean;
+  teacherCode: string;
+  setTeacherCode: (code: string) => void;
   login: (email: string, password: string) => string | null;
+  loginWithEmail: (email: string) => string | null;
   signup: (name: string, email: string, password: string, role: UserRole, code?: string) => string | null;
   signupGoogle: (name: string, email: string, role: UserRole, code?: string) => string | null;
   logout: () => void;
@@ -18,7 +29,11 @@ interface AuthContextType {
 const AuthCtx = createContext<AuthContextType>({
   user: null,
   users: [],
+  isLoaded: false,
+  teacherCode: DEFAULT_TEACHER_CODE,
+  setTeacherCode: () => {},
   login: () => null,
+  loginWithEmail: () => null,
   signup: () => null,
   signupGoogle: () => null,
   logout: () => {},
@@ -26,7 +41,6 @@ const AuthCtx = createContext<AuthContextType>({
   updateUser: () => {},
 });
 
-// Passwords stored as plain text since this is localStorage-only (no backend)
 interface StoredUser extends User {
   passwordHash?: string;
   isGoogle?: boolean;
@@ -39,6 +53,48 @@ function genId() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [storedUsers, setStoredUsers] = useLocalStorage<StoredUser[]>("quran-users", []);
   const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>("quran-current-user", null);
+  const [teacherCode, setTeacherCodeState] = useLocalStorage<string>("quran-teacher-code", DEFAULT_TEACHER_CODE);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const seededRef = useRef(false);
+
+  // Mark as loaded after localStorage effects settle (requestAnimationFrame fires after all useEffects)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsLoaded(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // Seed hardcoded admin accounts on first load
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+
+    setStoredUsers((prev) => {
+      const updated = [...prev];
+      for (const admin of SEEDED_ADMINS) {
+        const exists = updated.find((u) => u.email.toLowerCase() === admin.email.toLowerCase());
+        if (!exists) {
+          updated.push({
+            id: `seeded-${admin.email}`,
+            email: admin.email,
+            name: admin.name,
+            role: "admin",
+            createdAt: Date.now(),
+            passwordHash: admin.password,
+          });
+        } else if (exists.role !== "admin") {
+          // Ensure seeded accounts always have admin role
+          const idx = updated.indexOf(exists);
+          updated[idx] = { ...exists, role: "admin", passwordHash: admin.password };
+        }
+      }
+      return updated;
+    });
+  }, [setStoredUsers]);
+
+  const setTeacherCode = useCallback(
+    (code: string) => setTeacherCodeState(code),
+    [setTeacherCodeState]
+  );
 
   const user = storedUsers.find((u) => u.id === currentUserId) ?? null;
 
@@ -66,18 +122,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [storedUsers, setCurrentUserId]
   );
 
+  const loginWithEmail = useCallback(
+    (email: string): string | null => {
+      const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (!found) return "Account not found.";
+      setCurrentUserId(found.id);
+      return null;
+    },
+    [storedUsers, setCurrentUserId]
+  );
+
   const signup = useCallback(
     (name: string, email: string, password: string, role: UserRole, code?: string): string | null => {
       if (storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
         return "An account with this email already exists.";
       }
-      if (role === "teacher") {
-        if (code !== ADMIN_CODE) return "Invalid admin code.";
+      if (role === "teacher" || role === "admin") {
+        if (code !== teacherCode) return "Invalid admin code.";
       }
-      if (role === "admin") {
-        if (code !== ADMIN_CODE) return "Invalid admin code.";
-      }
-      // For students, class code validation happens in ClassroomContext after signup
       const newUser: StoredUser = {
         id: genId(),
         email,
@@ -90,18 +152,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUserId(newUser.id);
       return null;
     },
-    [storedUsers, setStoredUsers, setCurrentUserId]
+    [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
   );
 
   const signupGoogle = useCallback(
     (name: string, email: string, role: UserRole, code?: string): string | null => {
-      if (storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-        // Google re-login: just log in
-        const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-        if (found) { setCurrentUserId(found.id); return null; }
+      const existing = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (existing) {
+        setCurrentUserId(existing.id);
+        return null;
       }
-      if (role === "teacher" && code !== ADMIN_CODE) return "Invalid admin code.";
-      if (role === "admin" && code !== ADMIN_CODE) return "Invalid admin code.";
+      if ((role === "teacher" || role === "admin") && code !== teacherCode) {
+        return "Invalid admin code.";
+      }
       const newUser: StoredUser = {
         id: genId(),
         email,
@@ -114,18 +177,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUserId(newUser.id);
       return null;
     },
-    [storedUsers, setStoredUsers, setCurrentUserId]
+    [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
   );
 
-  const logout = useCallback(() => {
-    setCurrentUserId(null);
-  }, [setCurrentUserId]);
+  const logout = useCallback(() => setCurrentUserId(null), [setCurrentUserId]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
 
   return (
-    <AuthCtx.Provider value={{ user, users: publicUsers, login, signup, signupGoogle, logout, getUserById, updateUser }}>
+    <AuthCtx.Provider
+      value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser }}
+    >
       {children}
     </AuthCtx.Provider>
   );

@@ -1,6 +1,7 @@
 "use client";
-import { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { ReactNode, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { SessionProvider } from "next-auth/react";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { BookmarkProvider } from "@/contexts/BookmarkContext";
 import { PinnedSurahsProvider } from "@/contexts/PinnedSurahsContext";
@@ -15,9 +16,12 @@ import { AwardProvider } from "@/contexts/AwardContext";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { AwardModal } from "@/components/awards/AwardModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STANDALONE_PAGES = ["/", "/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
 
+// Pages where BottomNav/AudioPlayer are hidden
 function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isStandalone = STANDALONE_PAGES.some(
@@ -36,31 +40,70 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+// Redirect unauthenticated users to /login
+function AuthGuard({ children }: { children: ReactNode }) {
+  const { user, isLoaded } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [redirecting, setRedirecting] = useState(false);
+
+  const isPublic = PUBLIC_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p)
+  ) || pathname.startsWith("/api/");
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!user && !isPublic) {
+      setRedirecting(true);
+      router.push("/login");
+    }
+  }, [isLoaded, user, isPublic, router]);
+
+  // Show blank screen while loading auth state or redirecting
+  if (!isLoaded || redirecting) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--background)" }}
+      >
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user && !isPublic) return null;
+
+  return <>{children}</>;
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <SettingsProvider>
-      <AuthProvider>
-        <BookmarkProvider>
-          <PinnedSurahsProvider>
-            <AudioProvider>
-              <MemorizationProvider>
-                {/* ClassroomProvider must wrap Calendar/Message/Notification so they can useClassroom() */}
-                <ClassroomProvider>
-                  <CalendarProvider>
-                    <MessageProvider>
-                      <NotificationProvider>
-                        <Shell>
-                          {children}
-                        </Shell>
-                      </NotificationProvider>
-                    </MessageProvider>
-                  </CalendarProvider>
-                </ClassroomProvider>
-              </MemorizationProvider>
-            </AudioProvider>
-          </PinnedSurahsProvider>
-        </BookmarkProvider>
-      </AuthProvider>
-    </SettingsProvider>
+    <SessionProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <BookmarkProvider>
+            <PinnedSurahsProvider>
+              <AudioProvider>
+                <MemorizationProvider>
+                  <ClassroomProvider>
+                    <CalendarProvider>
+                      <MessageProvider>
+                        <NotificationProvider>
+                          <AuthGuard>
+                            <Shell>
+                              {children}
+                            </Shell>
+                          </AuthGuard>
+                        </NotificationProvider>
+                      </MessageProvider>
+                    </CalendarProvider>
+                  </ClassroomProvider>
+                </MemorizationProvider>
+              </AudioProvider>
+            </PinnedSurahsProvider>
+          </BookmarkProvider>
+        </AuthProvider>
+      </SettingsProvider>
+    </SessionProvider>
   );
 }

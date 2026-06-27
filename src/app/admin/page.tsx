@@ -5,14 +5,15 @@ import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useMessages } from "@/contexts/MessageContext";
-import { ADMIN_CODE } from "@/lib/constants";
 
 export default function AdminPage() {
-  const { user, users } = useAuth();
+  const { user, users, teacherCode, setTeacherCode } = useAuth();
   const { classes } = useClassroom();
   const { sendMessage } = useMessages();
   const router = useRouter();
 
+  const [newCode, setNewCode] = useState("");
+  const [codeSaved, setCodeSaved] = useState(false);
   const [msgContent, setMsgContent] = useState("");
   const [msgRecipient, setMsgRecipient] = useState("");
   const [msgType, setMsgType] = useState<"user" | "class">("user");
@@ -34,6 +35,14 @@ export default function AdminPage() {
 
   const teachers = users.filter((u) => u.role === "teacher");
   const students = users.filter((u) => u.role === "student");
+
+  const handleSaveCode = () => {
+    if (!newCode.trim()) return;
+    setTeacherCode(newCode.trim());
+    setNewCode("");
+    setCodeSaved(true);
+    setTimeout(() => setCodeSaved(false), 3000);
+  };
 
   const handleSend = () => {
     if (!msgContent.trim() || !msgRecipient) return;
@@ -60,11 +69,41 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Admin code display */}
-        <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">Admin Code (for teacher registration)</p>
-          <p className="font-mono font-bold text-lg text-primary mt-1 tracking-wider">{ADMIN_CODE}</p>
-          <p className="text-xs text-muted-foreground mt-1">Share this only with teachers.</p>
+        {/* Teacher registration code */}
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Teacher Registration Code</h2>
+          <p className="text-xs text-muted-foreground">
+            Teachers and admins must enter this code when signing up.
+          </p>
+          <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3">
+            <span className="font-mono font-bold text-primary flex-1 tracking-wider">{teacherCode}</span>
+            <button
+              onClick={() => navigator.clipboard?.writeText(teacherCode)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Copy to clipboard"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={newCode}
+              onChange={(e) => setNewCode(e.target.value)}
+              placeholder="Enter new code…"
+              className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
+            />
+            <button
+              onClick={handleSaveCode}
+              disabled={!newCode.trim()}
+              className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40"
+            >
+              Update
+            </button>
+          </div>
+          {codeSaved && <p className="text-primary text-xs">Code updated successfully.</p>}
         </div>
 
         {/* Teachers list */}
@@ -75,15 +114,15 @@ export default function AdminPage() {
           ) : (
             <div className="space-y-2">
               {teachers.map((t) => {
-                const teacherClasses = classes.filter((c) => c.teacherId === t.id);
+                const tc = classes.filter((c) => c.teacherId === t.id);
                 return (
                   <div key={t.id} className="flex items-center gap-3 p-3 border border-border rounded-xl">
                     <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
                       {t.name[0].toUpperCase()}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.email} · {teacherClasses.length} class(es)</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{t.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{t.email} · {tc.length} class(es)</p>
                     </div>
                   </div>
                 );
@@ -118,25 +157,22 @@ export default function AdminPage() {
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold">Send Message</h2>
           <div className="flex gap-2">
-            <button
-              onClick={() => setMsgType("user")}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${msgType === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-            >
-              User
-            </button>
-            <button
-              onClick={() => setMsgType("class")}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${msgType === "class" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-            >
-              Class
-            </button>
+            {(["user", "class"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setMsgType(t)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${msgType === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
           <select
             value={msgRecipient}
             onChange={(e) => setMsgRecipient(e.target.value)}
             className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
           >
-            <option value="">Select recipient...</option>
+            <option value="">Select recipient…</option>
             {msgType === "user"
               ? users.filter((u) => u.id !== user.id).map((u) => (
                   <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
@@ -147,7 +183,7 @@ export default function AdminPage() {
           <textarea
             value={msgContent}
             onChange={(e) => setMsgContent(e.target.value)}
-            placeholder="Message content..."
+            placeholder="Message content…"
             rows={3}
             className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none"
           />

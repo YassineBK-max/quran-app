@@ -71,12 +71,18 @@ export function AyahLineDisplay({ ayahs, translations, surahNumber, surahName }:
                 >
                   {ayah.text}
                 </div>
-                {settings.tapToTranslate && translation && (
-                  <div className={`translation-enter ${isExpanded ? "open" : ""}`}>
+                {translation && (
+                  settings.tapToTranslate ? (
+                    <div className={`translation-enter ${isExpanded ? "open" : ""}`}>
+                      <p className="text-sm text-muted-foreground pt-2 pb-1 leading-relaxed border-t border-border mt-2">
+                        {translation.text}
+                      </p>
+                    </div>
+                  ) : (
                     <p className="text-sm text-muted-foreground pt-2 pb-1 leading-relaxed border-t border-border mt-2">
                       {translation.text}
                     </p>
-                  </div>
+                  )
                 )}
               </div>
 

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +23,18 @@ export default function LoginPage() {
     if (err) { setError(err); return; }
     router.push("/");
   };
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      await signIn("google", { callbackUrl: "/auth/google-callback" });
+    } catch {
+      setGoogleLoading(false);
+      setError("Google sign-in failed. Please try again.");
+    }
+  };
+
+  const googleConfigured = !!(process.env.NEXT_PUBLIC_GOOGLE_CONFIGURED);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex items-center justify-center p-6">
@@ -77,40 +91,44 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="relative my-1">
+          <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/20" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-transparent px-3 text-green-300 text-xs">or</span>
+              <span className="px-3 text-green-300 text-xs" style={{ background: "transparent" }}>or</span>
             </div>
           </div>
 
-          <Link
-            href="/signup?google=1"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-colors border border-white/20"
+          <button
+            onClick={handleGoogle}
+            disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-colors border border-white/20 disabled:opacity-50"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-              <path fill="#EA4335" d="M5.26 9.77C5.84 8.1 6.97 6.74 8.4 5.84L5.68 3.12A11.89 11.89 0 0 0 .5 12c0 1.94.47 3.77 1.3 5.38l2.77-2.16A7.01 7.01 0 0 1 5.26 9.77z"/>
-              <path fill="#FBBC05" d="M12 5c1.52 0 2.88.51 3.97 1.35l2.56-2.56A11.93 11.93 0 0 0 12 0C7.52 0 3.65 2.62 1.68 6.38l2.96 2.3A7.03 7.03 0 0 1 12 5z"/>
-              <path fill="#34A853" d="M12 19c-2.3 0-4.33-1.13-5.6-2.85l-2.78 2.17A11.9 11.9 0 0 0 12 24c3.08 0 5.87-1.16 8-3.06l-2.77-2.16A7.02 7.02 0 0 1 12 19z"/>
-              <path fill="#4285F4" d="M23.5 12c0-.79-.07-1.56-.2-2.31H12v4.64h6.46A5.54 5.54 0 0 1 17.23 18l2.77 2.16A11.95 11.95 0 0 0 23.5 12z"/>
-            </svg>
+            {googleLoading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M5.26 9.77C5.84 8.1 6.97 6.74 8.4 5.84L5.68 3.12A11.89 11.89 0 0 0 .5 12c0 1.94.47 3.77 1.3 5.38l2.77-2.16A7.01 7.01 0 0 1 5.26 9.77z"/>
+                <path fill="#FBBC05" d="M12 5c1.52 0 2.88.51 3.97 1.35l2.56-2.56A11.93 11.93 0 0 0 12 0C7.52 0 3.65 2.62 1.68 6.38l2.96 2.3A7.03 7.03 0 0 1 12 5z"/>
+                <path fill="#34A853" d="M12 19c-2.3 0-4.33-1.13-5.6-2.85l-2.78 2.17A11.9 11.9 0 0 0 12 24c3.08 0 5.87-1.16 8-3.06l-2.77-2.16A7.02 7.02 0 0 1 12 19z"/>
+                <path fill="#4285F4" d="M23.5 12c0-.79-.07-1.56-.2-2.31H12v4.64h6.46A5.54 5.54 0 0 1 17.23 18l2.77 2.16A11.95 11.95 0 0 0 23.5 12z"/>
+              </svg>
+            )}
             Continue with Google
-          </Link>
+          </button>
+
+          {!googleConfigured && (
+            <p className="text-yellow-300/70 text-[10px] text-center">
+              Google sign-in requires credentials in .env.local
+            </p>
+          )}
         </div>
 
         <p className="text-center text-green-300 text-sm mt-5">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-white font-semibold underline">
-            Sign up
-          </Link>
+          <Link href="/signup" className="text-white font-semibold underline">Sign up</Link>
         </p>
-        <div className="text-center mt-3">
-          <Link href="/" className="text-green-400 text-xs hover:text-green-300">
-            ← Back to home
-          </Link>
-        </div>
       </div>
     </div>
   );
