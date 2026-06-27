@@ -19,7 +19,7 @@ export function AyahLineDisplay({ ayahs, translations, surahNumber, surahName }:
   const { settings } = useSettings();
   const { getBookmark } = useBookmarks();
   const { currentAyah } = useAudio();
-  const { isMemorized, toggleMemorized } = useMemorization();
+  const { isMemorized, toggleMemorized, canToggle } = useMemorization();
   const [expandedAyahs, setExpandedAyahs] = useState<Set<number>>(new Set());
 
   const toggleTranslation = (num: number) => {
@@ -80,7 +80,7 @@ export function AyahLineDisplay({ ayahs, translations, surahNumber, surahName }:
                 )}
               </div>
 
-              {/* Action buttons column */}
+              {/* Action buttons */}
               <div className="flex flex-col gap-0.5 shrink-0 mt-1">
                 <AyahPlayButton
                   surahNumber={surahNumber}
@@ -95,27 +95,39 @@ export function AyahLineDisplay({ ayahs, translations, surahNumber, surahName }:
                   numberInSurah={ayah.numberInSurah}
                   surahName={surahName}
                 />
-                {/* Memorization toggle */}
-                <button
-                  onClick={() => toggleMemorized(surahNumber, ayah.numberInSurah)}
-                  title={memorized ? "Mark as not memorized" : "Mark as memorized"}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    memorized
-                      ? "text-primary bg-primary/10"
-                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-                  }`}
-                >
-                  {memorized ? (
+                {/* Memorization toggle — teacher or guest only; students see indicator */}
+                {canToggle ? (
+                  <button
+                    onClick={() => toggleMemorized(surahNumber, {
+                      numberInSurah: ayah.numberInSurah,
+                      hizbQuarter: ayah.hizbQuarter,
+                      page: ayah.page,
+                    })}
+                    title={memorized ? "Mark as not memorized" : "Mark as memorized"}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      memorized
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    }`}
+                  >
+                    {memorized ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m9 12 2 2 4-4" />
+                      </svg>
+                    )}
+                  </button>
+                ) : memorized ? (
+                  <div className="p-1.5 text-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
                     </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="m9 12 2 2 4-4" />
-                    </svg>
-                  )}
-                </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

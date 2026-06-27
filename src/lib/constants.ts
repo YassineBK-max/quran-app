@@ -9,6 +9,11 @@ export const RECITERS = [
   { id: "ar.husary", name: "Mahmoud Khalil Al-Husary" },
   { id: "ar.minshawi", name: "Mohamed Siddiq El-Minshawi" },
   { id: "ar.saaboromayye", name: "Saad Al-Ghamdi" },
+  { id: "ar.ahmadiajmi", name: "Ahmad Al-Ajmy" },
+  { id: "ar.hanirifai", name: "Hani Ar-Rifai" },
+  { id: "ar.mahermuaiqly", name: "Maher Al-Muaiqly" },
+  { id: "ar.muhammadjibreel", name: "Muhammad Jibreel" },
+  { id: "ar.yasserdossari", name: "Yasser Al-Dosari" },
 ];
 
 export const TRANSLATIONS = [
@@ -28,6 +33,19 @@ export const BOOKMARK_COLORS: { color: BookmarkColor; label: string; hex: string
   { color: "yellow", label: "Yellow", hex: "#EAB308" },
   { color: "purple", label: "Purple", hex: "#A855F7" },
 ];
+
+export const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+
+export const REPEAT_OPTIONS = [
+  { value: 1, label: "1×" },
+  { value: 2, label: "2×" },
+  { value: 3, label: "3×" },
+  { value: 5, label: "5×" },
+  { value: 10, label: "10×" },
+  { value: 0, label: "∞" },
+];
+
+export const ADMIN_CODE = "QURAN_ADMIN_2024";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",

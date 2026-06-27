@@ -63,3 +63,98 @@ export interface AppSettings {
   tapToTranslate: boolean;
   displayMode: DisplayMode;
 }
+
+// --- Auth ---
+export type UserRole = "admin" | "teacher" | "student";
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  classId?: string;    // student: class they belong to
+  createdAt: number;
+}
+
+// --- Classroom ---
+export interface Assignment {
+  id: string;
+  classId: string;
+  title: string;
+  description?: string;
+  dueDate?: string;    // YYYY-MM-DD
+  createdAt: number;
+}
+
+export interface ClassRoom {
+  id: string;
+  name: string;
+  code: string;        // 6-char join code for students
+  teacherId: string;
+  teacherName: string;
+  studentIds: string[];
+  assignments: Assignment[];
+  createdAt: number;
+}
+
+// --- Calendar ---
+export interface CalendarEvent {
+  id: string;
+  classId: string;
+  title: string;
+  type: "session" | "deadline" | "goal";
+  date: string;        // YYYY-MM-DD
+  time?: string;       // HH:MM
+  description?: string;
+  createdAt: number;
+}
+
+// --- Messaging ---
+export interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  recipientId: string;         // userId or classId
+  recipientType: "user" | "class";
+  content: string;
+  allowReply: boolean;
+  replyToId?: string;
+  createdAt: number;
+  readBy: string[];            // array of userIds
+}
+
+// --- Notifications ---
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: "deadline" | "message" | "award";
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: number;
+  link?: string;
+}
+
+// --- Awards ---
+export type AwardType =
+  | "first_page"
+  | "first_surah"
+  | "hizb_quarter"
+  | "hizb_half"
+  | "hizb_three_quarters"
+  | "hizb_complete"
+  | "quran_complete";
+
+export interface Award {
+  id: string;
+  type: AwardType;
+  message: string;
+  earnedAt: number;
+}
+
+// --- Memorization ---
+export interface MemorizedAyah {
+  ns: number;   // numberInSurah
+  hq: number;   // hizbQuarter (1-240)
+  pg: number;   // page (1-604)
+}

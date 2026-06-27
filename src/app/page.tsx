@@ -1,5 +1,14 @@
 "use client";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+
+function BookIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+    </svg>
+  );
+}
 
 function GearIcon() {
   return (
@@ -10,75 +19,41 @@ function GearIcon() {
   );
 }
 
-function BookIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-    </svg>
-  );
-}
-
-function DuaHandsIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 11V8a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v3" />
-      <path d="M14 10V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v4" />
-      <path d="M10 10.5V8a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6c0 3.31 2.69 6 6 6h1a5 5 0 0 0 5-5v-3a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1" />
-    </svg>
-  );
-}
-
-function StarCrescentIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" opacity="0.9" />
-      <polygon points="17,2 17.9,4.8 21,5 18.7,7 19.4,10 17,8.5 14.6,10 15.3,7 13,5 16.1,4.8" fill="currentColor" />
-    </svg>
-  );
-}
-
-const navItems = [
-  {
-    href: "/surahs",
-    icon: <BookIcon />,
-    arabic: "القرآن",
-    label: "Quran",
-    color: "from-green-600 to-green-700",
-  },
-  {
-    href: "/settings",
-    icon: <GearIcon />,
-    arabic: "الإعدادات",
-    label: "Settings",
-    color: "from-green-700 to-green-800",
-  },
-  {
-    href: "/hadith",
-    icon: <StarCrescentIcon />,
-    arabic: "الحديث النبوي",
-    label: "40 Hadith",
-    color: "from-green-600 to-green-700",
-  },
-  {
-    href: "/adhkar",
-    icon: <DuaHandsIcon />,
-    arabic: "الأذكار",
-    label: "Adhkar",
-    color: "from-green-700 to-green-800",
-  },
-];
-
 export default function CoverPage() {
+  const { user, logout } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-
-      {/* Decorative background circles */}
+      {/* Decorative circles */}
       <div className="absolute top-[-80px] right-[-80px] w-64 h-64 rounded-full bg-white/5" />
       <div className="absolute bottom-[-60px] left-[-60px] w-48 h-48 rounded-full bg-white/5" />
-      <div className="absolute top-1/2 left-[-40px] w-32 h-32 rounded-full bg-white/5" />
+
+      {/* Top bar */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 py-4">
+        <div />
+        <div className="flex items-center gap-2">
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span className="text-green-200 text-sm">{user.name}</span>
+              <button
+                onClick={logout}
+                className="text-xs text-green-300 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="text-xs text-green-200 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
+      </div>
 
       <div className="relative z-10 w-full max-w-sm">
-
         {/* Title */}
         <div className="text-center mb-10">
           <div className="flex justify-center mb-4 text-yellow-300">
@@ -96,28 +71,78 @@ export default function CoverPage() {
           </p>
         </div>
 
-        {/* Navigation Grid */}
+        {/* Nav cards */}
         <div className="grid grid-cols-2 gap-3">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`bg-gradient-to-br ${item.color} rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10`}
-            >
-              <div className="opacity-90">{item.icon}</div>
-              <div className="text-center">
-                <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>
-                  {item.arabic}
-                </p>
-                <p className="text-xs text-green-200 mt-0.5">{item.label}</p>
-              </div>
-            </Link>
-          ))}
+          <Link
+            href="/surahs"
+            className="col-span-2 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+          >
+            <BookIcon />
+            <div className="text-center">
+              <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>القرآن</p>
+              <p className="text-xs text-green-200 mt-0.5">Read & Listen</p>
+            </div>
+          </Link>
+
+          {user ? (
+            <>
+              <Link
+                href={user.role === "admin" ? "/admin" : "/classroom"}
+                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <div className="text-center">
+                  <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>الفصل</p>
+                  <p className="text-xs text-green-200 mt-0.5">{user.role === "admin" ? "Admin Panel" : "Classroom"}</p>
+                </div>
+              </Link>
+              <Link
+                href="/settings"
+                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+              >
+                <GearIcon />
+                <div className="text-center">
+                  <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>الإعدادات</p>
+                  <p className="text-xs text-green-200 mt-0.5">Settings</p>
+                </div>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
+                <div className="text-center">
+                  <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>تسجيل الدخول</p>
+                  <p className="text-xs text-green-200 mt-0.5">Sign In</p>
+                </div>
+              </Link>
+              <Link
+                href="/settings"
+                className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white shadow-lg active:scale-95 transition-transform border border-white/10"
+              >
+                <GearIcon />
+                <div className="text-center">
+                  <p className="text-base font-bold leading-tight" style={{ fontFamily: '"Amiri", serif' }}>الإعدادات</p>
+                  <p className="text-xs text-green-200 mt-0.5">Settings</p>
+                </div>
+              </Link>
+            </>
+          )}
         </div>
 
-        <p className="text-center text-green-400/60 text-xs mt-8">
-          ﷽
-        </p>
+        <p className="text-center text-green-400/60 text-xs mt-8">﷽</p>
       </div>
     </div>
   );
