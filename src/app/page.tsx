@@ -1,6 +1,10 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMemorization } from "@/contexts/MemorizationContext";
+import { fetchAllSurahs } from "@/lib/api";
+import { SurahInfo } from "@/lib/types";
 import { useT } from "@/hooks/useT";
 
 function BookIcon() {
@@ -22,7 +26,20 @@ function GearIcon() {
 
 export default function CoverPage() {
   const { user, logout } = useAuth();
+  const { getProgress, getMemorizedCount } = useMemorization();
   const t = useT();
+  const [surahs, setSurahs] = useState<SurahInfo[]>([]);
+
+  useEffect(() => {
+    // Load surah list quietly for in-progress widget
+    fetchAllSurahs().then(setSurahs).catch(() => {});
+  }, []);
+
+  const inProgress = surahs.filter((s) => {
+    const count = getMemorizedCount(s.number);
+    const progress = getProgress(s.number, s.numberOfAyahs);
+    return count > 0 && progress < 100;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -36,7 +53,7 @@ export default function CoverPage() {
         <div className="flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-2">
-              <span className="text-green-200 text-sm">{user.name}</span>
+              <span className="text-green-200 text-sm">{user.displayName ?? user.name}</span>
               <button
                 onClick={logout}
                 className="text-xs text-green-300 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors"
@@ -45,10 +62,7 @@ export default function CoverPage() {
               </button>
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="text-xs text-green-200 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors"
-            >
+            <Link href="/login" className="text-xs text-green-200 hover:text-white border border-green-600 px-3 py-1.5 rounded-lg transition-colors">
               {t.signin}
             </Link>
           )}
@@ -57,7 +71,7 @@ export default function CoverPage() {
 
       <div className="relative z-10 w-full max-w-sm">
         {/* Title */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="flex justify-center mb-4 text-yellow-300">
             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
               <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" opacity="0.85" />
@@ -72,6 +86,32 @@ export default function CoverPage() {
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </p>
         </div>
+
+        {/* In-progress surahs */}
+        {inProgress.length > 0 && (
+          <div className="mb-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/15 p-3">
+            <p className="text-green-300 text-xs font-semibold mb-2">{t.home_in_progress}</p>
+            <div className="space-y-2">
+              {inProgress.slice(0, 3).map((s) => {
+                const progress = getProgress(s.number, s.numberOfAyahs);
+                return (
+                  <Link key={s.number} href={`/surah/${s.number}`} className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-1 py-0.5 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <p className="text-white text-xs font-medium truncate">{s.englishName}</p>
+                        <p className="text-green-300 text-[10px] font-semibold shrink-0 ml-2">{progress}%</p>
+                      </div>
+                      <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-400 rounded-full" style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                    <span className="text-green-300 text-[10px] shrink-0">{t.surahs_continue}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Nav cards */}
         <div className="grid grid-cols-2 gap-3">

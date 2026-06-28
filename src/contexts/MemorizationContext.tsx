@@ -6,7 +6,6 @@ import { useAuth } from "./AuthContext";
 
 type MemorizationData = Record<number, MemorizedAyah[]>;
 
-// Single shared key holds ALL users' progress: { [userId]: MemorizationData }
 const SHARED_KEY = "quran-memorization-all-users";
 
 interface MemorizationContextType {
@@ -26,7 +25,7 @@ const MemorizationContext = createContext<MemorizationContextType>({
   getProgress: () => 0,
   getMemorizedCount: () => 0,
   getAllMemorized: () => [],
-  canToggle: true,
+  canToggle: false,
   studentId: null,
   setStudentId: () => {},
 });
@@ -41,23 +40,23 @@ export function MemorizationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? "guest";
 
-  // All users' data in one shared key: { userId: { surahNumber: MemorizedAyah[] } }
   const [allData, setAllData] = useLocalStorage<Record<string, MemorizationData>>(SHARED_KEY, {});
   const [studentId, setStudentId] = useState<string | null>(null);
 
-  const isViewingStudent = (user?.role === "teacher" || user?.role === "admin") && studentId != null;
-  const activeUserId = isViewingStudent ? (studentId ?? userId) : userId;
+  const isTeacherOrAdmin = user?.role === "teacher" || user?.role === "admin";
+  const isParent = user?.role === "parent";
 
-  const canToggle = user?.role !== "student";
+  // Which user's data to display/toggle
+  const activeUserId = isParent
+    ? (user?.linkedChildId ?? userId)
+    : (isTeacherOrAdmin && studentId != null ? studentId : userId);
 
-  const getUserData = useCallback(
-    (uid: string): MemorizationData => allData[uid] ?? {},
-    [allData]
-  );
+  // Only teachers and admins can toggle memorization
+  const canToggle = isTeacherOrAdmin;
 
   const getActiveData = useCallback(
-    (): MemorizationData => getUserData(activeUserId),
-    [getUserData, activeUserId]
+    (): MemorizationData => allData[activeUserId] ?? {},
+    [allData, activeUserId]
   );
 
   const isMemorized = useCallback(

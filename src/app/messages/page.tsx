@@ -23,7 +23,7 @@ export default function MessagesPage() {
   const [replyContent, setReplyContent] = useState("");
   const [composeContent, setComposeContent] = useState("");
   const [composeRecipient, setComposeRecipient] = useState("");
-  const [composeType, setComposeType] = useState<"user" | "class">("user");
+  const [composeType, setComposeType] = useState<"user" | "class" | "all" | "parents">("user");
   const [allowReply, setAllowReply] = useState(true);
   const [prevTab, setPrevTab] = useState<"inbox" | "sent">("inbox");
 
@@ -58,8 +58,9 @@ export default function MessagesPage() {
   };
 
   const handleSend = () => {
-    if (!composeContent.trim() || !composeRecipient) return;
-    sendMessage(composeRecipient, composeType, composeContent.trim(), allowReply);
+    const needsRecipient = composeType !== "all";
+    if (!composeContent.trim() || (needsRecipient && !composeRecipient)) return;
+    sendMessage(composeType === "all" ? "all" : composeRecipient, composeType, composeContent.trim(), allowReply);
     setComposeContent(""); setComposeRecipient(""); setView("inbox");
   };
 
@@ -78,9 +79,12 @@ export default function MessagesPage() {
   const MessageRow = ({ msg, from }: { msg: Message; from: "inbox" | "sent" }) => {
     const unread = !msg.readBy.includes(user.id);
     const label = from === "inbox" ? msg.senderName : (
-      msg.recipientType === "class"
-        ? (recipientClasses.find((c) => c.id === msg.recipientId)?.name ?? "Class")
-        : (users.find((u) => u.id === msg.recipientId)?.name ?? t.unknown)
+      msg.recipientType === "all" ? t.messages_all
+      : msg.recipientType === "parents"
+        ? `${t.messages_parents} – ${recipientClasses.find((c) => c.id === msg.recipientId)?.name ?? ""}`
+        : msg.recipientType === "class"
+          ? (recipientClasses.find((c) => c.id === msg.recipientId)?.name ?? t.messages_class)
+          : (users.find((u) => u.id === msg.recipientId)?.name ?? t.unknown)
     );
     return (
       <button
@@ -210,34 +214,52 @@ export default function MessagesPage() {
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
             <h2 className="text-sm font-semibold">{t.messages_new_message}</h2>
 
-            <div className="flex gap-2">
+            <div className="flex gap-1 flex-wrap">
               <button
-                onClick={() => setComposeType("user")}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${composeType === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                onClick={() => { setComposeType("user"); setComposeRecipient(""); }}
+                className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors min-w-0 ${composeType === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
               >
                 {t.messages_person}
               </button>
               {recipientClasses.length > 0 && (
                 <button
-                  onClick={() => setComposeType("class")}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${composeType === "class" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  onClick={() => { setComposeType("class"); setComposeRecipient(""); }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors min-w-0 ${composeType === "class" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
                 >
                   {t.messages_class}
                 </button>
               )}
+              {(user.role === "teacher" || user.role === "admin") && recipientClasses.length > 0 && (
+                <button
+                  onClick={() => { setComposeType("parents"); setComposeRecipient(""); }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors min-w-0 ${composeType === "parents" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                >
+                  {t.messages_parents}
+                </button>
+              )}
+              {user.role === "admin" && (
+                <button
+                  onClick={() => { setComposeType("all"); setComposeRecipient("all"); }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors min-w-0 ${composeType === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                >
+                  {t.messages_all}
+                </button>
+              )}
             </div>
 
-            <select
-              value={composeRecipient}
-              onChange={(e) => setComposeRecipient(e.target.value)}
-              className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
-            >
-              <option value="">{t.messages_select_recipient}</option>
-              {composeType === "user"
-                ? recipientUsers.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)
-                : recipientClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
-              }
-            </select>
+            {composeType !== "all" && (
+              <select
+                value={composeRecipient}
+                onChange={(e) => setComposeRecipient(e.target.value)}
+                className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
+              >
+                <option value="">{t.messages_select_recipient}</option>
+                {composeType === "user"
+                  ? recipientUsers.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)
+                  : recipientClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
+                }
+              </select>
+            )}
 
             <textarea
               value={composeContent}
@@ -255,7 +277,7 @@ export default function MessagesPage() {
 
             <button
               onClick={handleSend}
-              disabled={!composeContent.trim() || !composeRecipient}
+              disabled={!composeContent.trim() || (composeType !== "all" && !composeRecipient)}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40"
             >
               {t.messages_send_btn}

@@ -3,13 +3,20 @@ import { createContext, useContext, ReactNode, useCallback, useEffect, useState,
 import { User, UserRole } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
-// Hardcoded admin accounts — always seeded
 const SEEDED_ADMINS = [
   { email: "kassab.salaheddine@gmail.com", name: "Salah", password: "Academy@2030" },
   { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine", password: "academy@2030" },
 ];
 
 const DEFAULT_TEACHER_CODE = "QURAN_ADMIN_2024";
+
+function genId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function genParentCode() {
+  return Math.random().toString(36).toUpperCase().slice(2, 10);
+}
 
 interface AuthContextType {
   user: User | null;
@@ -46,10 +53,6 @@ interface StoredUser extends User {
   isGoogle?: boolean;
 }
 
-function genId() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [storedUsers, setStoredUsers] = useLocalStorage<StoredUser[]>("quran-users", []);
   const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>("quran-current-user", null);
@@ -57,32 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const seededRef = useRef(false);
 
-  // Mark as loaded after localStorage effects settle (requestAnimationFrame fires after all useEffects)
   useEffect(() => {
     const frame = requestAnimationFrame(() => setIsLoaded(true));
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  // Seed hardcoded admin accounts on first load
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
-
     setStoredUsers((prev) => {
       const updated = [...prev];
       for (const admin of SEEDED_ADMINS) {
         const exists = updated.find((u) => u.email.toLowerCase() === admin.email.toLowerCase());
         if (!exists) {
-          updated.push({
-            id: `seeded-${admin.email}`,
-            email: admin.email,
-            name: admin.name,
-            role: "admin",
-            createdAt: Date.now(),
-            passwordHash: admin.password,
-          });
+          updated.push({ id: `seeded-${admin.email}`, email: admin.email, name: admin.name, role: "admin", createdAt: Date.now(), passwordHash: admin.password });
         } else if (exists.role !== "admin") {
-          // Ensure seeded accounts always have admin role
           const idx = updated.indexOf(exists);
           updated[idx] = { ...exists, role: "admin", passwordHash: admin.password };
         }
@@ -91,17 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [setStoredUsers]);
 
-  const setTeacherCode = useCallback(
-    (code: string) => setTeacherCodeState(code),
-    [setTeacherCodeState]
-  );
-
+  const setTeacherCode = useCallback((code: string) => setTeacherCodeState(code), [setTeacherCodeState]);
   const user = storedUsers.find((u) => u.id === currentUserId) ?? null;
-
-  const getUserById = useCallback(
-    (id: string) => storedUsers.find((u) => u.id === id),
-    [storedUsers]
-  );
+  const getUserById = useCallback((id: string) => storedUsers.find((u) => u.id === id), [storedUsers]);
 
   const updateUser = useCallback(
     (id: string, partial: Partial<User>) => {
@@ -112,9 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     (email: string, password: string): string | null => {
-      const found = storedUsers.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password
-      );
+      const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password);
       if (!found) return "Invalid email or password.";
       setCurrentUserId(found.id);
       return null;
@@ -140,9 +122,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
         return "This name is already taken. Please choose another.";
       }
+
+      let linkedChildId: string | undefined;
+      let linkedStudentId: string | undefined;
+
       if (role === "teacher" || role === "admin") {
         if (code !== teacherCode) return "Invalid admin code.";
       }
+      if (role === "parent") {
+        if (!code?.trim()) return "Please enter your child's parent code.";
+        const linkedStudent = storedUsers.find(
+          (u) => u.parentCode === code.trim().toUpperCase() && u.role === "student"
+        );
+        if (!linkedStudent) return "No student found with that code.";
+        if ((linkedStudent.parentIds ?? []).length >= 2) return "This student already has 2 parents linked.";
+        linkedChildId = linkedStudent.id;
+        linkedStudentId = linkedStudent.id;
+      }
+
       const newUser: StoredUser = {
         id: genId(),
         email,
@@ -150,8 +147,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         createdAt: Date.now(),
         passwordHash: password,
+        ...(role === "student" ? { parentCode: genParentCode() } : {}),
+        ...(role === "parent" && linkedChildId ? { linkedChildId } : {}),
       };
-      setStoredUsers((prev) => [...prev, newUser]);
+
+      setStoredUsers((prev) => {
+        const updated = [...prev, newUser];
+        if (role === "parent" && linkedStudentId) {
+          return updated.map((u) =>
+            u.id === linkedStudentId
+              ? { ...u, parentIds: [...(u.parentIds ?? []), newUser.id] }
+              : u
+          );
+        }
+        return updated;
+      });
       setCurrentUserId(newUser.id);
       return null;
     },
@@ -178,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         createdAt: Date.now(),
         isGoogle: true,
+        ...(role === "student" ? { parentCode: genParentCode() } : {}),
       };
       setStoredUsers((prev) => [...prev, newUser]);
       setCurrentUserId(newUser.id);
@@ -192,9 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
 
   return (
-    <AuthCtx.Provider
-      value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser }}
-    >
+    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser }}>
       {children}
     </AuthCtx.Provider>
   );

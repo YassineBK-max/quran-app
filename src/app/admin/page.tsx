@@ -13,6 +13,7 @@ const ROLE_COLORS: Record<string, string> = {
   admin:   "bg-red-500/10 text-red-600 border-red-500/20",
   teacher: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   student: "bg-primary/10 text-primary border-primary/20",
+  parent:  "bg-purple-500/10 text-purple-600 border-purple-500/20",
 };
 
 export default function AdminPage() {
@@ -29,7 +30,7 @@ export default function AdminPage() {
   const [msgRecipient, setMsgRecipient] = useState("");
   const [msgType, setMsgType] = useState<"user" | "class">("user");
   const [sent, setSent] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "teacher" | "student">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "teacher" | "student" | "parent">("all");
 
   if (!user || user.role !== "admin") {
     return (
@@ -47,7 +48,7 @@ export default function AdminPage() {
 
   const teachers = users.filter((u) => u.role === "teacher");
   const students = users.filter((u) => u.role === "student");
-  const admins   = users.filter((u) => u.role === "admin");
+  const parents  = users.filter((u) => u.role === "parent");
 
   const handleSaveCode = () => {
     if (!newCode.trim()) return;
@@ -75,6 +76,13 @@ export default function AdminPage() {
       const cls = classes.filter((c) => c.teacherId === uid);
       return cls.length > 0 ? cls.map((c) => c.name).join(", ") : null;
     }
+    if (role === "parent") {
+      const parent = users.find((u) => u.id === uid);
+      if (parent?.linkedChildId) {
+        const child = users.find((u) => u.id === parent.linkedChildId);
+        return child ? child.name : null;
+      }
+    }
     return null;
   };
 
@@ -90,6 +98,7 @@ export default function AdminPage() {
     admin:   t.admin_admins,
     teacher: t.admin_teachers,
     student: t.admin_students,
+    parent:  t.admin_parents,
   };
 
   return (
@@ -116,9 +125,9 @@ export default function AdminPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: t.admin_admins,       count: admins.length },
-                { label: t.admin_teachers,     count: teachers.length },
-                { label: t.admin_students,     count: students.length },
+                { label: t.admin_teachers,      count: teachers.length },
+                { label: t.admin_students,      count: students.length },
+                { label: t.admin_parents_count, count: parents.length },
                 { label: t.admin_classes_count, count: classes.length },
               ].map((s) => (
                 <div key={s.label} className="bg-card border border-border rounded-xl p-3 text-center">
@@ -171,8 +180,8 @@ export default function AdminPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground flex-1">{filteredUsers.length} users</p>
-              <div className="flex gap-1">
-                {(["all", "admin", "teacher", "student"] as const).map((r) => (
+              <div className="flex gap-1 flex-wrap">
+                {(["all", "admin", "teacher", "student", "parent"] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setRoleFilter(r)}
@@ -213,12 +222,16 @@ export default function AdminPage() {
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                         {classInfo && (
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {u.role === "student" ? t.admin_class_info : t.admin_teaching} {classInfo}
+                            {u.role === "student" ? t.admin_class_info
+                              : u.role === "parent" ? t.admin_linked_child
+                              : t.admin_teaching} {classInfo}
                           </p>
                         )}
                         {!classInfo && u.role !== "admin" && (
                           <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                            {u.role === "student" ? t.admin_no_class : t.admin_no_classes_user}
+                            {u.role === "student" ? t.admin_no_class
+                              : u.role === "parent" ? t.admin_no_link
+                              : t.admin_no_classes_user}
                           </p>
                         )}
                       </div>

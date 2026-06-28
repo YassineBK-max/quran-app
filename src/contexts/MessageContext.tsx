@@ -11,7 +11,7 @@ function genId() {
 
 interface MessageContextType {
   messages: Message[];
-  sendMessage: (recipientId: string, recipientType: "user" | "class", content: string, allowReply?: boolean, replyToId?: string) => void;
+  sendMessage: (recipientId: string, recipientType: Message["recipientType"], content: string, allowReply?: boolean, replyToId?: string) => void;
   markRead: (messageId: string) => void;
   getInbox: () => Message[];
   getSent: () => Message[];
@@ -30,7 +30,7 @@ const MessageCtx = createContext<MessageContextType>({
 });
 
 export function MessageProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, users } = useAuth();
   const { myClass, getTeacherClasses, classes } = useClassroom();
   const [messages, setMessages] = useLocalStorage<Message[]>("quran-messages", []);
 
@@ -39,11 +39,16 @@ export function MessageProvider({ children }: { children: ReactNode }) {
     if (user.role === "teacher") return getTeacherClasses().map((c) => c.id);
     if (user.role === "student" && myClass) return [myClass.id];
     if (user.role === "admin") return classes.map((c) => c.id);
+    // Parent: use their child's class
+    if (user.role === "parent" && user.linkedChildId) {
+      const child = users.find((u) => u.id === user.linkedChildId);
+      if (child?.classId) return [child.classId];
+    }
     return [];
-  }, [user, getTeacherClasses, myClass, classes]);
+  }, [user, users, getTeacherClasses, myClass, classes]);
 
   const sendMessage = useCallback(
-    (recipientId: string, recipientType: "user" | "class", content: string, allowReply = true, replyToId?: string) => {
+    (recipientId: string, recipientType: Message["recipientType"], content: string, allowReply = true, replyToId?: string) => {
       if (!user) return;
       const msg: Message = {
         id: genId(),
@@ -78,14 +83,30 @@ export function MessageProvider({ children }: { children: ReactNode }) {
 
   const getInbox = useCallback((): Message[] => {
     if (!user) return [];
+
+    // For parents: also check child's direct messages
+    const childId = user.role === "parent" ? user.linkedChildId : undefined;
+    const childClassId = childId ? users.find((u) => u.id === childId)?.classId : undefined;
+
     return messages
       .filter((m) => {
-        if (m.recipientType === "user") return m.recipientId === user.id;
-        if (m.recipientType === "class") return userClassIds.includes(m.recipientId);
+        if (m.senderId === user.id) return false; // never show your own sends in inbox
+        if (m.recipientType === "user" && m.recipientId === user.id) return true;
+        if (m.recipientType === "class" && userClassIds.includes(m.recipientId)) return true;
+        if (m.recipientType === "all") return true;
+        // Parent: see messages sent to their child
+        if (childId) {
+          if (m.recipientType === "user" && m.recipientId === childId) return true;
+          if (m.recipientType === "parents" && childClassId && m.recipientId === childClassId) return true;
+        }
+        // Student/Teacher: see "parents" messages only if in that class (teachers get them for their own records)
+        if (m.recipientType === "parents" && userClassIds.includes(m.recipientId)) {
+          if (user.role === "teacher" || user.role === "admin") return true;
+        }
         return false;
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [user, messages, userClassIds]);
+  }, [user, users, messages, userClassIds]);
 
   const getSent = useCallback((): Message[] => {
     if (!user) return [];
@@ -100,18 +121,22 @@ export function MessageProvider({ children }: { children: ReactNode }) {
     [messages]
   );
 
-  const unreadCount = useMemo(
-    () =>
-      user
-        ? messages.filter((m) => {
-            const isForMe =
-              (m.recipientType === "user" && m.recipientId === user.id) ||
-              (m.recipientType === "class" && userClassIds.includes(m.recipientId));
-            return isForMe && !m.readBy.includes(user.id);
-          }).length
-        : 0,
-    [user, messages, userClassIds]
-  );
+  const unreadCount = useMemo(() => {
+    if (!user) return 0;
+    const childId = user.role === "parent" ? user.linkedChildId : undefined;
+    const childClassId = childId ? users.find((u) => u.id === childId)?.classId : undefined;
+
+    return messages.filter((m) => {
+      if (m.senderId === user.id) return false;
+      const isForMe =
+        (m.recipientType === "user" && m.recipientId === user.id) ||
+        (m.recipientType === "class" && userClassIds.includes(m.recipientId)) ||
+        (m.recipientType === "all") ||
+        (childId && m.recipientType === "user" && m.recipientId === childId) ||
+        (childId && childClassId && m.recipientType === "parents" && m.recipientId === childClassId);
+      return isForMe && !m.readBy.includes(user.id);
+    }).length;
+  }, [user, users, messages, userClassIds]);
 
   return (
     <MessageCtx.Provider value={{ messages, sendMessage, markRead, getInbox, getSent, getThread, unreadCount }}>

@@ -53,6 +53,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     root.lang = isAr ? "ar" : "en";
   }, [settings.language]);
 
+  // Apply color theme
+  useEffect(() => {
+    const root = document.documentElement;
+    const ALL_THEMES = ["theme-futuristic", "theme-glass", "theme-simple", "theme-8bit"];
+    ALL_THEMES.forEach((c) => root.classList.remove(c));
+    const ct = settings.colorTheme ?? "classic";
+    if (ct !== "classic") root.classList.add(`theme-${ct}`);
+  }, [settings.colorTheme]);
+
   return (
     <SettingsContext.Provider value={{ settings, updateSettings }}>
       {children}

@@ -28,6 +28,105 @@
   --muted-foreground: #86efac;
 }
 
+/* ── Futuristic theme ── */
+.theme-futuristic {
+  --background: #0d0d1a;
+  --foreground: #e0e8ff;
+  --primary: #00d4ff;
+  --primary-foreground: #000a1a;
+  --card: #111828;
+  --card-foreground: #e0e8ff;
+  --border: #1e3a5f;
+  --muted: #0a1020;
+  --muted-foreground: #5a90c0;
+}
+.theme-futuristic.dark {
+  --background: #050510;
+  --card: #0b1020;
+  --border: #152840;
+  --muted: #040810;
+}
+
+/* ── Glass theme ── */
+.theme-glass {
+  --background: #e8f4fd;
+  --foreground: #1a2a3a;
+  --primary: #4a90d9;
+  --primary-foreground: #ffffff;
+  --card: rgba(255,255,255,0.6);
+  --card-foreground: #1a2a3a;
+  --border: rgba(74,144,217,0.25);
+  --muted: rgba(255,255,255,0.4);
+  --muted-foreground: #5a7a9a;
+}
+.theme-glass.dark {
+  --background: #1a2535;
+  --foreground: #d0e8ff;
+  --card: rgba(30,50,80,0.7);
+  --card-foreground: #d0e8ff;
+  --border: rgba(74,144,217,0.2);
+  --muted: rgba(10,20,40,0.7);
+  --muted-foreground: #6090b0;
+}
+.theme-glass .bg-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Simple theme ── */
+.theme-simple {
+  --background: #ffffff;
+  --foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  --card: #fafafa;
+  --card-foreground: #111111;
+  --border: #e0e0e0;
+  --muted: #f4f4f4;
+  --muted-foreground: #666666;
+}
+.theme-simple.dark {
+  --background: #0a0a0a;
+  --foreground: #f0f0f0;
+  --primary: #f0f0f0;
+  --primary-foreground: #0a0a0a;
+  --card: #141414;
+  --card-foreground: #f0f0f0;
+  --border: #2a2a2a;
+  --muted: #080808;
+  --muted-foreground: #888888;
+}
+
+/* ── 8-bit theme ── */
+.theme-8bit {
+  --background: #1a1a2e;
+  --foreground: #f8f8f2;
+  --primary: #ff6b35;
+  --primary-foreground: #1a1a2e;
+  --card: #16213e;
+  --card-foreground: #f8f8f2;
+  --border: #0f3460;
+  --muted: #0d0d1f;
+  --muted-foreground: #75715e;
+}
+.theme-8bit.dark {
+  --background: #0d0d1f;
+  --card: #0f0f2a;
+  --border: #1a1a4e;
+  --muted: #080818;
+}
+.theme-8bit * {
+  image-rendering: pixelated;
+}
+.theme-8bit .bg-card,
+.theme-8bit .rounded-xl,
+.theme-8bit .rounded-2xl {
+  border-radius: 0 !important;
+}
+.theme-8bit button, .theme-8bit input, .theme-8bit select, .theme-8bit textarea {
+  border-radius: 0 !important;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);

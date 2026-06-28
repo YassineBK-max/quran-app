@@ -1,6 +1,8 @@
 "use client";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Switch } from "@/components/ui/Switch";
 import { RECITERS, TRANSLATIONS } from "@/lib/constants";
 import { ThemeMode } from "@/lib/types";
@@ -8,6 +10,7 @@ import { useT } from "@/hooks/useT";
 
 export default function SettingsPage() {
   const { settings, updateSettings } = useSettings();
+  const { user } = useAuth();
   const t = useT();
 
   const themeLabels: Record<ThemeMode, string> = {
@@ -20,6 +23,30 @@ export default function SettingsPage() {
     <>
       <Header title={t.settings_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-6">
+        {/* Profile */}
+        {user && (
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl hover:border-primary/30 transition-colors"
+          >
+            {user.profilePhoto ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.profilePhoto} alt="" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
+                {(user.displayName ?? user.name)[0].toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{user.displayName ?? user.name}</p>
+              <p className="text-xs text-muted-foreground">{t.settings_profile}</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground shrink-0">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+          </Link>
+        )}
+
         {/* Theme */}
         <section className="bg-card border border-border rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold">{t.settings_appearance}</h2>

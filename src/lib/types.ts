@@ -54,6 +54,7 @@ export interface Bookmark {
 
 export type DisplayMode = "mushaf" | "ayah-per-line";
 export type ThemeMode = "light" | "dark" | "system";
+export type ColorTheme = "classic" | "futuristic" | "glass" | "simple" | "8bit";
 
 export interface AppSettings {
   theme: ThemeMode;
@@ -62,18 +63,24 @@ export interface AppSettings {
   language: "en" | "ar";
   tapToTranslate: boolean;
   displayMode: DisplayMode;
+  colorTheme: ColorTheme;
 }
 
 // --- Auth ---
-export type UserRole = "admin" | "teacher" | "student";
+export type UserRole = "admin" | "teacher" | "student" | "parent";
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: UserRole;
-  classId?: string;    // student: class they belong to
+  classId?: string;       // student: class they belong to
   createdAt: number;
+  parentCode?: string;    // student only: 8-char code parents use to link
+  parentIds?: string[];   // student only: IDs of linked parent accounts (max 2)
+  linkedChildId?: string; // parent only: student ID they are linked to
+  displayName?: string;   // optional display name override
+  profilePhoto?: string;  // base64-encoded photo
 }
 
 // --- Classroom ---
@@ -104,7 +111,10 @@ export interface CalendarEvent {
   title: string;
   type: "session" | "deadline" | "goal" | "meeting";
   date: string;        // YYYY-MM-DD
-  time?: string;       // HH:MM
+  time?: string;       // HH:MM (legacy)
+  startTime?: string;  // HH:MM
+  endTime?: string;    // HH:MM
+  notes?: string;      // session notes / recap
   description?: string;
   createdAt: number;
 }
@@ -114,13 +124,13 @@ export interface Message {
   id: string;
   senderId: string;
   senderName: string;
-  recipientId: string;         // userId or classId
-  recipientType: "user" | "class";
+  recipientId: string;         // userId | classId | "all"
+  recipientType: "user" | "class" | "all" | "parents";
   content: string;
   allowReply: boolean;
   replyToId?: string;
   createdAt: number;
-  readBy: string[];            // array of userIds
+  readBy: string[];
 }
 
 // --- Notifications ---

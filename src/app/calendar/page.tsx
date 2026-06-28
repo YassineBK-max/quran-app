@@ -32,8 +32,10 @@ export default function CalendarPage() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<CalendarEvent["type"]>("session");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [desc, setDesc] = useState("");
+  const [notes, setNotes] = useState("");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
 
   if (!user) {
@@ -71,8 +73,17 @@ export default function CalendarPage() {
 
   const handleAdd = () => {
     if (!title.trim() || !date || !activeClassId) return;
-    addEvent(activeClassId, { title: title.trim(), type, date, time: time || undefined, description: desc || undefined });
-    setTitle(""); setDate(""); setTime(""); setDesc("");
+    if (type === "session" && (!startTime || !endTime)) return;
+    addEvent(activeClassId, {
+      title: title.trim(),
+      type,
+      date,
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
+      notes: notes || undefined,
+      description: desc || undefined,
+    });
+    setTitle(""); setDate(""); setStartTime(""); setEndTime(""); setDesc(""); setNotes("");
   };
 
   return (
@@ -130,17 +141,46 @@ export default function CalendarPage() {
                 onChange={(e) => setDate(e.target.value)}
                 className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
               />
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-28 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
-              />
             </div>
+
+            {type === "session" && (
+              <div className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground block mb-1">{t.calendar_start_time}</label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    required
+                    className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground block mb-1">{t.calendar_end_time}</label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    required
+                    className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            {type === "session" && (
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={t.calendar_notes}
+                rows={2}
+                className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none"
+              />
+            )}
 
             <button
               onClick={handleAdd}
-              disabled={!title.trim() || !date}
+              disabled={!title.trim() || !date || (type === "session" && (!startTime || !endTime))}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40"
             >
               {t.calendar_add_btn}
@@ -170,8 +210,17 @@ export default function CalendarPage() {
                             {EVENT_TYPES.find((et) => et.type === event.type)?.label ?? event.type}
                           </span>
                         </div>
-                        {event.time && <p className="text-xs opacity-70 mt-0.5">{event.time}</p>}
+                        {(event.startTime || event.time) && (
+                          <p className="text-xs opacity-70 mt-0.5">
+                            🕐 {event.startTime ? `${event.startTime}${event.endTime ? ` – ${event.endTime}` : ""}` : event.time}
+                          </p>
+                        )}
                         {event.description && <p className="text-xs opacity-70 mt-1">{event.description}</p>}
+                        {event.notes && (
+                          <div className="mt-1.5 pt-1.5 border-t border-current/20">
+                            <p className="text-xs opacity-80 italic">{event.notes}</p>
+                          </div>
+                        )}
                       </div>
                       {isTeacher && (
                         <button

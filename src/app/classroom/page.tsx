@@ -22,6 +22,7 @@ export default function ClassroomPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [parentsMenu, setParentsMenu] = useState<string | null>(null); // studentId for 3-dot menu
 
   if (!user) {
     return (
@@ -193,23 +194,61 @@ export default function ClassroomPage() {
                     <div className="space-y-2">
                       {activeClass.studentIds.map((sid) => {
                         const student = users.find((u) => u.id === sid);
+                        const studentParents = users.filter((u) => u.role === "parent" && u.linkedChildId === sid);
+                        const isMenuOpen = parentsMenu === sid;
                         return (
-                          <button
-                            key={sid}
-                            onClick={() => {
-                              setStudentId(sid);
-                              router.push("/surahs");
-                            }}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
-                          >
-                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
-                              {(student?.name ?? "?")[0].toUpperCase()}
+                          <div key={sid} className="relative">
+                            <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-colors">
+                              <button
+                                onClick={() => { setStudentId(sid); router.push("/surahs"); }}
+                                className="flex items-center gap-3 flex-1 text-left"
+                              >
+                                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
+                                  {(student?.name ?? "?")[0].toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">{student?.name ?? t.unknown}</p>
+                                  <p className="text-xs text-muted-foreground">{t.classroom_view_progress}</p>
+                                </div>
+                              </button>
+                              <button
+                                onClick={() => setParentsMenu(isMenuOpen ? null : sid)}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                                title={t.classroom_view_parents}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+                                </svg>
+                              </button>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium">{student?.name ?? t.unknown}</p>
-                              <p className="text-xs text-muted-foreground">{t.classroom_view_progress}</p>
-                            </div>
-                          </button>
+                            {isMenuOpen && (
+                              <div className="absolute right-0 top-full z-10 mt-1 min-w-56 bg-card border border-border rounded-xl shadow-lg p-3">
+                                <p className="text-xs font-semibold text-muted-foreground mb-2">{t.classroom_parents}</p>
+                                {studentParents.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground">{t.classroom_no_parents}</p>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {studentParents.map((p) => (
+                                      <div key={p.id} className="flex items-center gap-2 text-sm">
+                                        <div className="w-7 h-7 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs font-semibold">
+                                          {p.name[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium">{p.name}</p>
+                                          <p className="text-[10px] text-muted-foreground">{p.email}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {student?.parentCode && (
+                                  <div className="mt-2 pt-2 border-t border-border">
+                                    <p className="text-[10px] text-muted-foreground">{t.classroom_parent_code}: <span className="font-mono font-bold text-primary">{student.parentCode}</span></p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

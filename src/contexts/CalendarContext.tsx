@@ -16,6 +16,7 @@ interface CalendarContextType {
   updateEvent: (id: string, partial: Partial<CalendarEvent>) => void;
   getEventsForClass: (classId: string) => CalendarEvent[];
   getEventsForUser: () => CalendarEvent[];
+  getSessions: () => CalendarEvent[];
   userClassIds: string[];
 }
 
@@ -26,11 +27,12 @@ const CalendarCtx = createContext<CalendarContextType>({
   updateEvent: () => {},
   getEventsForClass: () => [],
   getEventsForUser: () => [],
+  getSessions: () => [],
   userClassIds: [],
 });
 
 export function CalendarProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, users } = useAuth();
   const { myClass, getTeacherClasses, classes } = useClassroom();
   const [events, setEvents] = useLocalStorage<CalendarEvent[]>("quran-calendar-events", []);
 
@@ -39,8 +41,12 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     if (user.role === "teacher") return getTeacherClasses().map((c) => c.id);
     if (user.role === "student" && myClass) return [myClass.id];
     if (user.role === "admin") return classes.map((c) => c.id);
+    if (user.role === "parent" && user.linkedChildId) {
+      const child = users.find((u) => u.id === user.linkedChildId);
+      if (child?.classId) return [child.classId];
+    }
     return [];
-  }, [user, getTeacherClasses, myClass, classes]);
+  }, [user, users, getTeacherClasses, myClass, classes]);
 
   const addEvent = useCallback(
     (classId: string, event: Omit<CalendarEvent, "id" | "classId" | "createdAt">) => {
@@ -71,8 +77,16 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     [events, userClassIds]
   );
 
+  const getSessions = useCallback(
+    () =>
+      events
+        .filter((e) => e.type === "session" && userClassIds.includes(e.classId))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [events, userClassIds]
+  );
+
   return (
-    <CalendarCtx.Provider value={{ events, addEvent, removeEvent, updateEvent, getEventsForClass, getEventsForUser, userClassIds }}>
+    <CalendarCtx.Provider value={{ events, addEvent, removeEvent, updateEvent, getEventsForClass, getEventsForUser, getSessions, userClassIds }}>
       {children}
     </CalendarCtx.Provider>
   );

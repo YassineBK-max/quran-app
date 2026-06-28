@@ -25,7 +25,7 @@ function SignupForm() {
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  type SignupRole = "student" | "teacher";
+  type SignupRole = "student" | "teacher" | "parent";
   const [role, setRole] = useState<SignupRole>("student");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -60,7 +60,7 @@ function SignupForm() {
 
     if (err) { setError(err); setLoading(false); return; }
 
-    if (role === "student" && code) {
+    if (role === "student" && code && code.length === 6) {
       const joinErr = joinClass(code);
       if (joinErr && joinErr !== "You are already in this class.") {
         setError(joinErr); setLoading(false); return;
@@ -191,19 +191,23 @@ function SignupForm() {
 
               <div>
                 <label className="text-green-200 text-xs font-medium block mb-2">{t.signup_role_subtitle}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["student", "teacher"] as const).map((r) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { r: "student" as const, label: t.signup_student },
+                    { r: "teacher" as const, label: t.signup_teacher },
+                    { r: "parent" as const, label: t.signup_parent },
+                  ]).map(({ r, label }) => (
                     <button
                       key={r}
                       type="button"
                       onClick={() => { setRole(r); setCode(""); setError(""); }}
-                      className={`py-2.5 rounded-xl text-sm font-medium capitalize transition-colors border ${
+                      className={`py-2.5 rounded-xl text-xs font-medium capitalize transition-colors border ${
                         role === r
                           ? "bg-green-500 border-green-400 text-white"
                           : "bg-white/10 border-white/20 text-green-200 hover:bg-white/20"
                       }`}
                     >
-                      {r === "student" ? t.signup_student : t.signup_teacher}
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -234,6 +238,21 @@ function SignupForm() {
                     placeholder={t.signup_teacher_code_placeholder}
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors"
                   />
+                </div>
+              )}
+
+              {role === "parent" && (
+                <div>
+                  <label className="text-green-200 text-xs font-medium block mb-1.5">{t.signup_parent_code}</label>
+                  <input
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    required
+                    placeholder={t.signup_parent_code_placeholder}
+                    maxLength={8}
+                    className="w-full bg-white/10 border border-white/20 text-white placeholder-green-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 transition-colors uppercase tracking-widest font-mono"
+                  />
+                  <p className="text-green-400/70 text-[10px] mt-1">{t.signup_parent_code_hint}</p>
                 </div>
               )}
 

@@ -230,7 +230,79 @@ const en = {
   award_hizb_three_quarters_suffix: "! Keep going!",
   award_hizb_complete_prefix: "Excellent! You finished",
   award_hizb_complete_suffix: "!",
-};
+
+  // --- Parent role ---
+  signup_parent: "Parent / Guardian",
+  signup_parent_code: "Student Code",
+  signup_parent_code_hint: "Ask your child for their 8-character parent code.",
+  signup_parent_code_placeholder: "Enter student code",
+
+  // --- Quran index / mushaf ---
+  nav_quran_index: "Quran",
+  surahs_index_title: "Quran Index",
+  surahs_page_label: "p.",
+  surahs_in_progress: "In Progress",
+  surahs_continue: "Continue →",
+  home_in_progress: "In Progress",
+
+  // --- Sessions page ---
+  nav_sessions: "Sessions",
+  sessions_title: "Sessions",
+  sessions_past: "Past Sessions",
+  sessions_upcoming: "Upcoming",
+  sessions_empty: "No sessions yet.",
+  sessions_no_class: "Join a class to see your sessions.",
+  sessions_from: "From",
+  sessions_to: "to",
+  sessions_notes: "Notes",
+
+  // --- Calendar: session times & notes ---
+  calendar_start_time: "Start time",
+  calendar_end_time: "End time",
+  calendar_notes: "Session notes (optional)",
+
+  // --- Profile page ---
+  nav_profile: "Profile",
+  profile_title: "My Profile",
+  profile_photo: "Profile Photo",
+  profile_change_photo: "Change Photo",
+  profile_display_name: "Display Name",
+  profile_display_name_placeholder: "How you appear in the app",
+  profile_save: "Save Changes",
+  profile_saved: "Saved!",
+  profile_color_theme: "App Style",
+  profile_theme_classic: "Classic",
+  profile_theme_futuristic: "Futuristic",
+  profile_theme_glass: "Glass",
+  profile_theme_simple: "Simple",
+  profile_theme_8bit: "8-bit",
+  profile_parent_code: "Your Parent Code",
+  profile_parent_code_desc: "Share this with your parents so they can link their account.",
+  profile_parents_linked: "Linked Parents",
+  profile_no_parents: "No parents linked yet.",
+  settings_profile: "Profile & Account",
+
+  // --- Classroom: parent info ---
+  classroom_parents: "Parents",
+  classroom_view_parents: "View parents",
+  classroom_parent_code: "Parent Code",
+  classroom_no_parents: "No parents linked",
+
+  // --- Messages: new types ---
+  messages_all: "All",
+  messages_parents: "Parents",
+
+  // --- Admin: parents ---
+  admin_parents: "Parents",
+  admin_parents_count: "Parents",
+  admin_linked_child: "Child:",
+  admin_no_link: "No child linked",
+
+  // --- Parent view ---
+  parent_child_progress: "Child's Progress",
+  parent_view_quran: "View Quran Progress",
+  parent_child_messages: "Messages",
+}
 
 const ar: typeof en = {
   // --- Navigation ---
@@ -461,6 +533,78 @@ const ar: typeof en = {
   award_hizb_three_quarters_suffix: "! واصل!",
   award_hizb_complete_prefix: "ممتاز! أتممت",
   award_hizb_complete_suffix: "!",
+
+  // --- Parent role ---
+  signup_parent: "ولي الأمر / الوالد",
+  signup_parent_code: "رمز الطالب",
+  signup_parent_code_hint: "اطلب من ابنك/ابنتك رمزه/رمزها المكوّن من 8 أحرف.",
+  signup_parent_code_placeholder: "أدخل رمز الطالب",
+
+  // --- Quran index / mushaf ---
+  nav_quran_index: "القرآن",
+  surahs_index_title: "فهرس القرآن",
+  surahs_page_label: "ص.",
+  surahs_in_progress: "قيد الحفظ",
+  surahs_continue: "متابعة ←",
+  home_in_progress: "قيد الحفظ",
+
+  // --- Sessions page ---
+  nav_sessions: "الجلسات",
+  sessions_title: "الجلسات",
+  sessions_past: "الجلسات السابقة",
+  sessions_upcoming: "القادمة",
+  sessions_empty: "لا توجد جلسات بعد.",
+  sessions_no_class: "انضم إلى فصل لرؤية جلساتك.",
+  sessions_from: "من",
+  sessions_to: "إلى",
+  sessions_notes: "ملاحظات",
+
+  // --- Calendar: session times & notes ---
+  calendar_start_time: "وقت البدء",
+  calendar_end_time: "وقت الانتهاء",
+  calendar_notes: "ملاحظات الجلسة (اختياري)",
+
+  // --- Profile page ---
+  nav_profile: "الملف الشخصي",
+  profile_title: "ملفي الشخصي",
+  profile_photo: "صورة الملف",
+  profile_change_photo: "تغيير الصورة",
+  profile_display_name: "الاسم المعروض",
+  profile_display_name_placeholder: "كيف تظهر في التطبيق",
+  profile_save: "حفظ التغييرات",
+  profile_saved: "تم الحفظ!",
+  profile_color_theme: "نمط التطبيق",
+  profile_theme_classic: "كلاسيكي",
+  profile_theme_futuristic: "مستقبلي",
+  profile_theme_glass: "زجاجي",
+  profile_theme_simple: "بسيط",
+  profile_theme_8bit: "8-بت",
+  profile_parent_code: "رمز ولي أمرك",
+  profile_parent_code_desc: "شارك هذا الرمز مع والديك لربط حساباتهم.",
+  profile_parents_linked: "أولياء الأمور المرتبطون",
+  profile_no_parents: "لم يُربط أي ولي أمر بعد.",
+  settings_profile: "الملف الشخصي والحساب",
+
+  // --- Classroom: parent info ---
+  classroom_parents: "أولياء الأمور",
+  classroom_view_parents: "عرض أولياء الأمور",
+  classroom_parent_code: "رمز ولي الأمر",
+  classroom_no_parents: "لا يوجد أولياء أمور مرتبطون",
+
+  // --- Messages: new types ---
+  messages_all: "الجميع",
+  messages_parents: "أولياء الأمور",
+
+  // --- Admin: parents ---
+  admin_parents: "أولياء الأمور",
+  admin_parents_count: "أولياء الأمور",
+  admin_linked_child: "الطفل:",
+  admin_no_link: "لا يوجد طالب مرتبط",
+
+  // --- Parent view ---
+  parent_child_progress: "تقدم الطفل",
+  parent_view_quran: "عرض تقدم القرآن",
+  parent_child_messages: "الرسائل",
 };
 
 export type Translations = typeof en;
