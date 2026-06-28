@@ -1,5 +1,5 @@
 import { API_BASE } from "./constants";
-import { Surah, SurahInfo, SearchMatch } from "./types";
+import { Surah, SurahInfo, SearchMatch, QuranPage } from "./types";
 
 async function fetchApi<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
@@ -18,6 +18,10 @@ export async function fetchSurah(number: number): Promise<Surah> {
 
 export async function fetchSurahTranslation(number: number, edition: string): Promise<Surah> {
   return fetchApi<Surah>(`/surah/${number}/${edition}`);
+}
+
+export async function fetchQuranPage(pageNumber: number): Promise<QuranPage> {
+  return fetchApi<QuranPage>(`/page/${pageNumber}`);
 }
 
 export async function searchAyahs(

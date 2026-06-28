@@ -302,6 +302,17 @@ const en = {
   parent_child_progress: "Child's Progress",
   parent_view_quran: "View Quran Progress",
   parent_child_messages: "Messages",
+
+  // --- Complete Mushaf book reader ---
+  mushaf_title: "The Complete Quran",
+  mushaf_jump: "Go to",
+  mushaf_page: "Page",
+  mushaf_page_number: "Page number (1–604)",
+  mushaf_prev: "Prev",
+  mushaf_next: "Next",
+  mushaf_read_book: "Read as Book",
+  mushaf_read_book_desc: "Complete Quran · 604 pages",
+  go: "Go",
 }
 
 const ar: typeof en = {
@@ -605,6 +616,17 @@ const ar: typeof en = {
   parent_child_progress: "تقدم الطفل",
   parent_view_quran: "عرض تقدم القرآن",
   parent_child_messages: "الرسائل",
+
+  // --- Complete Mushaf book reader ---
+  mushaf_title: "المصحف الشريف",
+  mushaf_jump: "انتقل",
+  mushaf_page: "الصفحة",
+  mushaf_page_number: "رقم الصفحة (1–604)",
+  mushaf_prev: "السابقة",
+  mushaf_next: "التالية",
+  mushaf_read_book: "قراءة المصحف",
+  mushaf_read_book_desc: "القرآن كاملاً · ٦٠٤ صفحة",
+  go: "انتقل",
 };
 
 export type Translations = typeof en;

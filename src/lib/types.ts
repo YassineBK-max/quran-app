@@ -162,6 +162,25 @@ export interface Award {
   earnedAt: number;
 }
 
+// --- Complete Mushaf (page-based reading) ---
+export interface PageAyah {
+  number: number;          // absolute ayah number in the Quran
+  text: string;
+  numberInSurah: number;
+  juz: number;
+  manzil: number;
+  page: number;
+  ruku: number;
+  hizbQuarter: number;
+  sajda: boolean | { id: number; recommended: boolean; obligatory: boolean };
+  surah: SurahInfo;
+}
+
+export interface QuranPage {
+  number: number;
+  ayahs: PageAyah[];
+}
+
 // --- Memorization ---
 export interface MemorizedAyah {
   ns: number;   // numberInSurah

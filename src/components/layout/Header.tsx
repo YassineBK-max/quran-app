@@ -8,9 +8,10 @@ interface HeaderProps {
   title: string;
   showBack?: boolean;
   showHome?: boolean;
+  extra?: React.ReactNode;
 }
 
-export function Header({ title, showBack, showHome = true }: HeaderProps) {
+export function Header({ title, showBack, showHome = true, extra }: HeaderProps) {
   const router = useRouter();
   const { unreadCount } = useNotifications();
   const { user } = useAuth();
@@ -40,6 +41,8 @@ export function Header({ title, showBack, showHome = true }: HeaderProps) {
         )}
 
         <h1 className="text-lg font-semibold truncate flex-1">{title}</h1>
+
+        {extra && <div className="shrink-0">{extra}</div>}
 
         {/* Notifications bell */}
         {user && (

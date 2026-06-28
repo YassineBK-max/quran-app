@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { SurahInfo } from "@/lib/types";
 import { fetchAllSurahs } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
@@ -15,6 +16,7 @@ export default function SurahsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [lastMushafPage] = useLocalStorage<number>("quran-mushaf-last-page", 1);
   const { getProgress, getMemorizedCount } = useMemorization();
   const { isPinned, togglePin } = usePinnedSurahs();
 
@@ -121,6 +123,21 @@ export default function SurahsPage() {
     <>
       <Header title={t.surahs_index_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+        {/* Read Complete Quran button */}
+        <Link
+          href={`/mushaf?page=${lastMushafPage}`}
+          className="flex items-center gap-3 p-4 rounded-2xl border-2 border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 hover:border-primary/60 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-primary shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">{t.mushaf_read_book}</p>
+            <p className="text-xs text-muted-foreground">{t.mushaf_read_book_desc}</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+        </Link>
+
         {/* Decorative mushaf header */}
         <div className="bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 rounded-2xl p-5 text-center">
           <p className="text-2xl mb-1" style={{ fontFamily: '"Amiri", serif' }}>
