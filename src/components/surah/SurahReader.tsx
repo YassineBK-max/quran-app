@@ -131,7 +131,7 @@ export function SurahReader({ surah }: SurahReaderProps) {
         <DisplayModeToggle />
       </div>
 
-      {surah.number !== 1 && surah.number !== 9 && (
+      {settings.displayMode === "ayah-per-line" && surah.number !== 1 && surah.number !== 9 && (
         <div className="text-center py-3">
           <p className="text-muted-foreground" style={{ fontFamily: '"Amiri", serif', fontSize: "1.2rem" }}>
             بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
@@ -150,7 +150,8 @@ export function SurahReader({ surah }: SurahReaderProps) {
         <MushafDisplay
           ayahs={surah.ayahs}
           surahNumber={surah.number}
-          surahName={surah.englishName}
+          surahName={surah.name}
+          surahEnglishName={surah.englishName}
         />
       )}
     </div>

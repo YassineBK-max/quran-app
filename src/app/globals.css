@@ -142,13 +142,115 @@ body {
   text-align: right;
 }
 
+/* ── Mushaf book page ────────────────────────────────── */
+.mushaf-page {
+  background: #f6edd8;
+  border: 2px solid #9a7630;
+  border-radius: 3px;
+  padding: 5px;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.22), inset 0 0 80px rgba(0,0,0,0.04);
+}
+.dark .mushaf-page {
+  background: #1c1208;
+  border-color: #6b4f18;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.6);
+}
+.mushaf-inner {
+  border: 1px solid #9a763066;
+  padding: 20px 20px 14px;
+}
+.dark .mushaf-inner {
+  border-color: #6b4f1855;
+}
+
+/* Surah title */
+.mushaf-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #9a763044;
+}
+.dark .mushaf-header { border-bottom-color: #6b4f1844; }
+.mushaf-name {
+  font-family: "Amiri", serif;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #4a2a00;
+  line-height: 1;
+}
+.dark .mushaf-name { color: #deb760; }
+.mushaf-ornament {
+  color: #9a7630;
+  font-size: 1.1rem;
+  user-select: none;
+}
+.dark .mushaf-ornament { color: #deb760; }
+
+/* Bismillah */
+.mushaf-bismillah {
+  font-family: "Amiri", serif;
+  font-size: 1.5rem;
+  text-align: center;
+  direction: rtl;
+  color: #4a2a00;
+  margin-bottom: 14px;
+}
+.dark .mushaf-bismillah { color: #e8d5a8; }
+
+/* Main text */
 .mushaf-text {
   font-family: "Amiri", serif;
   font-size: 1.8rem;
-  line-height: 3;
+  line-height: 2.9;
   direction: rtl;
   text-align: justify;
+  color: #1a0800;
 }
+.dark .mushaf-text { color: #e8d5a8; }
+
+/* Individual ayah spans */
+.mushaf-word {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.12s;
+}
+.mushaf-word:hover { background: rgba(154,118,48,0.12); }
+.mushaf-playing {
+  background: rgba(154,118,48,0.18) !important;
+  text-decoration: underline;
+  text-decoration-color: #9a7630;
+  text-underline-offset: 5px;
+}
+.mushaf-memorized { background: rgba(34,197,94,0.12); }
+.mushaf-selected { background: rgba(154,118,48,0.15) !important; outline: 1px solid #9a763060; outline-offset: 2px; }
+
+/* Verse end marker */
+.mushaf-verse-end {
+  font-size: 1rem;
+  color: #9a7630;
+  vertical-align: middle;
+}
+.dark .mushaf-verse-end { color: #deb760; }
+
+/* Footer */
+.mushaf-footer {
+  text-align: center;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #9a763044;
+  font-family: "Amiri", serif;
+  font-size: 0.85rem;
+  color: #9a7630;
+  letter-spacing: 0.05em;
+}
+.dark .mushaf-footer {
+  border-top-color: #6b4f1844;
+  color: #deb760;
+}
+/* ─────────────────────────────────────────────────────── */
 
 .translation-enter {
   max-height: 0;

@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   translationEdition: "en.sahih",
   language: "en",
   tapToTranslate: true,
-  displayMode: "ayah-per-line",
+  displayMode: "mushaf",
   colorTheme: "classic",
 };
 
