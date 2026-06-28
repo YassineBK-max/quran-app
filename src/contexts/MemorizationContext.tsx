@@ -6,6 +6,9 @@ import { useAuth } from "./AuthContext";
 
 type MemorizationData = Record<number, MemorizedAyah[]>;
 
+// Single shared key holds ALL users' progress: { [userId]: MemorizationData }
+const SHARED_KEY = "quran-memorization-all-users";
+
 interface MemorizationContextType {
   isMemorized: (surahNumber: number, numberInSurah: number) => boolean;
   toggleMemorized: (surahNumber: number, ayah: { numberInSurah: number; hizbQuarter: number; page: number }) => void;
@@ -34,39 +37,28 @@ function normalize(stored: (MemorizedAyah | number)[]): MemorizedAyah[] {
   );
 }
 
-function readFromStorage(key: string): MemorizationData {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? "{}") as MemorizationData;
-  } catch {
-    return {};
-  }
-}
-
-function writeToStorage(key: string, data: MemorizationData) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch {}
-}
-
 export function MemorizationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? "guest";
 
-  const [data, setData] = useLocalStorage<MemorizationData>(`quran-memorization-${userId}`, {});
+  // All users' data in one shared key: { userId: { surahNumber: MemorizedAyah[] } }
+  const [allData, setAllData] = useLocalStorage<Record<string, MemorizationData>>(SHARED_KEY, {});
   const [studentId, setStudentId] = useState<string | null>(null);
 
-  // Teacher viewing a student: read/write that student's data directly from localStorage
-  const isViewingStudent = user?.role === "teacher" && studentId != null;
-  const studentStorageKey = `quran-memorization-${studentId ?? ""}`;
-
-  const getActiveData = useCallback((): MemorizationData => {
-    if (isViewingStudent) return readFromStorage(studentStorageKey);
-    return data;
-  }, [isViewingStudent, studentStorageKey, data]);
+  const isViewingStudent = (user?.role === "teacher" || user?.role === "admin") && studentId != null;
+  const activeUserId = isViewingStudent ? (studentId ?? userId) : userId;
 
   const canToggle = user?.role !== "student";
+
+  const getUserData = useCallback(
+    (uid: string): MemorizationData => allData[uid] ?? {},
+    [allData]
+  );
+
+  const getActiveData = useCallback(
+    (): MemorizationData => getUserData(activeUserId),
+    [getUserData, activeUserId]
+  );
 
   const isMemorized = useCallback(
     (surahNumber: number, numberInSurah: number) => {
@@ -81,33 +73,21 @@ export function MemorizationProvider({ children }: { children: ReactNode }) {
     (surahNumber: number, ayah: { numberInSurah: number; hizbQuarter: number; page: number }) => {
       if (!canToggle) return;
 
-      if (isViewingStudent) {
-        const prev = readFromStorage(studentStorageKey);
-        const raw = (prev[surahNumber] ?? []) as (MemorizedAyah | number)[];
+      setAllData((prev) => {
+        const userPrev: MemorizationData = prev[activeUserId] ?? {};
+        const raw = (userPrev[surahNumber] ?? []) as (MemorizedAyah | number)[];
         const current = normalize(raw);
         const alreadyMemorized = current.some((a) => a.ns === ayah.numberInSurah);
         const updated: MemorizationData = {
-          ...prev,
+          ...userPrev,
           [surahNumber]: alreadyMemorized
             ? current.filter((a) => a.ns !== ayah.numberInSurah)
             : [...current, { ns: ayah.numberInSurah, hq: ayah.hizbQuarter, pg: ayah.page }],
         };
-        writeToStorage(studentStorageKey, updated);
-      } else {
-        setData((prev) => {
-          const raw = (prev[surahNumber] ?? []) as (MemorizedAyah | number)[];
-          const current = normalize(raw);
-          const alreadyMemorized = current.some((a) => a.ns === ayah.numberInSurah);
-          return {
-            ...prev,
-            [surahNumber]: alreadyMemorized
-              ? current.filter((a) => a.ns !== ayah.numberInSurah)
-              : [...current, { ns: ayah.numberInSurah, hq: ayah.hizbQuarter, pg: ayah.page }],
-          };
-        });
-      }
+        return { ...prev, [activeUserId]: updated };
+      });
     },
-    [canToggle, isViewingStudent, studentStorageKey, setData]
+    [canToggle, activeUserId, setAllData]
   );
 
   const getMemorizedCount = useCallback(
