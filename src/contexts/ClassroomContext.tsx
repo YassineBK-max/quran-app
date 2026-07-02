@@ -15,12 +15,14 @@ function genCode() {
 interface ClassroomContextType {
   classes: ClassRoom[];
   myClass: ClassRoom | null;
+  myClasses: ClassRoom[];
   createClass: (name: string) => ClassRoom;
   joinClass: (code: string) => string | null;
-  leaveClass: () => void;
+  leaveClass: (classId?: string) => void;
   addAssignment: (classId: string, title: string, description?: string, dueDate?: string) => void;
   removeAssignment: (classId: string, assignmentId: string) => void;
   updateAssignment: (classId: string, assignmentId: string, patch: { title?: string; description?: string; dueDate?: string }) => void;
+  expelUserFromClasses: (userId: string, role: string) => void;
   getClass: (id: string) => ClassRoom | undefined;
   getClassByCode: (code: string) => ClassRoom | undefined;
   getTeacherClasses: () => ClassRoom[];
@@ -29,12 +31,14 @@ interface ClassroomContextType {
 const ClassroomCtx = createContext<ClassroomContextType>({
   classes: [],
   myClass: null,
+  myClasses: [],
   createClass: () => ({ id: "", name: "", code: "", teacherId: "", teacherName: "", studentIds: [], assignments: [], createdAt: 0 }),
   joinClass: () => null,
   leaveClass: () => {},
   addAssignment: () => {},
   removeAssignment: () => {},
   updateAssignment: () => {},
+  expelUserFromClasses: () => {},
   getClass: () => undefined,
   getClassByCode: () => undefined,
   getTeacherClasses: () => [],
@@ -44,7 +48,13 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const { user, updateUser } = useAuth();
   const [classes, setClasses] = useLocalStorage<ClassRoom[]>("quran-classes", []);
 
-  const myClass = user?.classId ? (classes.find((c) => c.id === user.classId) ?? null) : null;
+  // All classes the current student is in
+  const studentClassIds: string[] = user
+    ? (user.classIds ?? (user.classId ? [user.classId] : []))
+    : [];
+
+  const myClasses = classes.filter((c) => studentClassIds.includes(c.id));
+  const myClass = myClasses[0] ?? null;
 
   const createClass = useCallback(
     (name: string): ClassRoom => {
@@ -71,30 +81,42 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       const found = classes.find((c) => c.code === code.toUpperCase());
       if (!found) return "Class code not found. Ask your teacher for the correct code.";
       if (found.studentIds.includes(user.id)) return "You are already in this class.";
+
+      const currentIds = user.classIds ?? (user.classId ? [user.classId] : []);
+      const updatedIds = [...currentIds, found.id];
+
       setClasses((prev) =>
-        prev.map((c) => c.id === found.id ? { ...c, studentIds: [...c.studentIds, user.id] } : c)
+        prev.map((c) => (c.id === found.id ? { ...c, studentIds: [...c.studentIds, user.id] } : c))
       );
-      updateUser(user.id, { classId: found.id });
+      updateUser(user.id, { classId: updatedIds[0], classIds: updatedIds });
       return null;
     },
     [user, classes, setClasses, updateUser]
   );
 
-  const leaveClass = useCallback(() => {
-    if (!user || !user.classId) return;
-    setClasses((prev) =>
-      prev.map((c) =>
-        c.id === user.classId ? { ...c, studentIds: c.studentIds.filter((id) => id !== user.id) } : c
-      )
-    );
-    updateUser(user.id, { classId: undefined });
-  }, [user, setClasses, updateUser]);
+  const leaveClass = useCallback(
+    (classId?: string) => {
+      if (!user) return;
+      const targetId = classId ?? user.classId;
+      if (!targetId) return;
+
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === targetId ? { ...c, studentIds: c.studentIds.filter((id) => id !== user.id) } : c
+        )
+      );
+      const currentIds = user.classIds ?? (user.classId ? [user.classId] : []);
+      const updatedIds = currentIds.filter((id) => id !== targetId);
+      updateUser(user.id, { classId: updatedIds[0], classIds: updatedIds });
+    },
+    [user, setClasses, updateUser]
+  );
 
   const addAssignment = useCallback(
     (classId: string, title: string, description?: string, dueDate?: string) => {
       const assignment: Assignment = { id: genId(), classId, title, description, dueDate, createdAt: Date.now() };
       setClasses((prev) =>
-        prev.map((c) => c.id === classId ? { ...c, assignments: [...c.assignments, assignment] } : c)
+        prev.map((c) => (c.id === classId ? { ...c, assignments: [...c.assignments, assignment] } : c))
       );
     },
     [setClasses]
@@ -124,6 +146,27 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     [setClasses]
   );
 
+  // Called when admin expels a user
+  const expelUserFromClasses = useCallback(
+    (userId: string, role: string) => {
+      setClasses((prev) => {
+        if (role === "teacher") {
+          // Delete all classes taught by this teacher; students lose access
+          return prev.filter((c) => c.teacherId !== userId);
+        }
+        if (role === "student") {
+          // Remove student from all classes they're in
+          return prev.map((c) => ({
+            ...c,
+            studentIds: c.studentIds.filter((sid) => sid !== userId),
+          }));
+        }
+        return prev;
+      });
+    },
+    [setClasses]
+  );
+
   const getClass = useCallback((id: string) => classes.find((c) => c.id === id), [classes]);
   const getClassByCode = useCallback((code: string) => classes.find((c) => c.code === code.toUpperCase()), [classes]);
   const getTeacherClasses = useCallback(
@@ -132,7 +175,11 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <ClassroomCtx.Provider value={{ classes, myClass, createClass, joinClass, leaveClass, addAssignment, removeAssignment, updateAssignment, getClass, getClassByCode, getTeacherClasses }}>
+    <ClassroomCtx.Provider value={{
+      classes, myClass, myClasses, createClass, joinClass, leaveClass,
+      addAssignment, removeAssignment, updateAssignment,
+      expelUserFromClasses, getClass, getClassByCode, getTeacherClasses,
+    }}>
       {children}
     </ClassroomCtx.Provider>
   );

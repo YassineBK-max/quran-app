@@ -74,7 +74,8 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
-  classId?: string;       // student: class they belong to
+  classId?: string;       // student: primary class (legacy compat)
+  classIds?: string[];    // student: all joined classes
   createdAt: number;
   parentCode?: string;     // student only: 8-char code parents use to link
   parentIds?: string[];    // student only: IDs of linked parent accounts

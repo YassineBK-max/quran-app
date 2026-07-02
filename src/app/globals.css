@@ -142,7 +142,8 @@ body {
   text-align: right;
 }
 
-/* ── Mushaf book page ────────────────────────────────── */
+/* ── Mushaf continuous book ──────────────────────────── */
+/* Single-page (surah reader) */
 .mushaf-page {
   background: #f6edd8;
   border: 2px solid #9a7630;
@@ -161,6 +162,64 @@ body {
 }
 .dark .mushaf-inner {
   border-color: #6b4f1855;
+}
+
+/* Continuous book (mushaf/page.tsx) */
+.mushaf-book {
+  background: #f8f0dc;
+  border: 2px solid #9a7630;
+  border-radius: 4px;
+  padding: 28px 24px 36px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18), inset 0 0 120px rgba(0,0,0,0.03),
+              4px 0 8px rgba(0,0,0,0.06) inset, -4px 0 8px rgba(0,0,0,0.06) inset;
+  position: relative;
+}
+.dark .mushaf-book {
+  background: #1a1005;
+  border-color: #6b4f18;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+/* Left spine shadow for book feel */
+.mushaf-book::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 18px;
+  background: linear-gradient(to right, rgba(0,0,0,0.07), transparent);
+  pointer-events: none;
+  border-radius: 4px 0 0 4px;
+}
+.dark .mushaf-book::before {
+  background: linear-gradient(to right, rgba(0,0,0,0.25), transparent);
+}
+
+/* Page separator */
+.mushaf-page-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 24px;
+}
+.mushaf-page-divider::before,
+.mushaf-page-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #9a763040;
+}
+.dark .mushaf-page-divider::before,
+.dark .mushaf-page-divider::after {
+  background: #6b4f1860;
+}
+.mushaf-page-num {
+  font-size: 0.78rem;
+  color: #9a7630;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  user-select: none;
+}
+.dark .mushaf-page-num {
+  color: #c49a30;
 }
 
 /* Surah title */

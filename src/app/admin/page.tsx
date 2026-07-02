@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useMessages } from "@/contexts/MessageContext";
 import { useT } from "@/hooks/useT";
+import { User } from "@/lib/types";
 
 type Tab = "overview" | "users" | "classes" | "messages";
 
@@ -16,9 +17,92 @@ const ROLE_COLORS: Record<string, string> = {
   parent:  "bg-purple-500/10 text-purple-600 border-purple-500/20",
 };
 
+const ROLE_AVATAR: Record<string, string> = {
+  admin:   "bg-red-500/10 text-red-600",
+  teacher: "bg-blue-500/10 text-blue-600",
+  student: "bg-primary/10 text-primary",
+  parent:  "bg-purple-500/10 text-purple-600",
+};
+
+// ─── Expel Confirmation ────────────────────────────────────────────────────────
+function ExpelDialog({ target, onConfirm, onCancel }: { target: User; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+        <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-500/10 mx-auto mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h2 className="text-center font-bold text-base mb-2">Expel User</h2>
+        <p className="text-center text-sm text-muted-foreground mb-1">
+          Are you sure you want to expel{" "}
+          <span className="font-semibold text-foreground">{target.name}</span>?
+        </p>
+        {target.role === "teacher" && (
+          <p className="text-center text-xs text-red-500 mb-4 mt-2">
+            ⚠️ All classes created by this teacher will be deleted and students will lose access.
+          </p>
+        )}
+        {target.role !== "teacher" && <div className="mb-4" />}
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-3 rounded-xl bg-muted text-sm font-medium hover:bg-muted/80 transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors">
+            Expel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Quick Message Sheet ──────────────────────────────────────────────────────
+function MessageSheet({ target, onClose, onSend }: { target: User; onClose: () => void; onSend: (content: string) => void }) {
+  const [content, setContent] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${ROLE_AVATAR[target.role]}`}>
+            {target.name[0].toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold">{target.name}</p>
+            <p className="text-xs text-muted-foreground">{target.email}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:bg-muted">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder={`Message to ${target.name}...`}
+          rows={4}
+          autoFocus
+          className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-primary"
+        />
+        <button
+          onClick={() => { if (content.trim()) { onSend(content.trim()); onClose(); } }}
+          disabled={!content.trim()}
+          className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-40"
+        >
+          Send Message
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Admin Page ──────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { user, users, teacherCode, setTeacherCode } = useAuth();
-  const { classes } = useClassroom();
+  const { user, users, teacherCode, setTeacherCode, deleteUser } = useAuth();
+  const { classes, expelUserFromClasses } = useClassroom();
   const { sendMessage } = useMessages();
   const t = useT();
   const router = useRouter();
@@ -31,6 +115,9 @@ export default function AdminPage() {
   const [msgType, setMsgType] = useState<"user" | "class">("user");
   const [sent, setSent] = useState(false);
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "teacher" | "student" | "parent">("all");
+  const [expelTarget, setExpelTarget] = useState<User | null>(null);
+  const [msgTarget, setMsgTarget] = useState<User | null>(null);
+  const [search, setSearch] = useState("");
 
   if (!user || user.role !== "admin") {
     return (
@@ -65,23 +152,27 @@ export default function AdminPage() {
     setTimeout(() => setSent(false), 3000);
   };
 
-  const filteredUsers = roleFilter === "all" ? users : users.filter((u) => u.role === roleFilter);
+  const handleExpelConfirm = () => {
+    if (!expelTarget) return;
+    expelUserFromClasses(expelTarget.id, expelTarget.role);
+    deleteUser(expelTarget.id);
+    setExpelTarget(null);
+  };
 
-  const getClassInfoForUser = (uid: string, role: string) => {
-    if (role === "student") {
-      const cls = classes.find((c) => c.studentIds.includes(uid));
-      return cls ? cls.name : null;
-    }
-    if (role === "teacher") {
-      const cls = classes.filter((c) => c.teacherId === uid);
+  const getClassInfoForUser = (u: User) => {
+    if (u.role === "student") {
+      const allIds = u.classIds ?? (u.classId ? [u.classId] : []);
+      const cls = classes.filter((c) => allIds.includes(c.id));
       return cls.length > 0 ? cls.map((c) => c.name).join(", ") : null;
     }
-    if (role === "parent") {
-      const parent = users.find((u) => u.id === uid);
-      if (parent?.linkedChildId) {
-        const child = users.find((u) => u.id === parent.linkedChildId);
-        return child ? child.name : null;
-      }
+    if (u.role === "teacher") {
+      const cls = classes.filter((c) => c.teacherId === u.id);
+      return cls.length > 0 ? cls.map((c) => c.name).join(", ") : null;
+    }
+    if (u.role === "parent") {
+      const childIds = u.linkedChildIds ?? (u.linkedChildId ? [u.linkedChildId] : []);
+      const names = childIds.map((cid) => users.find((x) => x.id === cid)?.name).filter(Boolean);
+      return names.length > 0 ? names.join(", ") : null;
     }
     return null;
   };
@@ -94,12 +185,17 @@ export default function AdminPage() {
   ];
 
   const roleFilterLabels: Record<string, string> = {
-    all:     t.admin_all,
-    admin:   t.admin_admins,
-    teacher: t.admin_teachers,
-    student: t.admin_students,
-    parent:  t.admin_parents,
+    all: t.admin_all, admin: t.admin_admins,
+    teacher: t.admin_teachers, student: t.admin_students, parent: t.admin_parents,
   };
+
+  const filteredUsers = users
+    .filter((u) => roleFilter === "all" || u.role === roleFilter)
+    .filter((u) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+    });
 
   return (
     <>
@@ -144,29 +240,15 @@ export default function AdminPage() {
               </div>
               <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3">
                 <span className="font-mono font-bold text-primary flex-1 tracking-wider text-sm">{teacherCode}</span>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(teacherCode)}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                  title="Copy"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
+                <button onClick={() => navigator.clipboard?.writeText(teacherCode)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Copy">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
               </div>
               <div className="flex gap-2">
-                <input
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value)}
-                  placeholder={t.admin_new_code}
-                  className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
-                />
-                <button
-                  onClick={handleSaveCode}
-                  disabled={!newCode.trim()}
-                  className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40"
-                >
+                <input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder={t.admin_new_code}
+                  className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
+                <button onClick={handleSaveCode} disabled={!newCode.trim()}
+                  className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40">
                   {t.update}
                 </button>
               </div>
@@ -178,66 +260,84 @@ export default function AdminPage() {
         {/* ── Users Database ── */}
         {tab === "users" && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground flex-1">{filteredUsers.length} users</p>
-              <div className="flex gap-1 flex-wrap">
-                {(["all", "admin", "teacher", "student", "parent"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRoleFilter(r)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                      roleFilter === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {roleFilterLabels[r]}
-                  </button>
-                ))}
-              </div>
+            {/* Search + filters */}
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email..."
+              className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary"
+            />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-muted-foreground mr-1">{filteredUsers.length} users</span>
+              {(["all", "admin", "teacher", "student", "parent"] as const).map((r) => (
+                <button key={r} onClick={() => setRoleFilter(r)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors min-h-[32px] ${
+                    roleFilter === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}>
+                  {roleFilterLabels[r]}
+                </button>
+              ))}
             </div>
 
+            {/* User rows */}
             <div className="space-y-2">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">{t.admin_no_users}</p>
               ) : (
                 filteredUsers.map((u) => {
-                  const classInfo = getClassInfoForUser(u.id, u.role);
+                  const classInfo = getClassInfoForUser(u);
+                  const isSelf = u.id === user.id;
                   return (
-                    <div key={u.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
-                      <div
-                        className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${
-                          u.role === "admin" ? "bg-red-500/10 text-red-600" :
-                          u.role === "teacher" ? "bg-blue-500/10 text-blue-600" :
-                          "bg-primary/10 text-primary"
-                        }`}
-                      >
-                        {u.name[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium">{u.name}</p>
-                          <span className={`text-[10px] border px-1.5 py-0.5 rounded capitalize font-medium ${ROLE_COLORS[u.role]}`}>
-                            {u.role}
-                          </span>
+                    <div key={u.id} className="bg-card border border-border rounded-xl p-3 space-y-2">
+                      {/* Row 1: avatar + name/email + role badge */}
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${ROLE_AVATAR[u.role]}`}>
+                          {u.name[0].toUpperCase()}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                        {classInfo && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {u.role === "student" ? t.admin_class_info
-                              : u.role === "parent" ? t.admin_linked_child
-                              : t.admin_teaching} {classInfo}
-                          </p>
-                        )}
-                        {!classInfo && u.role !== "admin" && (
-                          <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                            {u.role === "student" ? t.admin_no_class
-                              : u.role === "parent" ? t.admin_no_link
-                              : t.admin_no_classes_user}
-                          </p>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold truncate">{u.name}</p>
+                            <span className={`text-[10px] border px-1.5 py-0.5 rounded capitalize font-medium shrink-0 ${ROLE_COLORS[u.role]}`}>
+                              {u.role}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                          {classInfo && (
+                            <p className="text-[10px] text-muted-foreground/70 mt-0.5 truncate">
+                              {u.role === "student" ? "📚 " : u.role === "parent" ? "👤 " : "🏫 "}
+                              {classInfo}
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground shrink-0 self-start">
+                          {new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+                        </p>
                       </div>
-                      <p className="text-[10px] text-muted-foreground shrink-0">
-                        {new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
-                      </p>
+
+                      {/* Row 2: action buttons */}
+                      {!isSelf && (
+                        <div className="flex gap-2 pt-1 border-t border-border/50">
+                          <button
+                            onClick={() => setMsgTarget(u)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-muted text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors min-h-[36px]"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            Message
+                          </button>
+                          {u.role !== "admin" && (
+                            <button
+                              onClick={() => setExpelTarget(u)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-red-500/10 text-red-600 text-xs font-medium hover:bg-red-500/20 transition-colors min-h-[36px]"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                              Expel
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {isSelf && (
+                        <p className="text-[10px] text-muted-foreground/50 text-center">You</p>
+                      )}
                     </div>
                   );
                 })
@@ -252,19 +352,25 @@ export default function AdminPage() {
             {classes.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">{t.admin_no_classes}</p>
             ) : (
-              classes.map((c) => (
-                <div key={c.id} className="p-4 bg-card border border-border rounded-xl">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold">{c.name}</p>
-                    <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">{c.code}</span>
+              classes.map((c) => {
+                const teacher = users.find((u) => u.id === c.teacherId);
+                return (
+                  <div key={c.id} className="p-4 bg-card border border-border rounded-xl">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold">{c.name}</p>
+                      <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">{c.code}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t.classroom_teacher} {c.teacherName}</p>
+                    {!teacher && (
+                      <p className="text-xs text-red-500 mt-0.5">Teacher account removed</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-xs text-muted-foreground">{c.studentIds.length} {t.admin_students_label}</span>
+                      <span className="text-xs text-muted-foreground">{c.assignments.length} {t.admin_assignments_label}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">{t.classroom_teacher} {c.teacherName}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs text-muted-foreground">{c.studentIds.length} {t.admin_students_label}</span>
-                    <span className="text-xs text-muted-foreground">{c.assignments.length} {t.admin_assignments_label}</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -275,46 +381,51 @@ export default function AdminPage() {
             <h2 className="text-sm font-semibold">{t.admin_send_message}</h2>
             <div className="flex gap-2">
               {(["user", "class"] as const).map((mt) => (
-                <button
-                  key={mt}
-                  onClick={() => setMsgType(mt)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${msgType === mt ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                >
+                <button key={mt} onClick={() => setMsgType(mt)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${msgType === mt ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                   {mt === "user" ? t.admin_user_recipient : t.admin_class_recipient}
                 </button>
               ))}
             </div>
-            <select
-              value={msgRecipient}
-              onChange={(e) => setMsgRecipient(e.target.value)}
-              className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"
-            >
+            <select value={msgRecipient} onChange={(e) => setMsgRecipient(e.target.value)}
+              className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm">
               <option value="">{t.admin_select_recipient}</option>
               {msgType === "user"
                 ? users.filter((u) => u.id !== user.id).map((u) => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    <option key={u.id} value={u.id}>{u.name} ({u.role}) — {u.email}</option>
                   ))
                 : classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
               }
             </select>
-            <textarea
-              value={msgContent}
-              onChange={(e) => setMsgContent(e.target.value)}
-              placeholder={t.admin_message_content}
-              rows={3}
-              className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none"
-            />
+            <textarea value={msgContent} onChange={(e) => setMsgContent(e.target.value)}
+              placeholder={t.admin_message_content} rows={3}
+              className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm resize-none" />
             {sent && <p className="text-primary text-xs">{t.admin_sent}</p>}
-            <button
-              onClick={handleSend}
-              disabled={!msgContent.trim() || !msgRecipient}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40"
-            >
+            <button onClick={handleSend} disabled={!msgContent.trim() || !msgRecipient}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-40">
               {t.send}
             </button>
           </div>
         )}
       </main>
+
+      {/* Expel confirmation dialog */}
+      {expelTarget && (
+        <ExpelDialog
+          target={expelTarget}
+          onConfirm={handleExpelConfirm}
+          onCancel={() => setExpelTarget(null)}
+        />
+      )}
+
+      {/* Quick message sheet */}
+      {msgTarget && (
+        <MessageSheet
+          target={msgTarget}
+          onClose={() => setMsgTarget(null)}
+          onSend={(content) => sendMessage(msgTarget.id, "user", content, true)}
+        />
+      )}
     </>
   );
 }

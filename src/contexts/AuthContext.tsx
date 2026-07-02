@@ -34,6 +34,7 @@ interface AuthContextType {
   logout: () => void;
   getUserById: (id: string) => User | undefined;
   updateUser: (id: string, partial: Partial<User>) => void;
+  deleteUser: (id: string) => void;
   linkChildToParent: (studentCode: string) => string | null;
 }
 
@@ -50,6 +51,7 @@ const AuthCtx = createContext<AuthContextType>({
   logout: () => {},
   getUserById: () => undefined,
   updateUser: () => {},
+  deleteUser: () => {},
   linkChildToParent: () => null,
 });
 
@@ -242,11 +244,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => setCurrentUserId(null), [setCurrentUserId]);
 
+  const deleteUser = useCallback(
+    (id: string) => {
+      setStoredUsers((prev) => {
+        const target = prev.find((u) => u.id === id);
+        if (!target) return prev;
+        // Clean up parent links if the deleted user was a student
+        let updated = prev.map((u) => {
+          if (u.role === "parent") {
+            const childIds = (u.linkedChildIds ?? (u.linkedChildId ? [u.linkedChildId] : [])).filter((cid) => cid !== id);
+            return { ...u, linkedChildIds: childIds, linkedChildId: childIds[0] };
+          }
+          return u;
+        });
+        // Remove the user
+        updated = updated.filter((u) => u.id !== id);
+        return updated;
+      });
+    },
+    [setStoredUsers]
+  );
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
 
   return (
-    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, linkChildToParent }}>
+    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, deleteUser, linkChildToParent }}>
       {children}
     </AuthCtx.Provider>
   );
