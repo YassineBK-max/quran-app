@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode, useCallback, useMemo } from "react";
 import { Message } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useAuth } from "./AuthContext";
+import { useAuth, getLinkedChildIds } from "./AuthContext";
 import { useClassroom } from "./ClassroomContext";
 
 function genId() {
@@ -39,10 +39,13 @@ export function MessageProvider({ children }: { children: ReactNode }) {
     if (user.role === "teacher") return getTeacherClasses().map((c) => c.id);
     if (user.role === "student" && myClass) return [myClass.id];
     if (user.role === "admin") return classes.map((c) => c.id);
-    // Parent: use their child's class
-    if (user.role === "parent" && user.linkedChildId) {
-      const child = users.find((u) => u.id === user.linkedChildId);
-      if (child?.classId) return [child.classId];
+    // Parent: collect class IDs from all linked children
+    if (user.role === "parent") {
+      const childIds = getLinkedChildIds(user);
+      const classIds = childIds
+        .map((cid) => users.find((u) => u.id === cid)?.classId)
+        .filter((id): id is string => !!id);
+      if (classIds.length > 0) return classIds.filter((id, i) => classIds.indexOf(id) === i);
     }
     return [];
   }, [user, users, getTeacherClasses, myClass, classes]);

@@ -303,6 +303,10 @@ const en = {
   parent_view_quran: "View Quran Progress",
   parent_child_messages: "Messages",
 
+  // --- Parent multi-child ---
+  profile_add_child: "Link another student",
+  profile_child_linked: "Student linked successfully!",
+
   // --- Complete Mushaf book reader ---
   mushaf_title: "The Complete Quran",
   mushaf_jump: "Go to",
@@ -616,6 +620,10 @@ const ar: typeof en = {
   parent_child_progress: "تقدم الطفل",
   parent_view_quran: "عرض تقدم القرآن",
   parent_child_messages: "الرسائل",
+
+  // --- Parent multi-child ---
+  profile_add_child: "ربط طالب آخر",
+  profile_child_linked: "تم ربط الطالب بنجاح!",
 
   // --- Complete Mushaf book reader ---
   mushaf_title: "المصحف الشريف",

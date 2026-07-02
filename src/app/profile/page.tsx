@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, getLinkedChildIds } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/hooks/useT";
 import { ColorTheme } from "@/lib/types";
@@ -16,7 +16,7 @@ const THEMES: { id: ColorTheme; emoji: string }[] = [
 ];
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user, users, updateUser, linkChildToParent } = useAuth();
   const { settings, updateSettings } = useSettings();
   const t = useT();
   const router = useRouter();
@@ -24,6 +24,9 @@ export default function ProfilePage() {
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? user?.name ?? "");
   const [saved, setSaved] = useState(false);
+  const [addChildCode, setAddChildCode] = useState("");
+  const [addChildError, setAddChildError] = useState("");
+  const [addChildSuccess, setAddChildSuccess] = useState(false);
 
   if (!user) {
     return (
@@ -155,20 +158,65 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {/* Linked child (parents only) */}
+        {/* Linked children (parents only) */}
         {user.role === "parent" && (
-          <section className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <section className="bg-card border border-border rounded-xl p-4 space-y-3">
             <h2 className="text-sm font-semibold">{t.parent_child_progress}</h2>
-            {user.linkedChildId ? (
-              <button
-                onClick={() => router.push("/surahs")}
-                className="w-full py-2.5 bg-primary/10 text-primary rounded-xl text-sm font-medium text-left px-3 hover:bg-primary/20 transition-colors"
-              >
-                {t.parent_view_quran} →
-              </button>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t.profile_no_parents}</p>
-            )}
+            {(() => {
+              const childIds = getLinkedChildIds(user);
+              return childIds.length > 0 ? (
+                <div className="space-y-2">
+                  {childIds.map((cid) => {
+                    const child = users.find((u) => u.id === cid);
+                    return child ? (
+                      <button
+                        key={cid}
+                        onClick={() => router.push("/surahs")}
+                        className="w-full flex items-center gap-3 py-2.5 px-3 bg-primary/10 text-primary rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors text-left"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold shrink-0">
+                          {child.name[0].toUpperCase()}
+                        </div>
+                        <span className="flex-1">{child.displayName ?? child.name}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+                      </button>
+                    ) : null;
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t.profile_no_parents}</p>
+              );
+            })()}
+
+            {/* Add another child */}
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-2">{t.profile_add_child ?? "Link another student"}</p>
+              <div className="flex gap-2">
+                <input
+                  value={addChildCode}
+                  onChange={(e) => { setAddChildCode(e.target.value.toUpperCase()); setAddChildError(""); setAddChildSuccess(false); }}
+                  placeholder="XXXXXXXX"
+                  maxLength={8}
+                  className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm font-mono tracking-widest uppercase"
+                />
+                <button
+                  onClick={() => {
+                    const err = linkChildToParent(addChildCode);
+                    if (err) { setAddChildError(err); } else { setAddChildSuccess(true); setAddChildCode(""); setTimeout(() => setAddChildSuccess(false), 3000); }
+                  }}
+                  disabled={addChildCode.length < 8}
+                  className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40 min-w-[44px]"
+                >
+                  {t.go ?? "+"}
+                </button>
+              </div>
+              {addChildError && (
+                <p className="text-red-500 text-xs mt-1">{addChildError}</p>
+              )}
+              {addChildSuccess && (
+                <p className="text-primary text-xs mt-1">✓ {t.profile_child_linked ?? "Student linked successfully!"}</p>
+              )}
+            </div>
           </section>
         )}
       </main>

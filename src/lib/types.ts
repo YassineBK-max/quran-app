@@ -76,11 +76,12 @@ export interface User {
   role: UserRole;
   classId?: string;       // student: class they belong to
   createdAt: number;
-  parentCode?: string;    // student only: 8-char code parents use to link
-  parentIds?: string[];   // student only: IDs of linked parent accounts (max 2)
-  linkedChildId?: string; // parent only: student ID they are linked to
-  displayName?: string;   // optional display name override
-  profilePhoto?: string;  // base64-encoded photo
+  parentCode?: string;     // student only: 8-char code parents use to link
+  parentIds?: string[];    // student only: IDs of linked parent accounts
+  linkedChildId?: string;  // parent only: first linked child (legacy compat)
+  linkedChildIds?: string[]; // parent only: all linked children
+  displayName?: string;    // optional display name override
+  profilePhoto?: string;   // base64-encoded photo
 }
 
 // --- Classroom ---

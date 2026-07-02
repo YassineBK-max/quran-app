@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode, useCallback, useState } from "react";
 import { MemorizedAyah } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useAuth } from "./AuthContext";
+import { useAuth, getLinkedChildIds } from "./AuthContext";
 
 type MemorizationData = Record<number, MemorizedAyah[]>;
 
@@ -17,6 +17,9 @@ interface MemorizationContextType {
   canToggle: boolean;
   studentId: string | null;
   setStudentId: (id: string | null) => void;
+  // For parents with multiple children
+  viewingChildId: string | null;
+  setViewingChildId: (id: string | null) => void;
 }
 
 const MemorizationContext = createContext<MemorizationContextType>({
@@ -28,6 +31,8 @@ const MemorizationContext = createContext<MemorizationContextType>({
   canToggle: false,
   studentId: null,
   setStudentId: () => {},
+  viewingChildId: null,
+  setViewingChildId: () => {},
 });
 
 function normalize(stored: (MemorizedAyah | number)[]): MemorizedAyah[] {
@@ -42,16 +47,19 @@ export function MemorizationProvider({ children }: { children: ReactNode }) {
 
   const [allData, setAllData] = useLocalStorage<Record<string, MemorizationData>>(SHARED_KEY, {});
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [viewingChildId, setViewingChildId] = useState<string | null>(null);
 
   const isTeacherOrAdmin = user?.role === "teacher" || user?.role === "admin";
   const isParent = user?.role === "parent";
 
-  // Which user's data to display/toggle
+  // For parents: use viewingChildId if set, else first linked child
+  const parentChildIds = isParent && user ? getLinkedChildIds(user) : [];
+  const parentActiveChildId = viewingChildId ?? parentChildIds[0] ?? null;
+
   const activeUserId = isParent
-    ? (user?.linkedChildId ?? userId)
+    ? (parentActiveChildId ?? userId)
     : (isTeacherOrAdmin && studentId != null ? studentId : userId);
 
-  // Only teachers and admins can toggle memorization
   const canToggle = isTeacherOrAdmin;
 
   const getActiveData = useCallback(
@@ -115,7 +123,10 @@ export function MemorizationProvider({ children }: { children: ReactNode }) {
 
   return (
     <MemorizationContext.Provider
-      value={{ isMemorized, toggleMemorized, getProgress, getMemorizedCount, getAllMemorized, canToggle, studentId, setStudentId }}
+      value={{
+        isMemorized, toggleMemorized, getProgress, getMemorizedCount, getAllMemorized,
+        canToggle, studentId, setStudentId, viewingChildId, setViewingChildId,
+      }}
     >
       {children}
     </MemorizationContext.Provider>

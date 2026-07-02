@@ -31,6 +31,7 @@ interface AuthContextType {
   logout: () => void;
   getUserById: (id: string) => User | undefined;
   updateUser: (id: string, partial: Partial<User>) => void;
+  linkChildToParent: (studentCode: string) => string | null;
 }
 
 const AuthCtx = createContext<AuthContextType>({
@@ -46,11 +47,19 @@ const AuthCtx = createContext<AuthContextType>({
   logout: () => {},
   getUserById: () => undefined,
   updateUser: () => {},
+  linkChildToParent: () => null,
 });
 
 interface StoredUser extends User {
   passwordHash?: string;
   isGoogle?: boolean;
+}
+
+// Helper: get all linked child IDs for a parent (handles legacy single-child field)
+export function getLinkedChildIds(user: User): string[] {
+  if (user.linkedChildIds && user.linkedChildIds.length > 0) return user.linkedChildIds;
+  if (user.linkedChildId) return [user.linkedChildId];
+  return [];
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -123,21 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "This name is already taken. Please choose another.";
       }
 
-      let linkedChildId: string | undefined;
-      let linkedStudentId: string | undefined;
+      let firstChildId: string | undefined;
 
       if (role === "teacher" || role === "admin") {
-        if (code !== teacherCode) return "Invalid admin code.";
+        if (code !== teacherCode) return "Invalid teacher code.";
       }
       if (role === "parent") {
         if (!code?.trim()) return "Please enter your child's parent code.";
-        const linkedStudent = storedUsers.find(
+        const student = storedUsers.find(
           (u) => u.parentCode === code.trim().toUpperCase() && u.role === "student"
         );
-        if (!linkedStudent) return "No student found with that code.";
-        if ((linkedStudent.parentIds ?? []).length >= 2) return "This student already has 2 parents linked.";
-        linkedChildId = linkedStudent.id;
-        linkedStudentId = linkedStudent.id;
+        if (!student) return "No student found with that code. Double-check the code and try again.";
+        firstChildId = student.id;
       }
 
       const newUser: StoredUser = {
@@ -148,14 +154,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: Date.now(),
         passwordHash: password,
         ...(role === "student" ? { parentCode: genParentCode() } : {}),
-        ...(role === "parent" && linkedChildId ? { linkedChildId } : {}),
+        ...(role === "parent" && firstChildId
+          ? { linkedChildId: firstChildId, linkedChildIds: [firstChildId] }
+          : {}),
       };
 
       setStoredUsers((prev) => {
         const updated = [...prev, newUser];
-        if (role === "parent" && linkedStudentId) {
+        if (role === "parent" && firstChildId) {
           return updated.map((u) =>
-            u.id === linkedStudentId
+            u.id === firstChildId
               ? { ...u, parentIds: [...(u.parentIds ?? []), newUser.id] }
               : u
           );
@@ -179,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "This name is already taken. Please choose another.";
       }
       if ((role === "teacher" || role === "admin") && code !== teacherCode) {
-        return "Invalid admin code.";
+        return "Invalid teacher code.";
       }
       const newUser: StoredUser = {
         id: genId(),
@@ -197,13 +205,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
   );
 
+  // Link an additional student to the current parent account
+  const linkChildToParent = useCallback(
+    (studentCode: string): string | null => {
+      if (!user || user.role !== "parent") return "You must be logged in as a parent.";
+      const code = studentCode.trim().toUpperCase();
+      const student = storedUsers.find((u) => u.parentCode === code && u.role === "student");
+      if (!student) return "No student found with that code.";
+
+      const currentChildIds = getLinkedChildIds(user);
+      if (currentChildIds.includes(student.id)) return "This student is already linked to your account.";
+
+      const updatedChildIds = [...currentChildIds, student.id];
+
+      setStoredUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === user.id) {
+            return {
+              ...u,
+              linkedChildId: updatedChildIds[0],
+              linkedChildIds: updatedChildIds,
+            };
+          }
+          if (u.id === student.id) {
+            return { ...u, parentIds: [...(u.parentIds ?? []), user.id] };
+          }
+          return u;
+        })
+      );
+      return null;
+    },
+    [user, storedUsers, setStoredUsers]
+  );
+
   const logout = useCallback(() => setCurrentUserId(null), [setCurrentUserId]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
 
   return (
-    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser }}>
+    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, linkChildToParent }}>
       {children}
     </AuthCtx.Provider>
   );

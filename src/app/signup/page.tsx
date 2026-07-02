@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
+import { LangToggle } from "@/components/ui/LangToggle";
 import { useT } from "@/hooks/useT";
 
 function SignupForm() {
@@ -72,7 +73,11 @@ function SignupForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex items-center justify-center p-6">
+    <div className="min-h-dvh bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex flex-col items-center justify-center p-5">
+      {/* Language toggle */}
+      <div className="absolute top-4 right-4">
+        <LangToggle dark />
+      </div>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-3 text-yellow-300">
