@@ -118,6 +118,8 @@ export interface CalendarEvent {
   notes?: string;      // session notes / recap
   description?: string;
   createdAt: number;
+  targetType?: "class" | "user";   // who this is for (default: "class")
+  targetUserId?: string;            // specific student ID if targetType === "user"
 }
 
 // --- Messaging ---

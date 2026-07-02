@@ -70,8 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const seededRef = useRef(false);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setIsLoaded(true));
-    return () => cancelAnimationFrame(frame);
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {

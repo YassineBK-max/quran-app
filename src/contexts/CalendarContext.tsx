@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode, useCallback, useMemo } from "react";
 import { CalendarEvent } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useAuth } from "./AuthContext";
+import { useAuth, getLinkedChildIds } from "./AuthContext";
 import { useClassroom } from "./ClassroomContext";
 
 function genId() {
@@ -41,9 +41,12 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     if (user.role === "teacher") return getTeacherClasses().map((c) => c.id);
     if (user.role === "student" && myClass) return [myClass.id];
     if (user.role === "admin") return classes.map((c) => c.id);
-    if (user.role === "parent" && user.linkedChildId) {
-      const child = users.find((u) => u.id === user.linkedChildId);
-      if (child?.classId) return [child.classId];
+    if (user.role === "parent") {
+      const childIds = getLinkedChildIds(user);
+      const childClassIds = childIds
+        .map((cid) => users.find((u) => u.id === cid)?.classId)
+        .filter((id): id is string => !!id);
+      return childClassIds.filter((id, i) => childClassIds.indexOf(id) === i);
     }
     return [];
   }, [user, users, getTeacherClasses, myClass, classes]);
@@ -72,17 +75,29 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     [events]
   );
 
-  const getEventsForUser = useCallback(
-    () => events.filter((e) => userClassIds.includes(e.classId)),
-    [events, userClassIds]
-  );
+  const getEventsForUser = useCallback(() => {
+    if (!user) return [];
+    if (user.role === "parent") {
+      const childIds = getLinkedChildIds(user);
+      return events.filter(
+        (e) =>
+          userClassIds.includes(e.classId) ||
+          (e.targetUserId && childIds.includes(e.targetUserId))
+      );
+    }
+    return events.filter(
+      (e) =>
+        userClassIds.includes(e.classId) ||
+        (e.targetType === "user" && e.targetUserId === user.id)
+    );
+  }, [events, user, userClassIds]);
 
   const getSessions = useCallback(
     () =>
-      events
-        .filter((e) => e.type === "session" && userClassIds.includes(e.classId))
+      getEventsForUser()
+        .filter((e) => e.type === "session")
         .sort((a, b) => a.date.localeCompare(b.date)),
-    [events, userClassIds]
+    [getEventsForUser]
   );
 
   return (

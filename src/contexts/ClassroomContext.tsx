@@ -20,6 +20,7 @@ interface ClassroomContextType {
   leaveClass: () => void;
   addAssignment: (classId: string, title: string, description?: string, dueDate?: string) => void;
   removeAssignment: (classId: string, assignmentId: string) => void;
+  updateAssignment: (classId: string, assignmentId: string, patch: { title?: string; description?: string; dueDate?: string }) => void;
   getClass: (id: string) => ClassRoom | undefined;
   getClassByCode: (code: string) => ClassRoom | undefined;
   getTeacherClasses: () => ClassRoom[];
@@ -33,6 +34,7 @@ const ClassroomCtx = createContext<ClassroomContextType>({
   leaveClass: () => {},
   addAssignment: () => {},
   removeAssignment: () => {},
+  updateAssignment: () => {},
   getClass: () => undefined,
   getClassByCode: () => undefined,
   getTeacherClasses: () => [],
@@ -109,6 +111,19 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     [setClasses]
   );
 
+  const updateAssignment = useCallback(
+    (classId: string, assignmentId: string, patch: { title?: string; description?: string; dueDate?: string }) => {
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === classId
+            ? { ...c, assignments: c.assignments.map((a) => (a.id === assignmentId ? { ...a, ...patch } : a)) }
+            : c
+        )
+      );
+    },
+    [setClasses]
+  );
+
   const getClass = useCallback((id: string) => classes.find((c) => c.id === id), [classes]);
   const getClassByCode = useCallback((code: string) => classes.find((c) => c.code === code.toUpperCase()), [classes]);
   const getTeacherClasses = useCallback(
@@ -117,7 +132,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <ClassroomCtx.Provider value={{ classes, myClass, createClass, joinClass, leaveClass, addAssignment, removeAssignment, getClass, getClassByCode, getTeacherClasses }}>
+    <ClassroomCtx.Provider value={{ classes, myClass, createClass, joinClass, leaveClass, addAssignment, removeAssignment, updateAssignment, getClass, getClassByCode, getTeacherClasses }}>
       {children}
     </ClassroomCtx.Provider>
   );

@@ -23,9 +23,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     const err = login(email, password);
-    setLoading(false);
-    if (err) { setError(err); return; }
-    router.push("/");
+    if (err) { setError(err); setLoading(false); return; }
+    router.replace("/");
   };
 
   const handleGoogle = async () => {
