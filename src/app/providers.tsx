@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { SettingsProvider } from "@/contexts/SettingsContext";
@@ -45,7 +45,6 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const { user, isLoaded } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [redirecting, setRedirecting] = useState(false);
 
   const isPublic = PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p)
@@ -54,23 +53,14 @@ function AuthGuard({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoaded) return;
     if (!user && !isPublic) {
-      setRedirecting(true);
-      router.push("/login");
+      router.replace("/login");
     }
   }, [isLoaded, user, isPublic, router]);
 
-  // Show blank screen while loading auth state or redirecting
-  if (!isLoaded || redirecting) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--background)" }}
-      >
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  // While auth state is loading, show nothing (useLayoutEffect makes this sub-frame)
+  if (!isLoaded) return null;
 
+  // Not logged in on a protected page — already redirecting, show nothing
   if (!user && !isPublic) return null;
 
   return <>{children}</>;

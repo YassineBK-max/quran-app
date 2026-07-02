@@ -1,5 +1,8 @@
 "use client";
-import { createContext, useContext, ReactNode, useCallback, useEffect, useState, useRef } from "react";
+import { createContext, useContext, ReactNode, useCallback, useEffect, useLayoutEffect, useState, useRef } from "react";
+
+// Fires before paint on client, falls back to useEffect on server
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { User, UserRole } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
@@ -69,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const seededRef = useRef(false);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     setIsLoaded(true);
   }, []);
 
