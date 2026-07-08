@@ -9,14 +9,44 @@ import { AudioProvider } from "@/contexts/AudioContext";
 import { MemorizationProvider } from "@/contexts/MemorizationContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ClassroomProvider } from "@/contexts/ClassroomContext";
+import { ClassroomsDbProvider } from "@/contexts/ClassroomsDbContext";
 import { CalendarProvider } from "@/contexts/CalendarContext";
+import { BookingProvider } from "@/contexts/BookingContext";
 import { MessageProvider } from "@/contexts/MessageContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
-import { AwardProvider } from "@/contexts/AwardContext";
+import { RowProvider } from "@/contexts/RowContext";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
-import { AwardModal } from "@/components/awards/AwardModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase, ACTIVITY_CHANNEL } from "@/lib/supabase";
+
+// Joins Supabase Presence channel while the user is logged in so the admin
+// activity dashboard can show who is currently on the site.
+function ActivityTracker() {
+  const { user, isLoaded } = useAuth();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!isLoaded || !user || !supabase) return;
+
+    const ch = supabase.channel(ACTIVITY_CHANNEL);
+    ch.subscribe((status) => {
+      if (status !== "SUBSCRIBED") return;
+      ch.track({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        joinedAt: Date.now(),
+      }).catch(() => {});
+    });
+
+    return () => {
+      supabase!.removeChannel(ch);
+    };
+  }, [user?.id, isLoaded]);
+
+  return null;
+}
 
 const STANDALONE_PAGES = ["/", "/login", "/signup"];
 const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
@@ -29,14 +59,13 @@ function Shell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AwardProvider surahTotals={{}}>
+    <RowProvider>
       <div className={`min-h-screen ${isStandalone ? "" : "pb-28"}`}>
         {children}
       </div>
-      <AwardModal />
       {!isStandalone && <AudioPlayer />}
       {!isStandalone && <BottomNav />}
-    </AwardProvider>
+    </RowProvider>
   );
 }
 
@@ -76,9 +105,12 @@ export function Providers({ children }: { children: ReactNode }) {
               <AudioProvider>
                 <MemorizationProvider>
                   <ClassroomProvider>
+                    <ClassroomsDbProvider>
+                    <BookingProvider>
                     <CalendarProvider>
                       <MessageProvider>
                         <NotificationProvider>
+                          <ActivityTracker />
                           <AuthGuard>
                             <Shell>
                               {children}
@@ -87,6 +119,8 @@ export function Providers({ children }: { children: ReactNode }) {
                         </NotificationProvider>
                       </MessageProvider>
                     </CalendarProvider>
+                    </BookingProvider>
+                    </ClassroomsDbProvider>
                   </ClassroomProvider>
                 </MemorizationProvider>
               </AudioProvider>

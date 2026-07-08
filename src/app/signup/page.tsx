@@ -7,9 +7,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { LangToggle } from "@/components/ui/LangToggle";
 import { useT } from "@/hooks/useT";
+import { isSupabaseReady } from "@/lib/supabase";
+import { authSignUp, authResendVerification } from "@/lib/supabase-auth";
 
 function SignupForm() {
-  const { signup, signupGoogle } = useAuth();
+  const { signup, signupGoogle, updateUser, logout, user } = useAuth();
   const { joinClass } = useClassroom();
   const t = useT();
   const router = useRouter();
@@ -19,9 +21,10 @@ function SignupForm() {
   const prefillEmail = params.get("email") ?? "";
   const prefillName = params.get("name") ?? "";
 
-  const [step, setStep] = useState<"info" | "role">(
+  const [step, setStep] = useState<"info" | "role" | "verify-email">(
     isGoogle && prefillEmail && prefillName ? "role" : "info"
   );
+  const [pendingEmail, setPendingEmail] = useState("");
   const [name, setName] = useState(prefillName);
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
@@ -31,6 +34,8 @@ function SignupForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
 
   const handleInfoNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +50,15 @@ function SignupForm() {
 
   const handleGoogleSignup = async () => {
     await signIn("google", { callbackUrl: "/auth/google-callback" });
+  };
+
+  const handleResend = async () => {
+    setResendLoading(true);
+    setResendMsg("");
+    const redirectTo = `${window.location.origin}/auth/verify`;
+    const err = await authResendVerification(pendingEmail, redirectTo);
+    setResendLoading(false);
+    setResendMsg(err ? `Error: ${err}` : "Verification email resent! Check your inbox.");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +79,23 @@ function SignupForm() {
       const joinErr = joinClass(code);
       if (joinErr && joinErr !== "You are already in this class.") {
         setError(joinErr); setLoading(false); return;
+      }
+    }
+
+    // ── Supabase email verification (non-Google only) ────────────────────
+    if (!isGoogle && isSupabaseReady) {
+      const redirectTo = `${window.location.origin}/auth/verify`;
+      const { needsVerification } = await authSignUp(email, password, redirectTo);
+      if (needsVerification) {
+        // Mark the just-created user as unverified and log them out
+        // user is now set in context because signup() called setCurrentUserId
+        const uid = user?.id ?? "";
+        if (uid) updateUser(uid, { emailVerified: false });
+        logout();
+        setPendingEmail(email);
+        setLoading(false);
+        setStep("verify-email");
+        return;
       }
     }
 
@@ -93,7 +124,45 @@ function SignupForm() {
         </div>
 
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-          {step === "info" ? (
+          {/* ── Check your email ────────────────────────── */}
+          {step === "verify-email" && (
+            <div className="space-y-5 text-center">
+              <div className="text-5xl">📬</div>
+              <div className="space-y-1.5">
+                <h2 className="text-white font-bold text-base">Check your email</h2>
+                <p className="text-green-200 text-sm">
+                  We sent a verification link to
+                </p>
+                <p className="text-white font-semibold text-sm break-all">{pendingEmail}</p>
+                <p className="text-green-300/70 text-xs mt-1">
+                  Click the link in the email to activate your account, then sign in.
+                </p>
+              </div>
+              <div className="space-y-2 pt-1">
+                {resendMsg ? (
+                  <p className={`text-xs ${resendMsg.startsWith("Error") ? "text-red-300" : "text-green-300"}`}>
+                    {resendMsg}
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    className="text-green-300 hover:text-white text-xs underline underline-offset-2 transition-colors disabled:opacity-50"
+                  >
+                    {resendLoading ? "Sending…" : "Didn't get it? Resend verification email"}
+                  </button>
+                )}
+                <div className="pt-2">
+                  <Link href="/login" className="w-full block py-3 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold transition-colors text-sm text-center">
+                    Go to sign in
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step !== "verify-email" && (step === "info" ? (
             <div className="space-y-4">
               <form onSubmit={handleInfoNext} className="space-y-4">
                 <div>
@@ -282,7 +351,7 @@ function SignupForm() {
                 </button>
               </div>
             </form>
-          )}
+          ))}
         </div>
 
         <p className="text-center text-green-300 text-sm mt-5">

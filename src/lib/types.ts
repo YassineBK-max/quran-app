@@ -83,6 +83,7 @@ export interface User {
   linkedChildIds?: string[]; // parent only: all linked children
   displayName?: string;    // optional display name override
   profilePhoto?: string;   // base64-encoded photo
+  emailVerified?: boolean; // false = awaiting Supabase email confirmation
 }
 
 // --- Classroom ---

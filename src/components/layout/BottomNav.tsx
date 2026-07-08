@@ -31,7 +31,7 @@ function MessageIcon({ badge }: { badge?: number }) {
     <div className="relative">
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
       {badge != null && badge > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] flex items-center justify-center font-bold">
+        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--gold)] text-[var(--gold-foreground)] text-[8px] flex items-center justify-center font-bold">
           {badge > 9 ? "9+" : badge}
         </span>
       )}
@@ -88,7 +88,10 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-md border-t border-border">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border">
+      {/* Gold top accent */}
+      <div className="h-px bg-gradient-to-r from-transparent via-[var(--gold)] to-transparent opacity-40" />
+
       <div className="max-w-3xl mx-auto flex justify-around items-center h-16">
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href);
@@ -96,10 +99,20 @@ export function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              aria-current={active ? "page" : undefined}
+              className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-[44px] min-h-[44px] justify-center ${
+                active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
+              {/* Gold indicator bar above active icon */}
+              {active && (
+                <span
+                  className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                  style={{ background: "var(--gold)" }}
+                />
+              )}
               {tab.icon}
               <span className="text-[10px] font-medium">{tab.label}</span>
             </Link>

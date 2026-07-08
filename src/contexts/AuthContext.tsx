@@ -5,6 +5,7 @@ import { createContext, useContext, ReactNode, useCallback, useEffect, useLayout
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { User, UserRole } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { broadcastUserActivity } from "@/lib/supabase";
 
 const SEEDED_ADMINS = [
   { email: "kassab.salaheddine@gmail.com", name: "Salah", password: "Academy@2030" },
@@ -36,6 +37,8 @@ interface AuthContextType {
   updateUser: (id: string, partial: Partial<User>) => void;
   deleteUser: (id: string) => void;
   linkChildToParent: (studentCode: string) => string | null;
+  markEmailVerified: (email: string) => void;
+  updatePassword: (email: string, newPassword: string) => void;
 }
 
 const AuthCtx = createContext<AuthContextType>({
@@ -53,6 +56,8 @@ const AuthCtx = createContext<AuthContextType>({
   updateUser: () => {},
   deleteUser: () => {},
   linkChildToParent: () => null,
+  markEmailVerified: () => {},
+  updatePassword: () => {},
 });
 
 interface StoredUser extends User {
@@ -111,7 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (email: string, password: string): string | null => {
       const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password);
       if (!found) return "Invalid email or password.";
+      if (found.emailVerified === false) {
+        return "EMAIL_NOT_VERIFIED";
+      }
       setCurrentUserId(found.id);
+      broadcastUserActivity({ type: "login", userId: found.id, userName: found.name, userEmail: found.email, userRole: found.role, ts: Date.now() });
       return null;
     },
     [storedUsers, setCurrentUserId]
@@ -175,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return updated;
       });
       setCurrentUserId(newUser.id);
+      broadcastUserActivity({ type: "signup", userId: newUser.id, userName: newUser.name, userEmail: newUser.email, userRole: newUser.role, ts: Date.now() });
       return null;
     },
     [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
@@ -204,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setStoredUsers((prev) => [...prev, newUser]);
       setCurrentUserId(newUser.id);
+      broadcastUserActivity({ type: "signup", userId: newUser.id, userName: newUser.name, userEmail: newUser.email, userRole: newUser.role, ts: Date.now() });
       return null;
     },
     [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
@@ -242,6 +253,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user, storedUsers, setStoredUsers]
   );
 
+  const markEmailVerified = useCallback(
+    (email: string) => {
+      setStoredUsers((prev) =>
+        prev.map((u) =>
+          u.email.toLowerCase() === email.toLowerCase() ? { ...u, emailVerified: true } : u
+        )
+      );
+    },
+    [setStoredUsers]
+  );
+
+  const updatePassword = useCallback(
+    (email: string, newPassword: string) => {
+      setStoredUsers((prev) =>
+        prev.map((u) =>
+          u.email.toLowerCase() === email.toLowerCase() ? { ...u, passwordHash: newPassword } : u
+        )
+      );
+    },
+    [setStoredUsers]
+  );
+
   const logout = useCallback(() => setCurrentUserId(null), [setCurrentUserId]);
 
   const deleteUser = useCallback(
@@ -269,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
 
   return (
-    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, deleteUser, linkChildToParent }}>
+    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, deleteUser, linkChildToParent, markEmailVerified, updatePassword }}>
       {children}
     </AuthCtx.Provider>
   );

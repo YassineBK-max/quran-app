@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -316,6 +317,22 @@ export default function CalendarPage() {
     <>
       <Header title={t.calendar_title} />
       <main className="max-w-3xl mx-auto px-3 sm:px-4 py-4 space-y-4">
+
+        {/* Availability quick-link for teachers */}
+        {isTeacher && (
+          <Link
+            href="/booking"
+            className="flex items-center gap-3 p-3 rounded-xl border hover:bg-muted/40 transition-colors group"
+            style={{ borderColor: "rgba(200,147,42,0.4)", background: "rgba(200,147,42,0.05)" }}
+          >
+            <span className="text-lg">🗓️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold">Manage Availability</p>
+              <p className="text-xs text-muted-foreground">Set slots students can book</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+          </Link>
+        )}
 
         {/* Month navigation */}
         <div className="flex items-center justify-between">

@@ -6,6 +6,7 @@ import { useAuth, getLinkedChildIds } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/hooks/useT";
 import { ColorTheme } from "@/lib/types";
+import { RowBadge } from "@/components/row/RowBadge";
 
 const THEMES: { id: ColorTheme; emoji: string }[] = [
   { id: "classic",    emoji: "🌿" },
@@ -96,6 +97,12 @@ export default function ProfilePage() {
           <p className="text-sm font-semibold">{user.displayName ?? user.name}</p>
           <p className="text-xs text-muted-foreground">{user.email}</p>
           <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full capitalize">{user.role}</span>
+        </section>
+
+        {/* Row / rank badge */}
+        <section>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">مستوى الحفظ</h2>
+          <RowBadge />
         </section>
 
         {/* Display name */}

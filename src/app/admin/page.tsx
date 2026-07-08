@@ -1,12 +1,16 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useMessages } from "@/contexts/MessageContext";
 import { useT } from "@/hooks/useT";
-import { User } from "@/lib/types";
+import { User, ClassRoom } from "@/lib/types";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { getTierForCount, ROW_TIERS, RowTier } from "@/contexts/RowContext";
+import { RowPill } from "@/components/row/RowBadge";
 
 type Tab = "overview" | "users" | "classes" | "messages";
 
@@ -99,6 +103,169 @@ function MessageSheet({ target, onClose, onSend }: { target: User; onClose: () =
   );
 }
 
+// ─── Class Detail Panel ───────────────────────────────────────────────────────
+function ClassDetailPanel({
+  cls,
+  users,
+  allMemoData,
+  onClose,
+}: {
+  cls: ClassRoom;
+  users: User[];
+  allMemoData: Record<string, Record<number, unknown[]>>;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"students" | "calendar">("students");
+  const teacher = users.find((u) => u.id === cls.teacherId);
+
+  const students = cls.studentIds
+    .map((sid) => users.find((u) => u.id === sid))
+    .filter(Boolean) as User[];
+
+  const getCount = (uid: string) => {
+    const ud = allMemoData[uid] ?? {};
+    return Object.values(ud).reduce((s, arr) => s + (arr as unknown[]).length, 0);
+  };
+
+  const getParents = (student: User) => {
+    const parentIds = student.parentIds ?? [];
+    return parentIds
+      .map((pid) => users.find((u) => u.id === pid))
+      .filter(Boolean) as User[];
+  };
+
+  const upcomingAssignments = [...cls.assignments]
+    .filter((a) => a.dueDate)
+    .sort((a, b) => (a.dueDate! > b.dueDate! ? 1 : -1));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-lg max-h-[90dvh] flex flex-col bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-start gap-3 p-4 border-b border-border shrink-0">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-base truncate">{cls.name}</p>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <span className="font-mono text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">{cls.code}</span>
+              <span className="text-xs text-muted-foreground">
+                {teacher ? `👤 ${teacher.name}` : "⚠️ Teacher removed"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">{students.length} طالب</span>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:bg-muted shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="grid grid-cols-2 gap-1 p-2 bg-muted/50 border-b border-border shrink-0">
+          {(["students", "calendar"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`py-2 rounded-lg text-xs font-medium transition-colors ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              {t === "students" ? `الطلاب (${students.length})` : `المهام (${cls.assignments.length})`}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* ── Students tab ───────────────────────────── */}
+          {tab === "students" && (
+            <div className="p-3 space-y-2">
+              {students.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">لا يوجد طلاب في هذا الفصل</p>
+              ) : (
+                students.map((s) => {
+                  const count = getCount(s.id);
+                  const tier = getTierForCount(count);
+                  const parents = getParents(s);
+                  const pct = tier.maxAyahs
+                    ? Math.round(((count - tier.minAyahs) / ((tier.maxAyahs ?? count) - tier.minAyahs + 1)) * 100)
+                    : 100;
+                  return (
+                    <div key={s.id} className="bg-muted rounded-xl p-3 space-y-2">
+                      {/* Student row */}
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                          {s.name[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold truncate">{s.displayName ?? s.name}</p>
+                            <RowPill tier={tier} count={count} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
+                        </div>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div>
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                          <span>الحفظ: {count} آية</span>
+                          <span style={{ color: tier.color }}>{tier.nameAr} · الصف {tier.row}</span>
+                        </div>
+                        <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: tier.color }} />
+                        </div>
+                        {tier.maxAyahs && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 text-right">
+                            {tier.maxAyahs - count} آية للصف التالي
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Parents */}
+                      {parents.length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/40">
+                          <span className="text-[10px] text-muted-foreground">الأولياء:</span>
+                          {parents.map((p) => (
+                            <span key={p.id} className="text-[10px] bg-purple-500/10 text-purple-600 border border-purple-500/20 px-1.5 py-0.5 rounded-full">
+                              {p.displayName ?? p.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* ── Calendar / Assignments tab ─────────────── */}
+          {tab === "calendar" && (
+            <div className="p-3 space-y-2">
+              {upcomingAssignments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">لا توجد مهام مجدولة</p>
+              ) : (
+                upcomingAssignments.map((a) => {
+                  const isPast = a.dueDate! < new Date().toISOString().slice(0, 10);
+                  return (
+                    <div key={a.id} className={`rounded-xl p-3 border ${isPast ? "border-red-500/20 bg-red-500/5" : "border-border bg-muted"}`}>
+                      <div className="flex items-start gap-2">
+                        <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${isPast ? "bg-red-500" : "bg-primary"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{a.title}</p>
+                          {a.description && <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>}
+                          <p className={`text-[10px] mt-1 font-mono ${isPast ? "text-red-500" : "text-muted-foreground"}`}>
+                            {isPast ? "منتهي · " : ""}{a.dueDate}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user, users, teacherCode, setTeacherCode, deleteUser } = useAuth();
@@ -106,6 +273,8 @@ export default function AdminPage() {
   const { sendMessage } = useMessages();
   const t = useT();
   const router = useRouter();
+
+  const [allMemoData] = useLocalStorage<Record<string, Record<number, unknown[]>>>("quran-memorization-all-users", {});
 
   const [tab, setTab] = useState<Tab>("overview");
   const [newCode, setNewCode] = useState("");
@@ -118,6 +287,7 @@ export default function AdminPage() {
   const [expelTarget, setExpelTarget] = useState<User | null>(null);
   const [msgTarget, setMsgTarget] = useState<User | null>(null);
   const [search, setSearch] = useState("");
+  const [detailClass, setDetailClass] = useState<ClassRoom | null>(null);
 
   if (!user || user.role !== "admin") {
     return (
@@ -233,7 +403,24 @@ export default function AdminPage() {
               ))}
             </div>
 
-            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            {/* Live Activity shortcut */}
+          <Link
+            href="/admin/activity"
+            className="flex items-center gap-3 p-4 rounded-xl transition-colors"
+            style={{ border: "1.5px solid rgba(200,147,42,0.35)", background: "linear-gradient(135deg, rgba(200,147,42,0.07), rgba(30,96,64,0.07))" }}
+          >
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "var(--gold)" }} />
+              <span className="relative inline-flex rounded-full h-3 w-3" style={{ background: "var(--gold)" }} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Live Activity Dashboard</p>
+              <p className="text-xs text-muted-foreground">Real-time sign-ups, logins &amp; who&apos;s online now</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--gold)" }} className="shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+          </Link>
+
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <div>
                 <h2 className="text-sm font-semibold">{t.admin_teacher_code_title}</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">{t.admin_teacher_code_desc}</p>
@@ -354,21 +541,51 @@ export default function AdminPage() {
             ) : (
               classes.map((c) => {
                 const teacher = users.find((u) => u.id === c.teacherId);
+                const studentCount = c.studentIds.length;
+                // Compute average memorization across enrolled students
+                const totalMemo = c.studentIds.reduce((sum, sid) => {
+                  const ud = allMemoData[sid] ?? {};
+                  return sum + Object.values(ud).reduce((s, arr) => s + (arr as unknown[]).length, 0);
+                }, 0);
+                const avgMemo = studentCount > 0 ? Math.round(totalMemo / studentCount) : 0;
+                const topTier = (() => {
+                  let best: RowTier = ROW_TIERS[0];
+                  for (const sid of c.studentIds) {
+                    const ud = allMemoData[sid] ?? {};
+                    const cnt = Object.values(ud).reduce((s, arr) => s + (arr as unknown[]).length, 0);
+                    const t = getTierForCount(cnt);
+                    if (t.row > best.row) best = t;
+                  }
+                  return best;
+                })();
+
                 return (
-                  <div key={c.id} className="p-4 bg-card border border-border rounded-xl">
+                  <button
+                    key={c.id}
+                    onClick={() => setDetailClass(c)}
+                    className="w-full text-left p-4 bg-card border border-border rounded-xl hover:border-primary/40 transition-colors"
+                  >
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-semibold">{c.name}</p>
-                      <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">{c.code}</span>
+                      <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">{c.code}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{t.classroom_teacher} {c.teacherName}</p>
-                    {!teacher && (
-                      <p className="text-xs text-red-500 mt-0.5">Teacher account removed</p>
-                    )}
+                    {!teacher && <p className="text-xs text-red-500 mt-0.5">Teacher account removed</p>}
                     <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-muted-foreground">{c.studentIds.length} {t.admin_students_label}</span>
+                      <span className="text-xs text-muted-foreground">{studentCount} {t.admin_students_label}</span>
                       <span className="text-xs text-muted-foreground">{c.assignments.length} {t.admin_assignments_label}</span>
+                      {studentCount > 0 && (
+                        <span className="text-xs text-muted-foreground">متوسط الحفظ: {avgMemo} آية</span>
+                      )}
                     </div>
-                  </div>
+                    {studentCount > 0 && (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className="text-[10px] text-muted-foreground">أعلى صف:</span>
+                        <RowPill tier={topTier} />
+                        <span className="text-[10px] text-muted-foreground ml-auto">اضغط لعرض التفاصيل →</span>
+                      </div>
+                    )}
+                  </button>
                 );
               })
             )}
@@ -424,6 +641,16 @@ export default function AdminPage() {
           target={msgTarget}
           onClose={() => setMsgTarget(null)}
           onSend={(content) => sendMessage(msgTarget.id, "user", content, true)}
+        />
+      )}
+
+      {/* Class detail panel */}
+      {detailClass && (
+        <ClassDetailPanel
+          cls={detailClass}
+          users={users}
+          allMemoData={allMemoData}
+          onClose={() => setDetailClass(null)}
         />
       )}
     </>

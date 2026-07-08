@@ -19,6 +19,8 @@ const config: Config = {
         border: "var(--border)",
         muted: "var(--muted)",
         "muted-foreground": "var(--muted-foreground)",
+        gold: "var(--gold)",
+        "gold-foreground": "var(--gold-foreground)",
         "bookmark-red": "#EF4444",
         "bookmark-blue": "#3B82F6",
         "bookmark-green": "#22C55E",

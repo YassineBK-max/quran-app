@@ -17,6 +17,7 @@ export default function SurahsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [lastMushafPage] = useLocalStorage<number>("quran-mushaf-last-page", 1);
+  const [lastQuranPage] = useLocalStorage<number>("quran-reader-last-page", 1);
   const { getProgress, getMemorizedCount } = useMemorization();
   const { isPinned, togglePin } = usePinnedSurahs();
 
@@ -48,24 +49,40 @@ export default function SurahsPage() {
     const done = progress === 100;
 
     return (
-      <div className={`rounded-xl border transition-colors overflow-hidden ${
-        done ? "border-primary/50 bg-primary/5"
-        : inProgress ? "border-primary/30 bg-primary/3"
-        : "border-border bg-card"
-      }`}>
+      <div
+        className="rounded-xl border border-border bg-card transition-colors overflow-hidden"
+        style={
+          done
+            ? { borderColor: "rgba(30,96,64,0.4)", background: "rgba(30,96,64,0.05)" }
+            : inProgress
+            ? { borderColor: "rgba(200,147,42,0.3)", background: "rgba(200,147,42,0.03)" }
+            : undefined
+        }
+      >
         <div className="flex items-center gap-3 p-3">
-          {/* Page number badge */}
+          {/* Mushaf page */}
           <div className="w-10 shrink-0 text-center">
-            <div className="text-[10px] text-muted-foreground leading-none">
+            <div className="text-[10px] text-muted-foreground leading-none mb-0.5">
               {t.surahs_page_label}
             </div>
-            <div className="text-xs font-bold text-primary">
+            <div className="text-xs font-bold" style={{ color: "var(--gold)" }}>
               {SURAH_PAGES[surah.number] ?? "—"}
             </div>
           </div>
 
-          {/* Surah number */}
-          <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center text-xs font-semibold shrink-0">
+          {/* Surah number — octagonal badge */}
+          <div
+            className="w-9 h-9 flex items-center justify-center text-xs font-bold shrink-0"
+            style={{
+              clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
+              background: done
+                ? "var(--primary)"
+                : inProgress
+                ? "linear-gradient(135deg, rgba(30,96,64,0.7), rgba(200,147,42,0.5))"
+                : "var(--muted)",
+              color: done ? "var(--primary-foreground)" : "var(--foreground)",
+            }}
+          >
             {surah.number}
           </div>
 
@@ -73,13 +90,17 @@ export default function SurahsPage() {
           <Link href={`/surah/${surah.number}`} className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">{surah.englishName}</p>
+                <p className="font-semibold text-sm truncate" style={{ fontFamily: '"Cairo", sans-serif' }}>
+                  {surah.englishName}
+                </p>
                 <p className="text-[10px] text-muted-foreground truncate">
                   {surah.englishNameTranslation} · {surah.numberOfAyahs} {t.surahs_ayahs} · {surah.revelationType === "Meccan" ? t.surahs_meccan : t.surahs_medinan}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-lg leading-tight" style={{ fontFamily: '"Amiri", serif' }}>{surah.name}</p>
+                <p className="text-lg leading-tight" style={{ fontFamily: '"Amiri", serif', color: "var(--primary)" }}>
+                  {surah.name}
+                </p>
               </div>
             </div>
           </Link>
@@ -87,7 +108,8 @@ export default function SurahsPage() {
           {/* Pin button */}
           <button
             onClick={(e) => { e.preventDefault(); togglePin(surah.number); }}
-            className={`p-1.5 rounded-lg transition-colors shrink-0 ${isPinned(surah.number) ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            className="p-1.5 rounded-lg transition-colors shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
+            style={{ color: isPinned(surah.number) ? "var(--gold)" : "var(--muted-foreground)" }}
             title={isPinned(surah.number) ? t.surahs_unpin : t.surahs_pin}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill={isPinned(surah.number) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
@@ -98,19 +120,24 @@ export default function SurahsPage() {
 
         {/* Progress bar */}
         {memorized > 0 && (
-          <div className="px-3 pb-2.5">
+          <div className="px-3 pb-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[9px] text-muted-foreground">
                 {inProgress ? t.surahs_in_progress : t.surahs_memorized}
               </span>
-              <span className="text-[9px] font-semibold text-primary">
+              <span className="text-[9px] font-semibold" style={{ color: done ? "var(--primary)" : "var(--gold)" }}>
                 {memorized}/{surah.numberOfAyahs} · {progress}%
               </span>
             </div>
             <div className="h-1 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progress}%`,
+                  background: done
+                    ? "var(--primary)"
+                    : "linear-gradient(90deg, var(--primary), var(--gold))",
+                }}
               />
             </div>
           </div>
@@ -122,25 +149,73 @@ export default function SurahsPage() {
   return (
     <>
       <Header title={t.surahs_index_title} />
-      <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-        {/* Read Complete Quran button */}
-        <Link
-          href={`/mushaf?page=${lastMushafPage}`}
-          className="flex items-center gap-3 p-4 rounded-2xl border-2 border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 hover:border-primary/60 transition-colors"
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-primary shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">{t.mushaf_read_book}</p>
-            <p className="text-xs text-muted-foreground">{t.mushaf_read_book_desc}</p>
-          </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary shrink-0"><path d="m9 18 6-6-6-6"/></svg>
-        </Link>
+      <main className="max-w-3xl mx-auto px-4 py-4 pb-24 space-y-4">
 
-        {/* Decorative mushaf header */}
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 rounded-2xl p-5 text-center">
-          <p className="text-2xl mb-1" style={{ fontFamily: '"Amiri", serif' }}>
+        {/* Read Complete Quran — two modes */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Page-by-page (new) */}
+          <Link
+            href={`/quran?page=${lastQuranPage}`}
+            className="flex flex-col gap-2 p-4 rounded-2xl transition-colors relative overflow-hidden"
+            style={{
+              border: "1.5px solid rgba(200,147,42,0.4)",
+              background: "linear-gradient(135deg, rgba(200,147,42,0.1) 0%, rgba(30,96,64,0.08) 100%)",
+            }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(200,147,42,0.15)", color: "var(--gold)" }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h6M3 15h6"/></svg>
+            </div>
+            <div>
+              <p className="font-semibold text-sm leading-tight">Page by Page</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Physical Mushaf layout</p>
+            </div>
+            <p className="text-[10px] font-medium" style={{ color: "var(--gold)" }}>p. {lastQuranPage} / 604</p>
+          </Link>
+
+          {/* Continuous scroll (existing mushaf) */}
+          <Link
+            href={`/mushaf?page=${lastMushafPage}`}
+            className="flex flex-col gap-2 p-4 rounded-2xl transition-colors"
+            style={{
+              border: "1.5px solid rgba(30,96,64,0.3)",
+              background: "linear-gradient(135deg, rgba(30,96,64,0.08) 0%, rgba(200,147,42,0.06) 100%)",
+            }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(30,96,64,0.12)", color: "var(--primary)" }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            </div>
+            <div>
+              <p className="font-semibold text-sm leading-tight">{t.mushaf_read_book}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Continuous scroll</p>
+            </div>
+            <p className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>p. {lastMushafPage} / 604</p>
+          </Link>
+        </div>
+
+        {/* Decorative Quranic verse header */}
+        <div
+          className="rounded-2xl p-5 text-center relative overflow-hidden"
+          style={{
+            background: "linear-gradient(135deg, rgba(30,96,64,0.12) 0%, rgba(200,147,42,0.08) 100%)",
+            border: "1px solid rgba(200,147,42,0.2)",
+          }}
+        >
+          {/* Corner ornaments */}
+          <span
+            className="absolute top-2 left-3 text-xs opacity-30"
+            style={{ color: "var(--gold)" }}
+            aria-hidden="true"
+          >
+            ✦
+          </span>
+          <span
+            className="absolute top-2 right-3 text-xs opacity-30"
+            style={{ color: "var(--gold)" }}
+            aria-hidden="true"
+          >
+            ✦
+          </span>
+          <p className="text-2xl mb-1.5" style={{ fontFamily: '"Amiri", serif', direction: "rtl", color: "var(--foreground)" }}>
             ﴿ وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا ﴾
           </p>
           <p className="text-xs text-muted-foreground">المُزَّمِّل · 4</p>
@@ -155,27 +230,39 @@ export default function SurahsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.search_placeholder}
-            className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm"
+            className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-[var(--gold)] transition-colors"
+            style={{ fontFamily: '"Cairo", sans-serif' }}
           />
         </div>
 
+        {/* Loading */}
         {loading && (
           <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-        {error && (
-          <div className="text-center py-20">
-            <p className="text-red-500 mb-2">{t.surahs_error}</p>
-            <button onClick={() => window.location.reload()} className="text-primary text-sm underline">{t.retry}</button>
+            <div
+              className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }}
+            />
           </div>
         )}
 
+        {/* Error */}
+        {error && (
+          <div className="text-center py-20">
+            <p className="text-red-500 mb-2">{t.surahs_error}</p>
+            <button onClick={() => window.location.reload()} className="text-sm underline" style={{ color: "var(--primary)" }}>
+              {t.retry}
+            </button>
+          </div>
+        )}
+
+        {/* Surah list */}
         {!loading && !error && (
           <div className="space-y-4">
             {pinned.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t.surahs_pinned}</p>
+                <div className="islamic-divider mb-3">
+                  <span>{t.surahs_pinned}</span>
+                </div>
                 <div className="space-y-2">
                   {pinned.map((s) => <SurahRow key={s.number} surah={s} />)}
                 </div>
@@ -184,7 +271,9 @@ export default function SurahsPage() {
             {rest.length > 0 && (
               <div>
                 {pinned.length > 0 && (
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t.surahs_all}</p>
+                  <div className="islamic-divider mb-3">
+                    <span>{t.surahs_all}</span>
+                  </div>
                 )}
                 <div className="space-y-2">
                   {rest.map((s) => <SurahRow key={s.number} surah={s} />)}

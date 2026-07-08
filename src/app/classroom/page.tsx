@@ -1,10 +1,13 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
+import { useBooking } from "@/contexts/BookingContext";
 import { useMemorization } from "@/contexts/MemorizationContext";
+import { isSupabaseReady } from "@/lib/supabase";
 import { useT } from "@/hooks/useT";
 import { Assignment } from "@/lib/types";
 
@@ -66,6 +69,7 @@ function AssignmentCard({ assignment, classId, canEdit, t, onUpdate, onDelete }:
 export default function ClassroomPage() {
   const { user, users } = useAuth();
   const { myClasses, createClass, joinClass, leaveClass, getTeacherClasses, removeAssignment, updateAssignment } = useClassroom();
+  const { getAvailableSlots, getMyBookings, getMySlots, slotBookingCount } = useBooking();
   const { setStudentId } = useMemorization();
   const t = useT();
   const router = useRouter();
@@ -101,6 +105,20 @@ export default function ClassroomPage() {
       <>
         <Header title={t.classroom_title} />
         <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+          {/* DB Classrooms entry point */}
+          {isSupabaseReady && (
+            <Link href="/classrooms"
+              className="flex items-center gap-3 p-3 rounded-xl border hover:bg-muted/40 transition-colors group"
+              style={{ borderColor: "rgba(200,147,42,0.4)", background: "rgba(200,147,42,0.05)" }}>
+              <span className="text-base">🏫</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Course Classrooms</p>
+                <p className="text-xs text-muted-foreground">Database-backed classrooms with courses</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+            </Link>
+          )}
+
           {/* Join class code input — always visible at top */}
           <div className="bg-card border border-border rounded-xl p-3">
             <p className="text-xs font-semibold text-muted-foreground mb-2">
@@ -204,6 +222,36 @@ export default function ClassroomPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Book a Session widget */}
+                  {isSupabaseReady && (() => {
+                    const todayStr = new Date().toISOString().split("T")[0];
+                    const available = getAvailableSlots().filter((s) => s.date >= todayStr);
+                    const booked = getMyBookings().filter((b) => b.status === "confirmed" && (b.slot?.date ?? "") >= todayStr);
+                    return (
+                      <Link
+                        href="/booking"
+                        className="flex items-center gap-4 bg-card border rounded-xl p-4 hover:bg-muted/40 transition-colors group"
+                        style={{ borderColor: "rgba(200,147,42,0.4)" }}
+                      >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+                          style={{ background: "rgba(200,147,42,0.12)" }}>
+                          🗓️
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">Book a Session</p>
+                          <p className="text-xs text-muted-foreground">
+                            {available.length > 0
+                              ? `${available.length} slot${available.length !== 1 ? "s" : ""} available from your teacher`
+                              : booked.length > 0
+                              ? `${booked.length} upcoming session${booked.length !== 1 ? "s" : ""} booked`
+                              : "View your teacher's available time slots"}
+                          </p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+                      </Link>
+                    );
+                  })()}
                 </>
               )}
             </>
@@ -221,6 +269,20 @@ export default function ClassroomPage() {
     <>
       <Header title={t.classroom_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+        {/* DB Classrooms entry point */}
+        {isSupabaseReady && (
+          <Link href="/classrooms"
+            className="flex items-center gap-3 p-3 rounded-xl border hover:bg-muted/40 transition-colors group"
+            style={{ borderColor: "rgba(200,147,42,0.4)", background: "rgba(200,147,42,0.05)" }}>
+            <span className="text-base">🏫</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold">Course Classrooms</p>
+              <p className="text-xs text-muted-foreground">Manage database-backed courses and classrooms</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+          </Link>
+        )}
+
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold">{t.classroom_create_class}</h2>
           <div className="flex gap-2">
@@ -367,6 +429,34 @@ export default function ClassroomPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Availability widget */}
+                {isSupabaseReady && (() => {
+                  const todayStr = new Date().toISOString().split("T")[0];
+                  const myUpcomingSlots = getMySlots().filter((s) => s.date >= todayStr);
+                  const totalBookings = myUpcomingSlots.reduce((sum, s) => sum + slotBookingCount(s.id), 0);
+                  return (
+                    <Link
+                      href="/booking"
+                      className="flex items-center gap-4 bg-card border rounded-xl p-4 hover:bg-muted/40 transition-colors group"
+                      style={{ borderColor: "rgba(200,147,42,0.4)" }}
+                    >
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+                        style={{ background: "rgba(200,147,42,0.12)" }}>
+                        🗓️
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">My Availability</p>
+                        <p className="text-xs text-muted-foreground">
+                          {myUpcomingSlots.length > 0
+                            ? `${myUpcomingSlots.length} upcoming slot${myUpcomingSlots.length !== 1 ? "s" : ""} · ${totalBookings} booking${totalBookings !== 1 ? "s" : ""}`
+                            : "No upcoming slots — add your availability"}
+                        </p>
+                      </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+                    </Link>
+                  );
+                })()}
               </>
             )}
           </>
