@@ -30,13 +30,16 @@ export default function SurahsPage() {
 
   const filtered = surahs.filter((s) => {
     if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      s.englishName.toLowerCase().includes(q) ||
-      s.name.includes(search) ||
-      String(s.number).includes(search) ||
-      s.englishNameTranslation.toLowerCase().includes(q)
-    );
+    if (String(s.number) === search.trim()) return true;
+    const q = search.toLowerCase().replace(/[\s'\-_]/g, "");
+    const matchFuzzy = (target: string) => {
+      const t = target.toLowerCase().replace(/[\s'\-_]/g, "");
+      if (t.includes(q)) return true;
+      let qi = 0;
+      for (const c of t) { if (c === q[qi]) qi++; if (qi === q.length) return true; }
+      return false;
+    };
+    return matchFuzzy(s.englishName) || s.name.includes(search) || matchFuzzy(s.englishNameTranslation);
   });
 
   const pinned = filtered.filter((s) => isPinned(s.number));

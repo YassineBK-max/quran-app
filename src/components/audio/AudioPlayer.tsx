@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAudio } from "@/contexts/AudioContext";
-import { PLAYBACK_SPEEDS, REPEAT_OPTIONS } from "@/lib/constants";
+import { useSettings } from "@/contexts/SettingsContext";
+import { PLAYBACK_SPEEDS, REPEAT_OPTIONS, RECITERS } from "@/lib/constants";
 import { useT } from "@/hooks/useT";
 
 export function AudioPlayer() {
@@ -10,11 +11,24 @@ export function AudioPlayer() {
     currentTime, duration,
     speed, repeatCount,
     pause, resume, stop, playNext, playPrevious,
-    seekTo, setSpeed, setRepeatCount,
+    seekTo, setSpeed, setRepeatCount, playAyah,
   } = useAudio();
+  const { settings, updateSettings } = useSettings();
   const t = useT();
 
   const [expanded, setExpanded] = useState(false);
+  // Pending reciter restart: store ayah to replay after settings update
+  const pendingRestartRef = useRef<typeof currentAyah | null>(null);
+  const playAyahRef = useRef(playAyah);
+  useEffect(() => { playAyahRef.current = playAyah; }, [playAyah]);
+
+  useEffect(() => {
+    if (pendingRestartRef.current) {
+      const a = pendingRestartRef.current;
+      pendingRestartRef.current = null;
+      playAyahRef.current(a.surahNumber, a.numberInSurah, a.absoluteNumber, a.surahName, a.totalAyahs);
+    }
+  }, [settings.reciterEdition]);
 
   if (!currentAyah) return null;
 
@@ -23,6 +37,14 @@ export function AudioPlayer() {
 
   const speedLabel = speed === 1 ? "1×" : `${speed}×`;
   const repeatLabel = REPEAT_OPTIONS.find((o) => o.value === repeatCount)?.label ?? "1×";
+  const reciterName = RECITERS.find((r) => r.id === settings.reciterEdition)?.name ?? settings.reciterEdition;
+
+  const changeReciter = (id: string) => {
+    if (id === settings.reciterEdition) return;
+    stop();
+    pendingRestartRef.current = currentAyah;
+    updateSettings({ reciterEdition: id });
+  };
 
   return (
     <div className="fixed bottom-16 left-0 right-0 z-40 px-3">
@@ -35,23 +57,24 @@ export function AudioPlayer() {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate text-foreground">{currentAyah.surahName}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground truncate">
               {t.audio_ayah} {currentAyah.numberInSurah}
               {currentAyah.totalAyahs ? ` / ${currentAyah.totalAyahs}` : ""}
+              {" · "}{reciterName.split(" ")[0]}
             </p>
           </div>
 
           {/* Speed + Repeat badges */}
-          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{speedLabel}</span>
-          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{repeatLabel}</span>
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{speedLabel}</span>
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{repeatLabel}</span>
 
           {/* Core controls */}
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={playPrevious}
               disabled={currentAyah.numberInSurah <= 1}
+              aria-label="Previous ayah"
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
-              title="Previous"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="19 20 9 12 19 4 19 20" />
@@ -61,8 +84,8 @@ export function AudioPlayer() {
 
             <button
               onClick={isPlaying ? pause : resume}
+              aria-label={isPlaying ? "Pause" : "Play"}
               className="p-2.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              title={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -79,8 +102,8 @@ export function AudioPlayer() {
             <button
               onClick={playNext}
               disabled={!currentAyah.totalAyahs || currentAyah.numberInSurah >= currentAyah.totalAyahs}
+              aria-label="Next ayah"
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
-              title="Next"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="5 4 15 12 5 20 5 4" />
@@ -90,8 +113,8 @@ export function AudioPlayer() {
 
             <button
               onClick={stop}
+              aria-label="Stop"
               className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-              title="Stop"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -108,8 +131,7 @@ export function AudioPlayer() {
               className="flex-1 h-1.5 bg-muted rounded-full cursor-pointer"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                const pct = (e.clientX - rect.left) / rect.width;
-                seekTo(pct * duration);
+                seekTo(((e.clientX - rect.left) / rect.width) * duration);
               }}
             >
               <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
@@ -120,10 +142,30 @@ export function AudioPlayer() {
 
         {/* Expanded controls */}
         {expanded && (
-          <div className="px-3 pb-3 pt-1 border-t border-border space-y-3">
+          <div className="px-3 pb-3 pt-2 border-t border-border space-y-3">
+            {/* Reciter */}
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5 font-semibold uppercase tracking-wider">Reciter</p>
+              <div className="space-y-0.5 max-h-36 overflow-y-auto pr-0.5">
+                {RECITERS.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => changeReciter(r.id)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                      settings.reciterEdition === r.id
+                        ? "bg-primary text-primary-foreground font-medium"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Speed */}
             <div>
-              <p className="text-[10px] text-muted-foreground mb-1.5">Playback Speed</p>
+              <p className="text-[10px] text-muted-foreground mb-1.5 font-semibold uppercase tracking-wider">Playback Speed</p>
               <div className="flex gap-1.5 flex-wrap">
                 {PLAYBACK_SPEEDS.map((s) => (
                   <button
@@ -143,7 +185,7 @@ export function AudioPlayer() {
 
             {/* Repeat */}
             <div>
-              <p className="text-[10px] text-muted-foreground mb-1.5">Ayah Repetition</p>
+              <p className="text-[10px] text-muted-foreground mb-1.5 font-semibold uppercase tracking-wider">Ayah Repetition</p>
               <div className="flex gap-1.5 flex-wrap">
                 {REPEAT_OPTIONS.map((opt) => (
                   <button

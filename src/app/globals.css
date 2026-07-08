@@ -428,12 +428,18 @@ body {
 }
 .dark .qr-frame::after { border-color: #6b4f1828; }
 
-/* Inner content area */
+/* Inner content area – scrollable, capped to viewport */
 .qr-inner {
   padding: 14px 20px 16px;
   position: relative;
   z-index: 1;
+  max-height: calc(100dvh - 260px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(154,118,48,0.3) transparent;
 }
+.qr-inner::-webkit-scrollbar { width: 4px; }
+.qr-inner::-webkit-scrollbar-thumb { background: rgba(154,118,48,0.3); border-radius: 4px; }
 
 /* Page header: [Juz ←] [Page#] [→ Surah] */
 .qr-hdr {
@@ -549,3 +555,13 @@ body {
 .ebook-page-prev {
   animation: ebook-slide-in-from-right 0.28s cubic-bezier(0.22,1,0.36,1) both;
 }
+
+/* ─── Mushaf book – fits within viewport ──────────────────────────────────── */
+.mushaf-book {
+  max-height: calc(100dvh - 200px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(154,118,48,0.25) transparent;
+}
+.mushaf-book::-webkit-scrollbar { width: 4px; }
+.mushaf-book::-webkit-scrollbar-thumb { background: rgba(154,118,48,0.25); border-radius: 4px; }

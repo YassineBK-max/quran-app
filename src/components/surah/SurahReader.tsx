@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Surah } from "@/lib/types";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useAudio } from "@/contexts/AudioContext";
@@ -21,11 +21,13 @@ export function SurahReader({ surah }: SurahReaderProps) {
   const { getProgress, getMemorizedCount } = useMemorization();
   const [translations, setTranslations] = useState<Surah | null>(null);
 
+  const [showSearch, setShowSearch] = useState(false);
+  const [ayahQuery, setAyahQuery] = useState("");
+
   const memorizedCount = getMemorizedCount(surah.number);
   const progress = getProgress(surah.number, surah.numberOfAyahs);
 
-  const isThisSurahPlaying =
-    currentAyah?.surahNumber === surah.number && isPlaying;
+  const isThisSurahPlaying = currentAyah?.surahNumber === surah.number && isPlaying;
   const isThisSurahLoaded = currentAyah?.surahNumber === surah.number;
 
   const handlePlaySurah = () => {
@@ -36,13 +38,7 @@ export function SurahReader({ surah }: SurahReaderProps) {
     } else {
       const firstAyah = surah.ayahs[0];
       if (firstAyah) {
-        playAyah(
-          surah.number,
-          1,
-          firstAyah.number,
-          surah.englishName,
-          surah.numberOfAyahs
-        );
+        playAyah(surah.number, 1, firstAyah.number, surah.englishName, surah.numberOfAyahs);
       }
     }
   };
@@ -66,6 +62,44 @@ export function SurahReader({ surah }: SurahReaderProps) {
       }, 300);
     }
   }, []);
+
+  // Filter ayahs by search query
+  const filteredAyahs = useMemo(() => {
+    const q = ayahQuery.trim();
+    if (!q) return surah.ayahs;
+    const isNumber = /^\d+$/.test(q);
+    if (isNumber) {
+      const n = parseInt(q, 10);
+      return surah.ayahs.filter((a) => a.numberInSurah === n);
+    }
+    const qLow = q.toLowerCase();
+    const isArabic = /[؀-ۿ]/.test(q);
+    return surah.ayahs.filter((a) => {
+      if (isArabic) return a.text?.includes(q);
+      const transAyah = translations?.ayahs?.find((ta) => ta.numberInSurah === a.numberInSurah);
+      return transAyah?.text?.toLowerCase().includes(qLow);
+    });
+  }, [surah.ayahs, ayahQuery, translations]);
+
+  const filteredTranslations: Surah | null = translations && ayahQuery.trim()
+    ? {
+        ...translations,
+        ayahs: translations.ayahs.filter((ta) =>
+          filteredAyahs.some((a) => a.numberInSurah === ta.numberInSurah)
+        ),
+      }
+    : translations;
+
+  // Jump to first filtered ayah
+  useEffect(() => {
+    if (filteredAyahs.length > 0 && ayahQuery.trim()) {
+      setTimeout(() => {
+        document
+          .getElementById(`ayah-${filteredAyahs[0].numberInSurah}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, [filteredAyahs, ayahQuery]);
 
   return (
     <div className="space-y-4">
@@ -106,6 +140,21 @@ export function SurahReader({ surah }: SurahReaderProps) {
                 </svg>
               </button>
             )}
+            {/* Ayah search toggle */}
+            <button
+              onClick={() => { setShowSearch((v) => !v); if (showSearch) setAyahQuery(""); }}
+              title="Search within surah"
+              aria-label="Search within surah"
+              className={`p-1.5 rounded-lg transition-colors ${
+                showSearch
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+              </svg>
+            </button>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {surah.englishNameTranslation} · {surah.numberOfAyahs} {t.surah_ayahs} · {surah.revelationType === "Meccan" ? t.surahs_meccan : t.surahs_medinan}
@@ -131,6 +180,38 @@ export function SurahReader({ surah }: SurahReaderProps) {
         <DisplayModeToggle />
       </div>
 
+      {/* Ayah search bar */}
+      {showSearch && (
+        <div className="relative">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            autoFocus
+            type="text"
+            value={ayahQuery}
+            onChange={(e) => setAyahQuery(e.target.value)}
+            placeholder="Ayah number or text…"
+            className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+          />
+          {ayahQuery && (
+            <button
+              onClick={() => setAyahQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          )}
+          {ayahQuery && (
+            <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
+              {filteredAyahs.length === 0
+                ? "No ayahs found"
+                : `${filteredAyahs.length} ayah${filteredAyahs.length !== 1 ? "s" : ""} found`}
+            </p>
+          )}
+        </div>
+      )}
+
       {settings.displayMode === "ayah-per-line" && surah.number !== 1 && surah.number !== 9 && (
         <div className="text-center py-3">
           <p className="text-muted-foreground" style={{ fontFamily: '"Amiri", serif', fontSize: "1.2rem" }}>
@@ -141,8 +222,8 @@ export function SurahReader({ surah }: SurahReaderProps) {
 
       {settings.displayMode === "ayah-per-line" ? (
         <AyahLineDisplay
-          ayahs={surah.ayahs}
-          translations={translations?.ayahs}
+          ayahs={filteredAyahs}
+          translations={filteredTranslations?.ayahs}
           surahNumber={surah.number}
           surahName={surah.englishName}
         />

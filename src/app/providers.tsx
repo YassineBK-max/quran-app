@@ -15,6 +15,8 @@ import { BookingProvider } from "@/contexts/BookingContext";
 import { MessageProvider } from "@/contexts/MessageContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { RowProvider } from "@/contexts/RowContext";
+import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
+import { ViewModeToggle } from "@/components/ui/ViewModeToggle";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,17 +56,23 @@ const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
 // Pages where BottomNav/AudioPlayer are hidden
 function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { mode } = useViewMode();
   const isStandalone = STANDALONE_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "?")
   );
 
   return (
     <RowProvider>
-      <div className={`min-h-screen ${isStandalone ? "" : "pb-28"}`}>
+      <div
+        className={`min-h-screen ${isStandalone ? "" : "pb-28"} ${
+          mode === "desktop" ? "" : "max-w-[480px] mx-auto"
+        }`}
+      >
         {children}
       </div>
       {!isStandalone && <AudioPlayer />}
       {!isStandalone && <BottomNav />}
+      {!isStandalone && <ViewModeToggle />}
     </RowProvider>
   );
 }
@@ -99,6 +107,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <SettingsProvider>
+        <ViewModeProvider>
         <AuthProvider>
           <BookmarkProvider>
             <PinnedSurahsProvider>
@@ -127,6 +136,7 @@ export function Providers({ children }: { children: ReactNode }) {
             </PinnedSurahsProvider>
           </BookmarkProvider>
         </AuthProvider>
+        </ViewModeProvider>
       </SettingsProvider>
     </SessionProvider>
   );
