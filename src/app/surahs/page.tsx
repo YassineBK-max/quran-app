@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { SurahInfo } from "@/lib/types";
 import { fetchAllSurahs } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
@@ -15,6 +16,7 @@ export default function SurahsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [lastMushafPage] = useLocalStorage<number>("quran-mushaf-last-page", 1);
   const { getProgress, getMemorizedCount } = useMemorization();
   const { isPinned, togglePin } = usePinnedSurahs();
 
@@ -150,6 +152,25 @@ export default function SurahsPage() {
     <>
       <Header title={t.surahs_index_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 pb-24 space-y-4">
+
+        {/* Read Complete Quran — continuous scroll */}
+        <Link
+          href={`/mushaf?page=${lastMushafPage}`}
+          className="flex items-center gap-3 p-4 rounded-2xl transition-colors"
+          style={{
+            border: "1.5px solid rgba(30,96,64,0.3)",
+            background: "linear-gradient(135deg, rgba(30,96,64,0.08) 0%, rgba(200,147,42,0.06) 100%)",
+          }}
+        >
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(30,96,64,0.12)", color: "var(--primary)" }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm leading-tight">{t.mushaf_read_book}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Continuous scroll · 604 pages</p>
+          </div>
+          <p className="text-[10px] font-medium shrink-0" style={{ color: "var(--primary)" }}>p. {lastMushafPage} / 604</p>
+        </Link>
 
         {/* Decorative Quranic verse header */}
         <div

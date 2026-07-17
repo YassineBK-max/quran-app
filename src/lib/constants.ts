@@ -47,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   translationEdition: "en.sahih",
   language: "en",
   tapToTranslate: true,
+  displayMode: "mushaf",
   colorTheme: "classic",
 };
 
