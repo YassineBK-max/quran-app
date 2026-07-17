@@ -20,6 +20,8 @@ import { ViewModeToggle } from "@/components/ui/ViewModeToggle";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { useAuth } from "@/contexts/AuthContext";
+import { StreakProvider } from "@/contexts/StreakContext";
+import { MilestoneTracker } from "@/components/calendar/MilestoneTracker";
 import { supabase, ACTIVITY_CHANNEL } from "@/lib/supabase";
 
 // Joins Supabase Presence channel while the user is logged in so the admin
@@ -73,6 +75,7 @@ function Shell({ children }: { children: ReactNode }) {
       {!isStandalone && <AudioPlayer />}
       {!isStandalone && <BottomNav />}
       {!isStandalone && <ViewModeToggle />}
+      <MilestoneTracker />
     </RowProvider>
   );
 }
@@ -120,11 +123,13 @@ export function Providers({ children }: { children: ReactNode }) {
                       <MessageProvider>
                         <NotificationProvider>
                           <ActivityTracker />
-                          <AuthGuard>
-                            <Shell>
-                              {children}
-                            </Shell>
-                          </AuthGuard>
+                          <StreakProvider>
+                            <AuthGuard>
+                              <Shell>
+                                {children}
+                              </Shell>
+                            </AuthGuard>
+                          </StreakProvider>
                         </NotificationProvider>
                       </MessageProvider>
                     </CalendarProvider>

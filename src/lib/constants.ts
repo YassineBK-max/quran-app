@@ -3,17 +3,11 @@ import { AppSettings, BookmarkColor } from "./types";
 export const API_BASE = "https://api.alquran.cloud/v1";
 
 export const RECITERS = [
-  { id: "ar.alafasy", name: "Mishary Rashid Alafasy" },
-  { id: "ar.abdurrahmaansudais", name: "Abdurrahmaan As-Sudais" },
-  { id: "ar.abdulbasitmurattal", name: "Abdul Basit (Murattal)" },
-  { id: "ar.husary", name: "Mahmoud Khalil Al-Husary" },
-  { id: "ar.minshawi", name: "Mohamed Siddiq El-Minshawi" },
-  { id: "ar.saaboromayye", name: "Saad Al-Ghamdi" },
-  { id: "ar.ahmadiajmi", name: "Ahmad Al-Ajmy" },
-  { id: "ar.hanirifai", name: "Hani Ar-Rifai" },
-  { id: "ar.mahermuaiqly", name: "Maher Al-Muaiqly" },
-  { id: "ar.muhammadjibreel", name: "Muhammad Jibreel" },
-  { id: "ar.yasserdossari", name: "Yasser Al-Dosari" },
+  { id: "ar.alafasy",            name: "Mishary Rashid Alafasy" },
+  { id: "ar.abdulbasitmurattal", name: "Abdul Basit Abd us-Samad" },
+  { id: "ar.husary",             name: "Mahmoud Khalil Al-Husary" },
+  { id: "ar.abdurrahmaansudais", name: "Abdurrahman Al-Sudais" },
+  { id: "ar.saadalghamdi",       name: "Saad Al-Ghamdi" },
 ];
 
 export const TRANSLATIONS = [

@@ -35,9 +35,6 @@ const JUZ_NAMES: Record<number, string> = {
   27:"السابع والعشرون",28:"الثامن والعشرون",29:"التاسع والعشرون",30:"الثلاثون",
 };
 
-// Quarter-of-hizb symbols used in physical mushafs
-const HIZB_SYMBOLS = ["", "ربع", "نصف", "ثلاثة أرباع", ""];
-
 interface Group { surah: SurahInfo; isNew: boolean; ayahs: PageAyah[] }
 
 function groupBySurah(ayahs: PageAyah[]): Group[] {
@@ -50,7 +47,7 @@ function groupBySurah(ayahs: PageAyah[]): Group[] {
   return out;
 }
 
-// ─── Page frame ───────────────────────────────────────────────────────────────
+// ─── Page frame (frameless) ────────────────────────────────────────────────────
 
 function PageFrame({
   page,
@@ -73,9 +70,8 @@ function PageFrame({
   const juz = page.ayahs[0]?.juz ?? 0;
   const hizbQ = page.ayahs[0]?.hizbQuarter ?? 0;
   const hizbNum = Math.ceil(hizbQ / 4);
-  const quarterIdx = ((hizbQ - 1) % 4) + 1; // 1–4
+  const quarterIdx = ((hizbQ - 1) % 4) + 1;
 
-  // Unique surah names on this page (RTL: first in reading order = rightmost name)
   const surahNames = useMemo(() => {
     const seen = new Set<number>();
     const names: string[] = [];
@@ -86,97 +82,85 @@ function PageFrame({
   }, [groups]);
 
   return (
-    <div key={animKey} className="qr-anim qr-frame">
-      <div className="qr-inner">
+    <div key={animKey} className="qr-anim h-full flex flex-col">
 
-        {/* ── Page header ──────────────────────────────────── */}
-        <div className="qr-hdr">
-          {/* Right (RTL start): surah name(s) */}
-          <span className="qr-hdr-surah">
-            {surahNames.join(" · ")}
-          </span>
-          {/* Center: page number */}
-          <span className="qr-hdr-num">{toArabic(page.number)}</span>
-          {/* Left (RTL end): juz */}
-          <span className="qr-hdr-juz">
-            الجزء {JUZ_NAMES[juz] ?? toArabic(juz)}
-          </span>
-        </div>
+      {/* ── Page header ──────────────────────────────────── */}
+      <div className="qr-hdr shrink-0">
+        <span className="qr-hdr-surah">{surahNames.join(" · ")}</span>
+        <span className="qr-hdr-num">{toArabic(page.number)}</span>
+        <span className="qr-hdr-juz">الجزء {JUZ_NAMES[juz] ?? toArabic(juz)}</span>
+      </div>
+      <div className="qr-sep shrink-0" />
 
-        <div className="qr-sep" />
-
-        {/* ── Quran text ───────────────────────────────────── */}
-        <div style={{ padding: "4px 0 4px" }}>
-          {groups.map((g, gi) => (
-            <div key={`${g.surah.number}-${gi}`}>
-              {/* Surah header */}
-              {g.isNew && (
-                <div className="mushaf-header" style={{ marginTop: gi > 0 ? "1.4rem" : "0.2rem" }}>
-                  <span className="mushaf-ornament">❧</span>
-                  <div className="text-center">
-                    <p className="mushaf-name">{g.surah.name}</p>
-                    <p style={{ fontFamily: '"Amiri", serif', fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 2 }}>
-                      {g.surah.englishName} · {g.surah.numberOfAyahs} آيات
-                    </p>
-                  </div>
-                  <span className="mushaf-ornament">❧</span>
+      {/* ── Quran text – fills remaining height, no scroll ── */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {groups.map((g, gi) => (
+          <div key={`${g.surah.number}-${gi}`}>
+            {/* Surah header */}
+            {g.isNew && (
+              <div className="mushaf-header" style={{ marginTop: gi > 0 ? "0.6rem" : "0.1rem" }}>
+                <span className="mushaf-ornament">❧</span>
+                <div className="text-center">
+                  <p className="mushaf-name">{g.surah.name}</p>
+                  <p style={{ fontFamily: '"Amiri", serif', fontSize: "0.62rem", color: "var(--muted-foreground)", marginTop: 1 }}>
+                    {g.surah.englishName} · {g.surah.numberOfAyahs} آيات
+                  </p>
                 </div>
-              )}
-              {/* Continuation marker when page starts mid-surah */}
-              {!g.isNew && gi === 0 && (
-                <p className="mushaf-ornament text-center text-sm mb-1" style={{ fontFamily: '"Amiri", serif' }}>
-                  {g.surah.name} ❧
-                </p>
-              )}
-              {/* Bismillah (not for Al-Fatiha or At-Tawbah) */}
-              {g.isNew && g.surah.number !== 1 && g.surah.number !== 9 && (
-                <p className="mushaf-bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</p>
-              )}
-              {/* Flowing text */}
-              <div className="mushaf-text">
-                {g.ayahs.map((ayah) => {
-                  const bm = getBookmark(ayah.number);
-                  const playing = playingAyah?.absoluteNumber === ayah.number;
-                  const sel = selectedAyah?.number === ayah.number;
-                  const mem = isMemorized(ayah.surah.number, ayah.numberInSurah);
-                  return (
-                    <span
-                      key={ayah.number}
-                      onClick={() => onAyahClick(sel ? null : ayah)}
-                      className={[
-                        "mushaf-word",
-                        playing ? "mushaf-playing" : "",
-                        mem ? "mushaf-memorized" : "",
-                        sel ? "mushaf-selected" : "",
-                        bm ? `bookmark-highlight-${bm.color}` : "",
-                      ].filter(Boolean).join(" ")}
-                    >
-                      {ayah.text}{" "}
-                      <span className="mushaf-verse-end">﴿{toArabic(ayah.numberInSurah)}﴾</span>{" "}
-                    </span>
-                  );
-                })}
+                <span className="mushaf-ornament">❧</span>
               </div>
+            )}
+            {/* Continuation marker */}
+            {!g.isNew && gi === 0 && (
+              <p className="mushaf-ornament text-center text-xs mb-1" style={{ fontFamily: '"Amiri", serif' }}>
+                {g.surah.name} ❧
+              </p>
+            )}
+            {/* Bismillah */}
+            {g.isNew && g.surah.number !== 1 && g.surah.number !== 9 && (
+              <p className="mushaf-bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</p>
+            )}
+            {/* Flowing text */}
+            <div className="mushaf-text">
+              {g.ayahs.map((ayah) => {
+                const bm = getBookmark(ayah.number);
+                const playing = playingAyah?.absoluteNumber === ayah.number;
+                const sel = selectedAyah?.number === ayah.number;
+                const mem = isMemorized(ayah.surah.number, ayah.numberInSurah);
+                return (
+                  <span
+                    key={ayah.number}
+                    onClick={() => onAyahClick(sel ? null : ayah)}
+                    className={[
+                      "mushaf-word",
+                      playing ? "mushaf-playing" : "",
+                      mem ? "mushaf-memorized" : "",
+                      sel ? "mushaf-selected" : "",
+                      bm ? `bookmark-highlight-${bm.color}` : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    {ayah.text}{" "}
+                    <span className="mushaf-verse-end">﴿{toArabic(ayah.numberInSurah)}﴾</span>{" "}
+                  </span>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="qr-sep" />
+      <div className="qr-sep shrink-0" />
 
-        {/* ── Page footer ──────────────────────────────────── */}
-        <div className="qr-footer" dir="rtl">
-          {hizbQ > 0 && quarterIdx !== 4 && (
-            <span style={{ fontFamily: '"Amiri", serif', fontSize: "0.7rem", opacity: 0.7 }}>
-              {HIZB_SYMBOLS[quarterIdx]} — حزب {toArabic(hizbNum)}
-            </span>
-          )}
-          {(hizbQ === 0 || quarterIdx === 4) && (
-            <span style={{ fontFamily: '"Amiri", serif', fontSize: "0.7rem", opacity: 0.7 }}>
-              ─── {toArabic(page.number)} ───
-            </span>
-          )}
-        </div>
-
+      {/* ── Page footer ──────────────────────────────────── */}
+      <div className="qr-footer shrink-0" dir="rtl">
+        {hizbQ > 0 && quarterIdx !== 4 ? (
+          <span style={{ fontFamily: '"Amiri", serif', fontSize: "0.65rem", opacity: 0.7 }}>
+            {["", "ربع", "نصف", "ثلاثة أرباع"][quarterIdx] ?? ""} — حزب {toArabic(hizbNum)}
+          </span>
+        ) : (
+          <span style={{ fontFamily: '"Amiri", serif', fontSize: "0.65rem", opacity: 0.7 }}>
+            ─── {toArabic(page.number)} ───
+          </span>
+        )}
       </div>
     </div>
   );
@@ -212,7 +196,6 @@ function JumpPanel({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-lg bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85dvh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex gap-1">
             {(["surah", "page"] as const).map((t) => (
@@ -228,7 +211,6 @@ function JumpPanel({
           </button>
         </div>
 
-        {/* Surah tab */}
         {tab === "surah" && (
           <>
             <div className="px-4 pt-3 pb-2 shrink-0">
@@ -244,8 +226,7 @@ function JumpPanel({
                 return (
                   <button key={s.number}
                     onClick={() => { onJump(startPage); onClose(); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors ${isCurrent ? "bg-primary/5" : ""}`}
-                  >
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors ${isCurrent ? "bg-primary/5" : ""}`}>
                     <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
                       {s.number}
                     </span>
@@ -264,49 +245,32 @@ function JumpPanel({
           </>
         )}
 
-        {/* Page number tab */}
         {tab === "page" && (
           <div className="p-4 space-y-4">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const n = parseInt(pageInput);
-                if (!isNaN(n) && n >= 1 && n <= TOTAL) { onJump(n); onClose(); }
-              }}
-            >
-              <label className="text-xs font-semibold text-muted-foreground block mb-2">
-                Page number (1 – {TOTAL})
-              </label>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const n = parseInt(pageInput);
+              if (!isNaN(n) && n >= 1 && n <= TOTAL) { onJump(n); onClose(); }
+            }}>
+              <label className="text-xs font-semibold text-muted-foreground block mb-2">Page number (1 – {TOTAL})</label>
               <div className="flex gap-2">
-                <input
-                  autoFocus
-                  type="number" min={1} max={TOTAL}
-                  value={pageInput}
+                <input autoFocus type="number" min={1} max={TOTAL} value={pageInput}
                   onChange={(e) => setPageInput(e.target.value)}
                   placeholder={`e.g. ${currentPage}`}
-                  className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
-                />
-                <button type="submit"
-                  className="px-5 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-semibold min-h-[48px]">
-                  Go
-                </button>
+                  className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary" />
+                <button type="submit" className="px-5 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-semibold min-h-[48px]">Go</button>
               </div>
             </form>
-            {/* Quick juz jumps */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2">Jump to Juz</p>
               <div className="grid grid-cols-5 gap-1.5">
-                {Array.from({ length: 30 }, (_, i) => {
-                  const juzPage = JUZ_START_PAGES[i + 1];
-                  return (
-                    <button key={i + 1}
-                      onClick={() => { onJump(juzPage); onClose(); }}
-                      className="py-2 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary text-xs font-semibold transition-colors min-h-[40px]"
-                    >
-                      {i + 1}
-                    </button>
-                  );
-                })}
+                {Array.from({ length: 30 }, (_, i) => (
+                  <button key={i + 1}
+                    onClick={() => { onJump(JUZ_START_PAGES[i + 1]); onClose(); }}
+                    className="py-2 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary text-xs font-semibold transition-colors min-h-[40px]">
+                    {i + 1}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -316,14 +280,13 @@ function JumpPanel({
   );
 }
 
-// Approximate first page of each juz (standard Medina mushaf)
 const JUZ_START_PAGES: Record<number, number> = {
   1:1,2:22,3:42,4:62,5:82,6:102,7:121,8:142,9:162,10:182,
   11:201,12:222,13:242,14:262,15:282,16:302,17:322,18:342,19:362,20:382,
   21:402,22:422,23:442,24:462,25:482,26:502,27:522,28:542,29:562,30:582,
 };
 
-// ─── Main reader component ────────────────────────────────────────────────────
+// ─── Main reader ──────────────────────────────────────────────────────────────
 
 function QuranReaderInner() {
   const searchParams = useSearchParams();
@@ -348,7 +311,6 @@ function QuranReaderInner() {
   const { currentAyah: playingAyah } = useAudio();
   const { isMemorized, toggleMemorized, canToggle } = useMemorization();
 
-  // ── Fetch with cache ──────────────────────────────────────────────────────
   const fetchPage = useCallback(async (n: number): Promise<QuranPage | null> => {
     if (n < 1 || n > TOTAL) return null;
     if (cache.current.has(n)) return cache.current.get(n)!;
@@ -357,7 +319,6 @@ function QuranReaderInner() {
     return data;
   }, []);
 
-  // ── Navigate to page ──────────────────────────────────────────────────────
   const goTo = useCallback(async (n: number) => {
     const p = Math.min(TOTAL, Math.max(1, n));
     if (p === currentPage && pageData) return;
@@ -373,7 +334,6 @@ function QuranReaderInner() {
         setLastPage(p);
         setAnimKey((k) => k + 1);
         setSelectedAyah(null);
-        // Pre-fetch neighbours
         fetchPage(p - 1);
         fetchPage(p + 1);
       }
@@ -386,14 +346,12 @@ function QuranReaderInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageData, fetchPage, setLastPage]);
 
-  // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
     const init = startPage ?? lastPage;
     setLoading(true);
     fetchPage(init)
       .then((d) => {
         if (d) { setPageData(d); setAnimKey(1); }
-        // Pre-fetch neighbours
         fetchPage(init - 1);
         fetchPage(init + 1);
       })
@@ -403,18 +361,16 @@ function QuranReaderInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Keyboard navigation ───────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "ArrowLeft")  goTo(currentPage + 1); // forward (next page)
-      if (e.key === "ArrowRight") goTo(currentPage - 1); // backward (prev page)
+      if (e.key === "ArrowLeft")  goTo(currentPage + 1);
+      if (e.key === "ArrowRight") goTo(currentPage - 1);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [currentPage, goTo]);
 
-  // ── Touch/swipe support ───────────────────────────────────────────────────
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -424,8 +380,8 @@ function QuranReaderInner() {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      if (dx < 0) goTo(currentPage + 1); // swipe left → next page
-      else        goTo(currentPage - 1); // swipe right → prev page
+      if (dx < 0) goTo(currentPage + 1);
+      else        goTo(currentPage - 1);
     }
   }, [currentPage, goTo]);
 
@@ -434,7 +390,7 @@ function QuranReaderInner() {
 
   return (
     <div
-      className="flex flex-col min-h-dvh"
+      className="h-dvh flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -454,59 +410,40 @@ function QuranReaderInner() {
         }
       />
 
-      {/* Side nav buttons (desktop) */}
-      <button
-        onClick={() => goTo(currentPage - 1)}
-        disabled={!canPrev || loading}
-        aria-label="Previous page"
-        className="qr-sidenav-prev disabled:opacity-20"
-      >
+      {/* Side nav (wide screens only) */}
+      <button onClick={() => goTo(currentPage - 1)} disabled={!canPrev || loading}
+        aria-label="Previous page" className="qr-sidenav-prev disabled:opacity-20">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
       </button>
-      <button
-        onClick={() => goTo(currentPage + 1)}
-        disabled={!canNext || loading}
-        aria-label="Next page"
-        className="qr-sidenav-next disabled:opacity-20"
-      >
+      <button onClick={() => goTo(currentPage + 1)} disabled={!canNext || loading}
+        aria-label="Next page" className="qr-sidenav-next disabled:opacity-20">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
       </button>
 
-      {/* Page area */}
-      <main className="flex-1 overflow-y-auto pb-20 px-3 py-4">
-        <div className="max-w-xl mx-auto space-y-3">
+      {/* ── Content area: fills remaining height, stops above fixed navs ── */}
+      <div className="flex-1 min-h-0 overflow-hidden px-4 pt-2 pb-[132px]">
+        <div className="h-full max-w-xl mx-auto flex flex-col relative">
 
-          {/* Loading skeleton */}
+          {/* Loading – full-height centred spinner */}
           {loading && !pageData && (
-            <div className="qr-frame">
-              <div className="qr-inner space-y-4 animate-pulse">
-                <div className="flex justify-between">
-                  <div className="h-4 bg-primary/10 rounded w-28" />
-                  <div className="h-4 bg-primary/10 rounded w-10" />
-                  <div className="h-4 bg-primary/10 rounded w-20" />
-                </div>
-                <div className="h-px bg-primary/20" />
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-8 bg-primary/5 rounded" style={{ width: `${70 + (i % 3) * 10}%`, marginLeft: "auto" }} />
-                ))}
-              </div>
+            <div className="h-full flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center">
-              <p className="text-red-600 text-sm mb-3">{error}</p>
-              <button
-                onClick={() => goTo(currentPage)}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium"
-              >
-                Retry
-              </button>
+            <div className="h-full flex items-center justify-center">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center">
+                <p className="text-red-600 text-sm mb-3">{error}</p>
+                <button onClick={() => goTo(currentPage)} className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium">
+                  Retry
+                </button>
+              </div>
             </div>
           )}
 
-          {/* The page */}
+          {/* Page — frameless, fills full height */}
           {pageData && (
             <PageFrame
               page={pageData}
@@ -519,65 +456,52 @@ function QuranReaderInner() {
             />
           )}
 
-          {/* Loading overlay for page transitions */}
+          {/* Transition spinner overlay */}
           {loading && pageData && (
-            <div className="flex justify-center py-2">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-50" />
             </div>
           )}
 
-          {/* Completion */}
+          {/* Khatm marker */}
           {currentPage === TOTAL && !loading && (
-            <p className="text-center qr-footer pt-2" style={{ fontFamily: '"Amiri", serif', fontSize: "1rem" }}>
+            <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none"
+              style={{ fontFamily: '"Amiri", serif', fontSize: "0.95rem", color: "var(--primary)" }}>
               ── صَدَقَ اللهُ الْعَظِيمُ ──
-            </p>
+            </div>
           )}
         </div>
-      </main>
+      </div>
 
-      {/* ── Bottom navigation bar ─────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border">
+      {/* ── Bottom navigation bar – above global BottomNav ─── */}
+      <nav className="fixed bottom-16 left-0 right-0 z-[52] bg-card/95 backdrop-blur-sm border-t border-border">
         <div className="max-w-xl mx-auto flex items-center h-14 px-3 gap-2">
-          {/* Previous (smaller page number) */}
-          <button
-            onClick={() => goTo(currentPage - 1)}
-            disabled={!canPrev || loading}
+          <button onClick={() => goTo(currentPage - 1)} disabled={!canPrev || loading}
             aria-label="Previous page"
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted text-sm font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[44px]"
-          >
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted text-sm font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[44px]">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
             Prev
           </button>
 
-          {/* Page indicator — tap to open jump */}
-          <button
-            onClick={() => setShowJump((v) => !v)}
-            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl hover:bg-muted transition-colors min-h-[44px]"
-          >
+          <button onClick={() => setShowJump((v) => !v)}
+            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl hover:bg-muted transition-colors min-h-[44px]">
             <span className="text-[9px] text-muted-foreground uppercase tracking-wide">Page</span>
-            <span
-              className="text-lg font-bold leading-none"
-              style={{ fontFamily: '"Amiri", serif', color: "var(--primary)" }}
-            >
+            <span className="text-lg font-bold leading-none" style={{ fontFamily: '"Amiri", serif', color: "var(--primary)" }}>
               {toArabic(currentPage)}
               <span className="text-xs text-muted-foreground font-normal">{" "}/ {toArabic(TOTAL)}</span>
             </span>
           </button>
 
-          {/* Next (larger page number) */}
-          <button
-            onClick={() => goTo(currentPage + 1)}
-            disabled={!canNext || loading}
+          <button onClick={() => goTo(currentPage + 1)} disabled={!canNext || loading}
             aria-label="Next page"
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted text-sm font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[44px]"
-          >
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted text-sm font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[44px]">
             Next
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
       </nav>
 
-      {/* ── Jump panel ───────────────────────────────────────────────── */}
+      {/* ── Jump panel ─────────────────────────────────────── */}
       {showJump && (
         <JumpPanel
           currentPage={currentPage}
@@ -587,9 +511,9 @@ function QuranReaderInner() {
         />
       )}
 
-      {/* ── Ayah action popup ─────────────────────────────────────────── */}
+      {/* ── Ayah action popup ──────────────────────────────── */}
       {selectedAyah && (
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 p-2 bg-card border border-border rounded-2xl shadow-2xl">
+        <div className="fixed bottom-[132px] left-1/2 -translate-x-1/2 z-[53] flex items-center gap-1.5 p-2 bg-card border border-border rounded-2xl shadow-2xl">
           <span className="text-xs text-muted-foreground px-2" style={{ fontFamily: '"Amiri", serif' }}>
             {selectedAyah.surah.name} · {toArabic(selectedAyah.numberInSurah)}
           </span>
@@ -631,11 +555,8 @@ function QuranReaderInner() {
               </svg>
             </button>
           )}
-          <button
-            onClick={() => setSelectedAyah(null)}
-            aria-label="Close"
-            className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground min-w-[36px] min-h-[36px] flex items-center justify-center"
-          >
+          <button onClick={() => setSelectedAyah(null)} aria-label="Close"
+            className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground min-w-[36px] min-h-[36px] flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>

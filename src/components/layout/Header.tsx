@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { StreakFlame } from "@/components/ui/StreakFlame";
 
 interface HeaderProps {
   title: string;
@@ -55,6 +56,8 @@ export function Header({ title, showBack, showHome = true, extra }: HeaderProps)
         </h1>
 
         {extra && <div className="shrink-0">{extra}</div>}
+
+        {user && <StreakFlame />}
 
         {user && (
           <Link

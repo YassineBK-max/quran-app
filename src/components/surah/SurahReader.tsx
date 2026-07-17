@@ -90,6 +90,14 @@ export function SurahReader({ surah }: SurahReaderProps) {
       }
     : translations;
 
+  // Clear search when switching to mushaf mode (search doesn't apply there)
+  useEffect(() => {
+    if (settings.displayMode === "mushaf") {
+      setShowSearch(false);
+      setAyahQuery("");
+    }
+  }, [settings.displayMode]);
+
   // Jump to first filtered ayah
   useEffect(() => {
     if (filteredAyahs.length > 0 && ayahQuery.trim()) {
@@ -140,8 +148,8 @@ export function SurahReader({ surah }: SurahReaderProps) {
                 </svg>
               </button>
             )}
-            {/* Ayah search toggle */}
-            <button
+            {/* Ayah search toggle – hidden in mushaf mode since continuous text can't be filtered */}
+            {settings.displayMode !== "mushaf" && <button
               onClick={() => { setShowSearch((v) => !v); if (showSearch) setAyahQuery(""); }}
               title="Search within surah"
               aria-label="Search within surah"
@@ -154,7 +162,7 @@ export function SurahReader({ surah }: SurahReaderProps) {
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
-            </button>
+            </button>}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {surah.englishNameTranslation} · {surah.numberOfAyahs} {t.surah_ayahs} · {surah.revelationType === "Meccan" ? t.surahs_meccan : t.surahs_medinan}

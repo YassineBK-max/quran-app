@@ -299,8 +299,8 @@ body {
 /* Main text */
 .mushaf-text {
   font-family: "Amiri", serif;
-  font-size: 1.8rem;
-  line-height: 2.9;
+  font-size: clamp(0.82rem, 2.05vh, 1.15rem);
+  line-height: 2.05;
   direction: rtl;
   text-align: justify;
   color: #1a0800;
@@ -325,7 +325,7 @@ body {
 
 /* Verse end marker */
 .mushaf-verse-end {
-  font-size: 1rem;
+  font-size: 0.72em;
   color: #9a7630;
   vertical-align: middle;
 }
@@ -388,58 +388,29 @@ body {
   animation: qr-page-in 0.22s ease-out both;
 }
 
-/* Outer page frame */
+/* Page frame – frameless: text sits directly on the page background */
 .qr-frame {
-  background: #f8f0dc;
-  border: 2px solid #9a7630;
-  border-radius: 4px;
-  box-shadow:
-    0 10px 48px rgba(0,0,0,0.2),
-    inset 0 0 120px rgba(0,0,0,0.02),
-    4px 0 10px rgba(0,0,0,0.06) inset,
-    -4px 0 10px rgba(0,0,0,0.06) inset;
   position: relative;
-  overflow: hidden;
 }
-.dark .qr-frame {
-  background: #1a1005;
-  border-color: #6b4f18;
-  box-shadow: 0 10px 48px rgba(0,0,0,0.7);
-}
-/* Spine shadow on left (RTL: binding is on right, so shadow on right) */
-.qr-frame::before {
-  content: "";
-  position: absolute;
-  right: 0; top: 0; bottom: 0;
-  width: 20px;
-  background: linear-gradient(to left, rgba(0,0,0,0.08), transparent);
-  pointer-events: none;
-}
-.dark .qr-frame::before {
-  background: linear-gradient(to left, rgba(0,0,0,0.3), transparent);
-}
-/* Decorative corner ornaments */
-.qr-frame::after {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border: 1px solid #9a763030;
-  pointer-events: none;
-}
-.dark .qr-frame::after { border-color: #6b4f1828; }
 
-/* Inner content area – scrollable, capped to viewport */
+/* Inner content area – no scroll, layout handled by flex in the component */
 .qr-inner {
-  padding: 14px 20px 16px;
   position: relative;
   z-index: 1;
-  max-height: calc(100dvh - 260px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(154,118,48,0.3) transparent;
 }
-.qr-inner::-webkit-scrollbar { width: 4px; }
-.qr-inner::-webkit-scrollbar-thumb { background: rgba(154,118,48,0.3); border-radius: 4px; }
+
+/* ─── Streak flame animation ──────────────────────────────────────────────── */
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleX(1)    scaleY(1)    rotate(-1deg); }
+  30%       { transform: scaleX(0.95) scaleY(1.05) rotate(1.5deg); }
+  60%       { transform: scaleX(1.04) scaleY(0.96) rotate(-0.5deg); }
+  80%       { transform: scaleX(0.97) scaleY(1.02) rotate(1deg); }
+}
+.streak-flame {
+  animation: flame-flicker 1.8s ease-in-out infinite;
+  transform-origin: bottom center;
+  cursor: default;
+}
 
 /* Page header: [Juz ←] [Page#] [→ Surah] */
 .qr-hdr {
@@ -561,7 +532,7 @@ body {
   max-height: calc(100dvh - 200px);
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(154,118,48,0.25) transparent;
+  scrollbar-color: color-mix(in srgb, var(--primary) 25%, transparent) transparent;
 }
 .mushaf-book::-webkit-scrollbar { width: 4px; }
-.mushaf-book::-webkit-scrollbar-thumb { background: rgba(154,118,48,0.25); border-radius: 4px; }
+.mushaf-book::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--primary) 25%, transparent); border-radius: 4px; }

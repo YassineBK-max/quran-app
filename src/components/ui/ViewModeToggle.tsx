@@ -8,7 +8,8 @@ export function ViewModeToggle() {
       onClick={toggle}
       title={mode === "mobile" ? "Switch to desktop mode" : "Switch to mobile mode"}
       aria-label={mode === "mobile" ? "Switch to desktop mode" : "Switch to mobile mode"}
-      className="fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+      style={mode === "mobile" ? { right: "max(1rem, calc(50vw - 224px))" } : undefined}
+      className={`fixed bottom-20 ${mode !== "mobile" ? "right-4" : ""} z-50 w-12 h-12 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors`}
     >
       {mode === "mobile" ? (
         /* Monitor icon – switch to desktop */

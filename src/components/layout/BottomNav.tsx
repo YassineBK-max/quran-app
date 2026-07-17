@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/contexts/MessageContext";
 import { useT } from "@/hooks/useT";
+import { useViewMode } from "@/contexts/ViewModeContext";
 
 function BookIcon() {
   return <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>;
@@ -47,6 +48,7 @@ export function BottomNav() {
   const { user } = useAuth();
   const { unreadCount } = useMessages();
   const t = useT();
+  const { mode } = useViewMode();
 
   let tabs: { href: string; label: string; icon: React.ReactNode }[] = [
     { href: "/surahs",    label: t.nav_quran,     icon: <BookIcon /> },
@@ -92,7 +94,7 @@ export function BottomNav() {
       {/* Gold top accent */}
       <div className="h-px bg-gradient-to-r from-transparent via-[var(--gold)] to-transparent opacity-40" />
 
-      <div className="max-w-3xl mx-auto flex justify-around items-center h-16">
+      <div className={`${mode === "mobile" ? "max-w-[480px]" : "max-w-3xl"} mx-auto flex justify-around items-center h-16`}>
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href);
           return (

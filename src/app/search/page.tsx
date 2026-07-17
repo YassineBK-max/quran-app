@@ -6,23 +6,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { searchAyahs, fetchAllSurahs } from "@/lib/api";
 import { SearchMatch, SurahInfo } from "@/lib/types";
 import { useT } from "@/hooks/useT";
-
-// [surahNumber, firstAyahNumber] marking the start of each Juz (1-indexed, index 0 = Juz 1)
-const JUZ_STARTS: [number, number][] = [
-  [1, 1], [2, 142], [2, 253], [3, 93], [4, 24], [4, 148],
-  [5, 82], [6, 111], [7, 88], [8, 41], [9, 93], [11, 6],
-  [12, 53], [15, 1], [17, 1], [18, 75], [21, 1], [23, 1],
-  [25, 21], [27, 56], [29, 46], [33, 31], [36, 28], [39, 32],
-  [41, 47], [46, 1], [51, 31], [58, 1], [67, 1], [78, 1],
-];
-
-function getJuzForAyah(surahNum: number, ayahNum: number): number {
-  for (let i = JUZ_STARTS.length - 1; i >= 0; i--) {
-    const [s, a] = JUZ_STARTS[i];
-    if (surahNum > s || (surahNum === s && ayahNum >= a)) return i + 1;
-  }
-  return 1;
-}
+import { getJuzForAyah } from "@/data/juz";
+import { getHizbForAyah } from "@/data/hizb";
 
 // All chars of query appear in target in order (allows "baqar" → "Al-Baqarah")
 function fuzzyMatch(query: string, target: string): boolean {
@@ -48,6 +33,7 @@ export default function SearchPage() {
 
   const [showFilters, setShowFilters] = useState(false);
   const [filterJuz, setFilterJuz] = useState<number | null>(null);
+  const [filterHizb, setFilterHizb] = useState<number | null>(null);
   const [filterSurahNum, setFilterSurahNum] = useState<number | null>(null);
   const [surahSearch, setSurahSearch] = useState("");
 
@@ -87,13 +73,14 @@ export default function SearchPage() {
     let out = results;
     if (filterSurahNum !== null) out = out.filter((m) => m.surah.number === filterSurahNum);
     if (filterJuz !== null) out = out.filter((m) => getJuzForAyah(m.surah.number, m.numberInSurah) === filterJuz);
+    if (filterHizb !== null) out = out.filter((m) => getHizbForAyah(m.surah.number, m.numberInSurah) === filterHizb);
     return out;
-  }, [results, filterSurahNum, filterJuz]);
+  }, [results, filterSurahNum, filterJuz, filterHizb]);
 
-  const activeFilters = (filterJuz !== null ? 1 : 0) + (filterSurahNum !== null ? 1 : 0);
+  const activeFilters = (filterJuz !== null ? 1 : 0) + (filterHizb !== null ? 1 : 0) + (filterSurahNum !== null ? 1 : 0);
   const selectedSurah = allSurahs.find((s) => s.number === filterSurahNum);
 
-  const clearAll = () => { setFilterJuz(null); setFilterSurahNum(null); setSurahSearch(""); };
+  const clearAll = () => { setFilterJuz(null); setFilterHizb(null); setFilterSurahNum(null); setSurahSearch(""); };
 
   return (
     <>
@@ -116,6 +103,7 @@ export default function SearchPage() {
           <button
             onClick={() => setShowFilters((v) => !v)}
             aria-label="Toggle filters"
+            aria-expanded={showFilters}
             className={`absolute right-9 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
               activeFilters > 0
                 ? "bg-primary text-primary-foreground"
@@ -199,7 +187,8 @@ export default function SearchPage() {
                 {Array.from({ length: 30 }, (_, i) => i + 1).map((juz) => (
                   <button
                     key={juz}
-                    onClick={() => setFilterJuz(filterJuz === juz ? null : juz)}
+                    aria-label={`Filter by Juz ${juz}`}
+                    onClick={() => { setFilterJuz(filterJuz === juz ? null : juz); setFilterHizb(null); }}
                     className={`w-8 h-7 rounded-lg text-xs font-mono font-medium transition-colors ${
                       filterJuz === juz
                         ? "bg-primary text-primary-foreground"
@@ -212,27 +201,24 @@ export default function SearchPage() {
               </div>
             </div>
 
-            {/* Hizb filter – each hizb ≈ half a Juz */}
+            {/* Hizb filter – exact boundaries from HIZB_STARTS */}
             <div>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">By Hizb</p>
               <div className="flex flex-wrap gap-1">
-                {Array.from({ length: 60 }, (_, i) => i + 1).map((hizb) => {
-                  const approxJuz = Math.ceil(hizb / 2);
-                  const active = filterJuz === approxJuz;
-                  return (
-                    <button
-                      key={hizb}
-                      onClick={() => setFilterJuz(active ? null : approxJuz)}
-                      className={`w-7 h-6 rounded text-[10px] font-mono transition-colors ${
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {hizb}
-                    </button>
-                  );
-                })}
+                {Array.from({ length: 60 }, (_, i) => i + 1).map((hizb) => (
+                  <button
+                    key={hizb}
+                    aria-label={`Filter by Hizb ${hizb}`}
+                    onClick={() => { setFilterHizb(filterHizb === hizb ? null : hizb); setFilterJuz(null); }}
+                    className={`w-7 h-6 rounded text-[10px] font-mono transition-colors ${
+                      filterHizb === hizb
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {hizb}
+                  </button>
+                ))}
               </div>
             </div>
 

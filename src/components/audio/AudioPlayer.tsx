@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAudio } from "@/contexts/AudioContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import { PLAYBACK_SPEEDS, REPEAT_OPTIONS, RECITERS } from "@/lib/constants";
 import { useT } from "@/hooks/useT";
 
@@ -14,21 +15,32 @@ export function AudioPlayer() {
     seekTo, setSpeed, setRepeatCount, playAyah,
   } = useAudio();
   const { settings, updateSettings } = useSettings();
+  const { mode } = useViewMode();
   const t = useT();
 
   const [expanded, setExpanded] = useState(false);
-  // Pending reciter restart: store ayah to replay after settings update
-  const pendingRestartRef = useRef<typeof currentAyah | null>(null);
+  // Pending reciter restart: use state so rapid reciter changes don't lose the ayah
+  const [pendingRestart, setPendingRestart] = useState<typeof currentAyah | null>(null);
+  const mountedRef = useRef(false);
   const playAyahRef = useRef(playAyah);
+  const reciterListRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => { playAyahRef.current = playAyah; }, [playAyah]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (pendingRestartRef.current) {
-      const a = pendingRestartRef.current;
-      pendingRestartRef.current = null;
-      playAyahRef.current(a.surahNumber, a.numberInSurah, a.absoluteNumber, a.surahName, a.totalAyahs);
-    }
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    if (!pendingRestart) return;
+    playAyahRef.current(pendingRestart.surahNumber, pendingRestart.numberInSurah, pendingRestart.absoluteNumber, pendingRestart.surahName, pendingRestart.totalAyahs);
+    setPendingRestart(null);
   }, [settings.reciterEdition]);
+
+  // Auto-scroll active reciter into view when panel opens
+  useEffect(() => {
+    if (expanded && reciterListRef.current) {
+      const active = reciterListRef.current.querySelector('[data-active="true"]');
+      active?.scrollIntoView({ block: "nearest" });
+    }
+  }, [expanded]);
 
   if (!currentAyah) return null;
 
@@ -42,13 +54,13 @@ export function AudioPlayer() {
   const changeReciter = (id: string) => {
     if (id === settings.reciterEdition) return;
     stop();
-    pendingRestartRef.current = currentAyah;
+    setPendingRestart(currentAyah);
     updateSettings({ reciterEdition: id });
   };
 
   return (
     <div className="fixed bottom-16 left-0 right-0 z-40 px-3">
-      <div className="max-w-3xl mx-auto bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+      <div className={`${mode === "mobile" ? "max-w-[480px]" : "max-w-3xl"} mx-auto bg-card border border-border rounded-2xl shadow-xl overflow-hidden`}>
         {/* Main row */}
         <div
           className="flex items-center gap-3 p-3 cursor-pointer"
@@ -146,10 +158,11 @@ export function AudioPlayer() {
             {/* Reciter */}
             <div>
               <p className="text-[10px] text-muted-foreground mb-1.5 font-semibold uppercase tracking-wider">Reciter</p>
-              <div className="space-y-0.5 max-h-36 overflow-y-auto pr-0.5">
+              <div ref={reciterListRef} className="space-y-0.5 max-h-36 overflow-y-auto pr-0.5">
                 {RECITERS.map((r) => (
                   <button
                     key={r.id}
+                    data-active={settings.reciterEdition === r.id}
                     onClick={() => changeReciter(r.id)}
                     className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
                       settings.reciterEdition === r.id
