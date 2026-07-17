@@ -389,14 +389,28 @@ body {
 }
 
 /* Page frame – frameless: text sits directly on the page background */
-.qr-frame {
-  position: relative;
-}
+.qr-frame { position: relative; }
+.qr-inner  { position: relative; z-index: 1; }
 
-/* Inner content area – no scroll, layout handled by flex in the component */
-.qr-inner {
-  position: relative;
-  z-index: 1;
+/* ── qr-text-body: auto-fit font via JS-set --qr-fs CSS variable ── */
+/* Default fallback used before JS runs (first paint) */
+.qr-text-body .mushaf-text {
+  font-size: var(--qr-fs, clamp(0.82rem, 2.05vh, 1.15rem));
+}
+.qr-text-body .mushaf-bismillah {
+  font-size: var(--qr-fs, clamp(0.82rem, 2.05vh, 1.15rem));
+  margin-bottom: 0.35em;
+}
+.qr-text-body .mushaf-name {
+  font-size: calc(var(--qr-fs, 1rem) * 1.1);
+  line-height: 1.1;
+}
+.qr-text-body .mushaf-ornament {
+  font-size: var(--qr-fs, 1rem);
+}
+.qr-text-body .mushaf-header {
+  padding-bottom: 0.45em;
+  margin-bottom: 0.3em;
 }
 
 /* ─── Streak flame animation ──────────────────────────────────────────────── */

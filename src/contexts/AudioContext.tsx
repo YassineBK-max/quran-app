@@ -88,11 +88,19 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       const audio = audioRef.current;
       if (!audio) return;
 
-      const url = `${AUDIO_CDN}/${settings.reciterEdition}/${absoluteNumber}.mp3`;
-      audio.src = url;
+      const localUrl = `/audio/${settings.reciterEdition}/${absoluteNumber}.mp3`;
+      const cdnUrl   = `${AUDIO_CDN}/${settings.reciterEdition}/${absoluteNumber}.mp3`;
       audio.playbackRate = speedRef.current;
       remainingRef.current = repeatCountRef.current;
 
+      // Try locally-downloaded file first; fall back to CDN if missing
+      audio.onerror = null;
+      audio.src = localUrl;
+      audio.onerror = () => {
+        audio.onerror = null;
+        audio.src = cdnUrl;
+        audio.play().catch(() => {});
+      };
       audio.play().catch(() => {});
       setCurrentAyah({ surahNumber, numberInSurah, absoluteNumber, surahName, totalAyahs });
       setIsPlaying(true);

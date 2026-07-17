@@ -1,6 +1,6 @@
 "use client";
 import {
-  useEffect, useState, useCallback, useRef, useMemo, Suspense,
+  useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -81,6 +81,38 @@ function PageFrame({
     return names;
   }, [groups]);
 
+  // ── Auto-fit: binary-search the largest font-size that doesn't overflow ──
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const fitFontSize = useCallback(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+    const avail = container.clientHeight;
+    if (avail === 0) return;
+    let lo = 9, hi = 30;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      content.style.setProperty("--qr-fs", `${mid}px`);
+      if (content.scrollHeight <= avail) lo = mid;
+      else hi = mid;
+    }
+    content.style.setProperty("--qr-fs", `${lo}px`);
+  }, []);
+
+  // Run synchronously before paint on each page change
+  useLayoutEffect(() => { fitFontSize(); }, [page.number, fitFontSize]);
+
+  // Re-fit on window/container resize (orientation change, split-view, etc.)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(fitFontSize);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [fitFontSize]);
+
   return (
     <div key={animKey} className="qr-anim h-full flex flex-col">
 
@@ -93,7 +125,9 @@ function PageFrame({
       <div className="qr-sep shrink-0" />
 
       {/* ── Quran text – fills remaining height, no scroll ── */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden">
+        {/* contentRef: font-size set via --qr-fs CSS variable by fitFontSize() */}
+        <div ref={contentRef} className="qr-text-body">
         {groups.map((g, gi) => (
           <div key={`${g.surah.number}-${gi}`}>
             {/* Surah header */}
@@ -146,6 +180,7 @@ function PageFrame({
             </div>
           </div>
         ))}
+        </div>{/* end qr-text-body */}
       </div>
 
       <div className="qr-sep shrink-0" />

@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# downloaded reciter audio (run scripts/download-audio.js to populate)
+/public/audio/
