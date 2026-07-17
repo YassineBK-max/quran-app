@@ -133,6 +133,23 @@ export function AudioPlayer() {
               </svg>
             </button>
           </div>
+
+          {/* Expand / collapse arrow */}
+          <div className="shrink-0 w-6 h-6 flex items-center justify-center text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="15" height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
         </div>
 
         {/* Seek bar */}

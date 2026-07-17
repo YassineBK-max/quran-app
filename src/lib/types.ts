@@ -52,7 +52,6 @@ export interface Bookmark {
   timestamp: number;
 }
 
-export type DisplayMode = "mushaf" | "ayah-per-line";
 export type ThemeMode = "light" | "dark" | "system";
 export type ColorTheme = "classic" | "futuristic" | "glass" | "simple" | "8bit";
 
@@ -62,7 +61,6 @@ export interface AppSettings {
   translationEdition: string;
   language: "en" | "ar";
   tapToTranslate: boolean;
-  displayMode: DisplayMode;
   colorTheme: ColorTheme;
 }
 
