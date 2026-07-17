@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useRef, useState, useCallback, ReactNode } from "react";
-import { AUDIO_CDN } from "@/lib/constants";
+import { RECITER_EVERYAYAH } from "@/lib/constants";
+import { absToSurahAyah } from "@/data/ayahs";
 import { useSettings } from "./SettingsContext";
 
 interface CurrentAyah {
@@ -88,17 +89,22 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       const audio = audioRef.current;
       if (!audio) return;
 
-      const localUrl = `/audio/${settings.reciterEdition}/${absoluteNumber}.mp3`;
-      const cdnUrl   = `${AUDIO_CDN}/${settings.reciterEdition}/${absoluteNumber}.mp3`;
+      // Build everyayah.com streaming URL (works for all reciters)
+      const { surah, ayah } = absToSurahAyah(absoluteNumber);
+      const folder   = RECITER_EVERYAYAH[settings.reciterEdition] ?? "Alafasy_128kbps";
+      const filename = `${String(surah).padStart(3, "0")}${String(ayah).padStart(3, "0")}.mp3`;
+      const streamUrl = `https://everyayah.com/data/${folder}/${filename}`;
+      const localUrl  = `/audio/${settings.reciterEdition}/${absoluteNumber}.mp3`;
+
       audio.playbackRate = speedRef.current;
       remainingRef.current = repeatCountRef.current;
 
-      // Try locally-downloaded file first; fall back to CDN if missing
+      // Use local file if downloaded; stream from everyayah.com otherwise
       audio.onerror = null;
       audio.src = localUrl;
       audio.onerror = () => {
         audio.onerror = null;
-        audio.src = cdnUrl;
+        audio.src = streamUrl;
         audio.play().catch(() => {});
       };
       audio.play().catch(() => {});

@@ -67,4 +67,14 @@ export const SURAH_PAGES: Record<number, number> = {
  111:603,112:604,113:604,114:604,
 };
 
+// cdn.islamic.network is 403 for most editions — use everyayah.com instead
 export const AUDIO_CDN = "https://cdn.islamic.network/quran/audio/128";
+
+// everyayah.com folder names per reciter (files named {surah3}{ayah3}.mp3)
+export const RECITER_EVERYAYAH: Record<string, string> = {
+  "ar.alafasy":            "Alafasy_128kbps",
+  "ar.abdulbasitmurattal": "Abdul_Basit_Murattal_192kbps",
+  "ar.husary":             "Husary_128kbps",
+  "ar.abdurrahmaansudais": "Abdurrahmaan_As-Sudais_192kbps",
+  "ar.saadalghamdi":       "Ghamadi_40kbps",
+};
