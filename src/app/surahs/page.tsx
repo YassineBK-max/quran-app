@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { SurahInfo } from "@/lib/types";
 import { fetchAllSurahs } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
@@ -16,8 +15,6 @@ export default function SurahsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [lastMushafPage] = useLocalStorage<number>("quran-mushaf-last-page", 1);
-  const [lastQuranPage] = useLocalStorage<number>("quran-reader-last-page", 1);
   const { getProgress, getMemorizedCount } = useMemorization();
   const { isPinned, togglePin } = usePinnedSurahs();
 
@@ -153,47 +150,6 @@ export default function SurahsPage() {
     <>
       <Header title={t.surahs_index_title} />
       <main className="max-w-3xl mx-auto px-4 py-4 pb-24 space-y-4">
-
-        {/* Read Complete Quran — two modes */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* Page-by-page (new) */}
-          <Link
-            href={`/quran?page=${lastQuranPage}`}
-            className="flex flex-col gap-2 p-4 rounded-2xl transition-colors relative overflow-hidden"
-            style={{
-              border: "1.5px solid rgba(200,147,42,0.4)",
-              background: "linear-gradient(135deg, rgba(200,147,42,0.1) 0%, rgba(30,96,64,0.08) 100%)",
-            }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(200,147,42,0.15)", color: "var(--gold)" }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h6M3 15h6"/></svg>
-            </div>
-            <div>
-              <p className="font-semibold text-sm leading-tight">Page by Page</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Physical Mushaf layout</p>
-            </div>
-            <p className="text-[10px] font-medium" style={{ color: "var(--gold)" }}>p. {lastQuranPage} / 604</p>
-          </Link>
-
-          {/* Continuous scroll (existing mushaf) */}
-          <Link
-            href={`/mushaf?page=${lastMushafPage}`}
-            className="flex flex-col gap-2 p-4 rounded-2xl transition-colors"
-            style={{
-              border: "1.5px solid rgba(30,96,64,0.3)",
-              background: "linear-gradient(135deg, rgba(30,96,64,0.08) 0%, rgba(200,147,42,0.06) 100%)",
-            }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(30,96,64,0.12)", color: "var(--primary)" }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-            </div>
-            <div>
-              <p className="font-semibold text-sm leading-tight">{t.mushaf_read_book}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Continuous scroll</p>
-            </div>
-            <p className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>p. {lastMushafPage} / 604</p>
-          </Link>
-        </div>
 
         {/* Decorative Quranic verse header */}
         <div
