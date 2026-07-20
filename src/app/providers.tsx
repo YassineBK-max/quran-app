@@ -15,7 +15,7 @@ import { BookingProvider } from "@/contexts/BookingContext";
 import { MessageProvider } from "@/contexts/MessageContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { RowProvider } from "@/contexts/RowContext";
-import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
+import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { ViewModeToggle } from "@/components/ui/ViewModeToggle";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
@@ -58,7 +58,6 @@ const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
 // Pages where BottomNav/AudioPlayer are hidden
 function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { mode } = useViewMode();
   const isStandalone = STANDALONE_PAGES.some(
     (p) => pathname === p || pathname.startsWith(p + "?")
   );
@@ -66,9 +65,7 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <RowProvider>
       <div
-        className={`min-h-screen ${isStandalone ? "" : "pb-28"} ${
-          mode === "desktop" ? "" : "max-w-[480px] mx-auto"
-        }`}
+        className={`min-h-screen w-full ${isStandalone ? "" : "pb-28"}`}
       >
         {children}
       </div>

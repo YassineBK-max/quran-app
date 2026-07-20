@@ -56,6 +56,7 @@ function MushafPage({
   getBookmark,
   playingAyah,
   isMemorized,
+  bare = false,
 }: {
   page: QuranPage;
   onAyahClick: (a: PageAyah | null) => void;
@@ -63,6 +64,7 @@ function MushafPage({
   getBookmark: (n: number) => { color: string } | undefined;
   playingAyah: { absoluteNumber: number } | null;
   isMemorized: (s: number, n: number) => boolean;
+  bare?: boolean;
 }) {
   const groups = groupBySurah(page.ayahs);
   const juz = page.ayahs[0]?.juz ?? null;
@@ -84,12 +86,15 @@ function MushafPage({
   }, [page.ayahs]);
 
   return (
-    <div className="mushaf-book">
-      {/* Corner ornaments */}
-      <span className="mushaf-corner tl" aria-hidden="true" />
-      <span className="mushaf-corner tr" aria-hidden="true" />
-      <span className="mushaf-corner bl" aria-hidden="true" />
-      <span className="mushaf-corner br" aria-hidden="true" />
+    <div className={bare ? "" : "mushaf-book"}>
+      {!bare && (
+        <>
+          <span className="mushaf-corner tl" aria-hidden="true" />
+          <span className="mushaf-corner tr" aria-hidden="true" />
+          <span className="mushaf-corner bl" aria-hidden="true" />
+          <span className="mushaf-corner br" aria-hidden="true" />
+        </>
+      )}
 
       {/* ── Page header ── */}
       <div className="qr-hdr">
@@ -407,30 +412,58 @@ function MushafBookInner() {
             </div>
           ) : pageData ? (
             <div key={currentPage} className={animClass}>
-              {/* Single page on mobile, two pages side-by-side on desktop (RTL: current=right, next=left) */}
-              <div className="flex flex-col lg:flex-row-reverse gap-[5px]">
-                <div className="flex-1">
-                  <MushafPage
-                    page={pageData}
-                    onAyahClick={setSelectedAyah}
-                    selectedAyah={selectedAyah}
-                    getBookmark={getBookmark}
-                    playingAyah={playingAyah}
-                    isMemorized={isMemorized}
-                  />
-                </div>
-                {pageData2 && (
-                  <div className="hidden lg:block flex-1">
-                    <MushafPage
-                      page={pageData2}
-                      onAyahClick={setSelectedAyah}
-                      selectedAyah={selectedAyah}
-                      getBookmark={getBookmark}
-                      playingAyah={playingAyah}
-                      isMemorized={isMemorized}
-                    />
+              {/* Mobile: single page in its own box */}
+              <div className="lg:hidden">
+                <MushafPage
+                  page={pageData}
+                  onAyahClick={setSelectedAyah}
+                  selectedAyah={selectedAyah}
+                  getBookmark={getBookmark}
+                  playingAyah={playingAyah}
+                  isMemorized={isMemorized}
+                />
+              </div>
+              {/* Desktop: both pages in one shared mushaf-book */}
+              <div className="hidden lg:block">
+                <div className="mushaf-book">
+                  <span className="mushaf-corner tl" aria-hidden="true" />
+                  <span className="mushaf-corner tr" aria-hidden="true" />
+                  <span className="mushaf-corner bl" aria-hidden="true" />
+                  <span className="mushaf-corner br" aria-hidden="true" />
+                  <div className="flex flex-row-reverse items-stretch">
+                    <div className="flex-1 min-w-0">
+                      <MushafPage
+                        page={pageData}
+                        bare
+                        onAyahClick={setSelectedAyah}
+                        selectedAyah={selectedAyah}
+                        getBookmark={getBookmark}
+                        playingAyah={playingAyah}
+                        isMemorized={isMemorized}
+                      />
+                    </div>
+                    {pageData2 && (
+                      <>
+                        <div className="mushaf-spine">
+                          <span className="mushaf-spine-star">✦</span>
+                          <div className="mushaf-spine-line" />
+                          <span className="mushaf-spine-star">✦</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <MushafPage
+                            page={pageData2}
+                            bare
+                            onAyahClick={setSelectedAyah}
+                            selectedAyah={selectedAyah}
+                            getBookmark={getBookmark}
+                            playingAyah={playingAyah}
+                            isMemorized={isMemorized}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           ) : null}
@@ -450,19 +483,19 @@ function MushafBookInner() {
           <button
             onClick={() => goTo(currentPage + 1, "next")}
             disabled={loading || currentPage >= TOTAL_PAGES}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted text-xs font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[40px]"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl bg-muted text-xs font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[40px] min-w-[40px] justify-center"
             aria-label="الصفحة التالية"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
-            {t.mushaf_next ?? "التالي"}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+            <span className="hidden sm:inline">{t.mushaf_next ?? "التالي"}</span>
           </button>
 
           <button
             onClick={() => setShowJump(true)}
-            className="flex flex-col items-center leading-none gap-0.5"
+            className="flex flex-col items-center leading-none gap-0.5 px-2"
           >
-            <span className="text-[10px] text-muted-foreground">{t.mushaf_page ?? "صفحة"}</span>
-            <span className="text-base font-bold text-primary" style={{ fontFamily: '"Amiri",serif' }}>
+            <span className="text-[9px] sm:text-[10px] text-muted-foreground">{t.mushaf_page ?? "صفحة"}</span>
+            <span className="text-sm sm:text-base font-bold text-primary" style={{ fontFamily: '"Amiri",serif' }}>
               {toAr(currentPage)} / {toAr(TOTAL_PAGES)}
             </span>
           </button>
@@ -470,11 +503,11 @@ function MushafBookInner() {
           <button
             onClick={() => goTo(currentPage - 1, "prev")}
             disabled={loading || currentPage <= 1}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted text-xs font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[40px]"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl bg-muted text-xs font-medium disabled:opacity-30 hover:bg-primary/10 hover:text-primary transition-colors min-h-[40px] min-w-[40px] justify-center"
             aria-label="الصفحة السابقة"
           >
-            {t.mushaf_prev ?? "السابق"}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+            <span className="hidden sm:inline">{t.mushaf_prev ?? "السابق"}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
       </div>

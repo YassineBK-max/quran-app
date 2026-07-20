@@ -5,7 +5,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;500;600;700&display=swap');
 
 :root {
-  --background: #faf7f0;
+  --background: #d5eaf7;
   --foreground: #1a2e1a;
   --primary: #1e6040;
   --primary-foreground: #ffffff;
@@ -131,11 +131,22 @@
   border-radius: 0 !important;
 }
 
+html {
+  font-size: clamp(14px, 3.75vw, 16px);
+}
+
 body {
   color: var(--foreground);
-  background: var(--background);
+  background-color: var(--background);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cdefs%3E%3Cpattern id='p' width='90' height='90' patternUnits='userSpaceOnUse'%3E%3Cpath d='M45 3L87 45L45 87L3 45Z' fill='none' stroke='%23c8932a' stroke-width='1' opacity='0.2'/%3E%3Cpath d='M45 24L66 45L45 66L24 45Z' fill='none' stroke='%23c8932a' stroke-width='0.8' opacity='0.2'/%3E%3Cline x1='45' y1='3' x2='45' y2='24' stroke='%23c8932a' stroke-width='0.5' opacity='0.15'/%3E%3Cline x1='87' y1='45' x2='66' y2='45' stroke='%23c8932a' stroke-width='0.5' opacity='0.15'/%3E%3Cline x1='45' y1='87' x2='45' y2='66' stroke='%23c8932a' stroke-width='0.5' opacity='0.15'/%3E%3Cline x1='3' y1='45' x2='24' y2='45' stroke='%23c8932a' stroke-width='0.5' opacity='0.15'/%3E%3Ccircle cx='0' cy='0' r='2' fill='%2300bcd4' opacity='0.5'/%3E%3Ccircle cx='90' cy='0' r='2' fill='%2300bcd4' opacity='0.5'/%3E%3Ccircle cx='0' cy='90' r='2' fill='%2300bcd4' opacity='0.5'/%3E%3Ccircle cx='90' cy='90' r='2' fill='%2300bcd4' opacity='0.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='90' height='90' fill='url(%23p)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-attachment: fixed;
   font-family: "Cairo", Arial, Helvetica, sans-serif;
   transition: background-color 0.3s, color 0.3s;
+}
+
+.dark body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cdefs%3E%3Cpattern id='p' width='90' height='90' patternUnits='userSpaceOnUse'%3E%3Cpath d='M45 3L87 45L45 87L3 45Z' fill='none' stroke='%23d4a843' stroke-width='1' opacity='0.1'/%3E%3Cpath d='M45 24L66 45L45 66L24 45Z' fill='none' stroke='%23d4a843' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='45' y1='3' x2='45' y2='24' stroke='%23d4a843' stroke-width='0.5' opacity='0.07'/%3E%3Cline x1='87' y1='45' x2='66' y2='45' stroke='%23d4a843' stroke-width='0.5' opacity='0.07'/%3E%3Cline x1='45' y1='87' x2='45' y2='66' stroke='%23d4a843' stroke-width='0.5' opacity='0.07'/%3E%3Cline x1='3' y1='45' x2='24' y2='45' stroke='%23d4a843' stroke-width='0.5' opacity='0.07'/%3E%3Ccircle cx='0' cy='0' r='2' fill='%23d4a843' opacity='0.4'/%3E%3Ccircle cx='90' cy='0' r='2' fill='%23d4a843' opacity='0.4'/%3E%3Ccircle cx='0' cy='90' r='2' fill='%23d4a843' opacity='0.4'/%3E%3Ccircle cx='90' cy='90' r='2' fill='%23d4a843' opacity='0.4'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='90' height='90' fill='url(%23p)'/%3E%3C/svg%3E");
 }
 
 /* ── Islamic decorative utilities ── */
@@ -613,3 +624,29 @@ body {
 }
 .mushaf-book::-webkit-scrollbar { width: 4px; }
 .mushaf-book::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--primary) 25%, transparent); border-radius: 4px; }
+
+/* ─── Mushaf two-page spine divider ──────────────────────────────────────── */
+.mushaf-spine {
+  flex-shrink: 0;
+  width: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 0;
+}
+.mushaf-spine-line {
+  flex: 1;
+  width: 1px;
+  background: rgba(154,118,48,0.52);
+  min-height: 60px;
+}
+.dark .mushaf-spine-line { background: rgba(212,168,67,0.4); }
+.mushaf-spine-star {
+  font-size: 0.5rem;
+  color: rgba(154,118,48,0.82);
+  line-height: 1;
+  flex-shrink: 0;
+  margin: 3px 0;
+  user-select: none;
+}
+.dark .mushaf-spine-star { color: rgba(212,168,67,0.7); }
