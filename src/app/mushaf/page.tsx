@@ -72,26 +72,30 @@ function MushafPage({
     return seen;
   }, [page]);
 
+  // Detect ayahs where a new hizb quarter begins
+  const hizbChanges = useMemo(() => {
+    const changes = new Set<number>();
+    for (let i = 1; i < page.ayahs.length; i++) {
+      if (page.ayahs[i].hizbQuarter !== page.ayahs[i - 1].hizbQuarter) {
+        changes.add(page.ayahs[i].number);
+      }
+    }
+    return changes;
+  }, [page.ayahs]);
+
   return (
     <div className="mushaf-book min-h-[70dvh]">
+      {/* Corner ornaments */}
+      <span className="mushaf-corner tl" aria-hidden="true" />
+      <span className="mushaf-corner tr" aria-hidden="true" />
+      <span className="mushaf-corner bl" aria-hidden="true" />
+      <span className="mushaf-corner br" aria-hidden="true" />
+
       {/* ── Page header ── */}
-      <div className="qr-hdr" style={{ direction: "rtl", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 0 8px", marginBottom: 8 }}>
-        {/* Right: surah name(s) */}
-        <span className="qr-hdr-surah" style={{ fontFamily: '"Amiri",serif', fontWeight: 700, fontSize: 13, color: "var(--gold, #9a7630)" }}>
-          {surahNames.join(" · ")}
-        </span>
-        {/* Center: page number badge */}
-        <span style={{
-          fontFamily: '"Amiri",serif', fontSize: 12, fontWeight: 700,
-          background: "var(--gold,#9a7630)", color: "#fff",
-          borderRadius: 99, padding: "2px 10px", letterSpacing: 0,
-        }}>
-          {toAr(page.number)}
-        </span>
-        {/* Left: juz name */}
-        <span className="qr-hdr-juz" style={{ fontFamily: '"Amiri",serif', fontSize: 12, color: "var(--muted-foreground)" }}>
-          {juz ? `الجزء ${JUZ[juz] ?? toAr(juz)}` : ""}
-        </span>
+      <div className="qr-hdr">
+        <span className="qr-hdr-surah">{surahNames.join(" · ")}</span>
+        <span className="qr-hdr-num">{toAr(page.number)}</span>
+        <span className="qr-hdr-juz">{juz ? `الجزء ${JUZ[juz] ?? toAr(juz)}` : ""}</span>
       </div>
 
       {/* Separator */}
@@ -127,13 +131,17 @@ function MushafPage({
               const isSelected = selectedAyah?.number === ayah.number;
               const memorized = isMemorized(ayah.surah.number, ayah.numberInSurah);
               return (
-                <span
-                  key={ayah.number}
-                  onClick={() => onAyahClick(isSelected ? null : ayah)}
-                  className={["mushaf-word", isPlaying?"mushaf-playing":"", memorized?"mushaf-memorized":"", isSelected?"mushaf-selected":"", bookmark?`bookmark-highlight-${bookmark.color}`:""].filter(Boolean).join(" ")}
-                >
-                  {ayah.text}{" "}
-                  <span className="mushaf-verse-end">﴿{toAr(ayah.numberInSurah)}﴾</span>{" "}
+                <span key={ayah.number}>
+                  {hizbChanges.has(ayah.number) && (
+                    <span className="hizb-quarter" aria-hidden="true">۞</span>
+                  )}
+                  <span
+                    onClick={() => onAyahClick(isSelected ? null : ayah)}
+                    className={["mushaf-word", isPlaying?"mushaf-playing":"", memorized?"mushaf-memorized":"", isSelected?"mushaf-selected":"", bookmark?`bookmark-highlight-${bookmark.color}`:""].filter(Boolean).join(" ")}
+                  >
+                    {ayah.text}{" "}
+                    <span className="mushaf-verse-end">﴿{toAr(ayah.numberInSurah)}﴾</span>{" "}
+                  </span>
                 </span>
               );
             })}

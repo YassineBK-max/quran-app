@@ -259,17 +259,41 @@ body {
   color: #c49a30;
 }
 
-/* Surah title */
+/* Surah title — decorated band */
 .mushaf-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding-bottom: 12px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #9a763044;
+  gap: 12px;
+  padding: 9px 16px;
+  margin: 12px -4px 14px;
+  position: relative;
+  background: linear-gradient(to right,
+    transparent 0%, rgba(154,118,48,0.08) 20%,
+    rgba(154,118,48,0.17) 50%,
+    rgba(154,118,48,0.08) 80%, transparent 100%);
+  border-top: 1px solid rgba(154,118,48,0.42);
+  border-bottom: 1px solid rgba(154,118,48,0.42);
 }
-.dark .mushaf-header { border-bottom-color: #6b4f1844; }
+.mushaf-header::before,
+.mushaf-header::after {
+  content: "";
+  position: absolute;
+  left: 12px; right: 12px;
+  border-top: 0.5px solid rgba(154,118,48,0.2);
+  pointer-events: none;
+}
+.mushaf-header::before { top: 3px; }
+.mushaf-header::after  { bottom: 3px; }
+.dark .mushaf-header {
+  background: linear-gradient(to right,
+    transparent, rgba(154,118,48,0.1) 25%,
+    rgba(154,118,48,0.18) 50%,
+    rgba(154,118,48,0.1) 75%, transparent);
+  border-color: rgba(154,118,48,0.3);
+}
+.dark .mushaf-header::before,
+.dark .mushaf-header::after { border-color: rgba(154,118,48,0.13); }
 .mushaf-name {
   font-family: "Amiri", serif;
   font-size: 1.7rem;
@@ -296,11 +320,11 @@ body {
 }
 .dark .mushaf-bismillah { color: #e8d5a8; }
 
-/* Main text */
+/* Main text — adaptive font size based on viewport width */
 .mushaf-text {
   font-family: "Amiri", serif;
-  font-size: clamp(0.82rem, 2.05vh, 1.15rem);
-  line-height: 2.05;
+  font-size: clamp(0.9rem, 0.72rem + 1.3vw, 1.28rem);
+  line-height: 2.1;
   direction: rtl;
   text-align: justify;
   color: #1a0800;
@@ -429,12 +453,22 @@ body {
 /* Page header: [Juz ←] [Page#] [→ Surah] */
 .qr-hdr {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 8px;
-  font-family: "Amiri", serif;
   direction: rtl;
+  font-family: "Amiri", serif;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  background: linear-gradient(to right,
+    rgba(154,118,48,0.05), rgba(154,118,48,0.12), rgba(154,118,48,0.05));
+  border: 1px solid rgba(154,118,48,0.28);
+  border-radius: 3px;
+}
+.dark .qr-hdr {
+  background: linear-gradient(to right,
+    rgba(154,118,48,0.04), rgba(154,118,48,0.09), rgba(154,118,48,0.04));
+  border-color: rgba(154,118,48,0.2);
 }
 .qr-hdr-surah {
   font-size: 0.85rem;
@@ -446,17 +480,18 @@ body {
 }
 .dark .qr-hdr-surah { color: #deb760; }
 .qr-hdr-num {
-  font-size: 0.78rem;
-  color: #9a7630;
+  font-family: "Amiri", serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7a5820;
   white-space: nowrap;
   flex-shrink: 0;
-  letter-spacing: 0.05em;
-  background: #9a763015;
-  border: 1px solid #9a763030;
-  border-radius: 3px;
-  padding: 1px 6px;
+  background: rgba(154,118,48,0.13);
+  border: 1px solid rgba(154,118,48,0.38);
+  border-radius: 99px;
+  padding: 1px 10px;
 }
-.dark .qr-hdr-num { color: #c49a30; background: #9a763020; border-color: #9a763040; }
+.dark .qr-hdr-num { color: #deb760; background: rgba(154,118,48,0.16); border-color: rgba(154,118,48,0.42); }
 .qr-hdr-juz {
   font-size: 0.75rem;
   color: #6b4a18;
@@ -524,6 +559,35 @@ body {
 .qr-sidenav-prev { left: 8px; }
 .qr-sidenav-next { right: 8px; }
 /* ─────────────────────────────────────────────────────── */
+
+/* ─── Mushaf page corner ornaments ────────────────────────────────────────── */
+.mushaf-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: rgba(154,118,48,0.55);
+  border-style: solid;
+  pointer-events: none;
+  border-radius: 1px;
+}
+.mushaf-corner.tl { top: 7px;  left: 7px;  border-width: 1.5px 0 0 1.5px; }
+.mushaf-corner.tr { top: 7px;  right: 7px; border-width: 1.5px 1.5px 0 0; }
+.mushaf-corner.bl { bottom: 7px; left: 7px;  border-width: 0 0 1.5px 1.5px; }
+.mushaf-corner.br { bottom: 7px; right: 7px; border-width: 0 1.5px 1.5px 0; }
+.dark .mushaf-corner { border-color: rgba(154,118,48,0.38); }
+
+/* ─── Hizb quarter inline marker ──────────────────────────────────────────── */
+.hizb-quarter {
+  display: inline-block;
+  font-family: "Amiri", serif;
+  font-size: 0.78em;
+  color: #9a7630;
+  vertical-align: middle;
+  margin: 0 2px;
+  user-select: none;
+  opacity: 0.88;
+}
+.dark .hizb-quarter { color: #deb760; }
 
 /* ─── E-book page turn animations ─────────────────────────────────────────── */
 @keyframes ebook-slide-in-from-left {
