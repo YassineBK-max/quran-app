@@ -90,12 +90,12 @@ export default function MessagesPage() {
       <button
         onClick={() => openThread(msg, from)}
         className={`w-full text-left rounded-xl border p-4 transition-colors hover:border-primary/30 ${
-          !unread && from === "inbox" ? "border-primary/50 bg-primary/5" : "border-border bg-card"
+          unread && from === "inbox" ? "border-primary/50 bg-primary/5" : "border-border bg-card"
         }`}
       >
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5">
-            <p className={`text-sm ${!unread && from === "inbox" ? "font-bold" : "font-medium"}`}>
+            <p className={`text-sm ${unread && from === "inbox" ? "font-bold" : "font-medium"}`}>
               {from === "sent" && <span className="text-muted-foreground text-xs font-normal mr-1">{t.messages_to}</span>}
               {label}
             </p>
