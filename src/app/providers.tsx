@@ -67,7 +67,7 @@ function Shell({ children }: { children: ReactNode }) {
     <RowProvider>
       <div
         className={`min-h-screen ${isStandalone ? "" : "pb-28"} ${
-          mode === "desktop" ? "w-full" : "max-w-[480px] mx-auto"
+          mode === "desktop" ? "w-full" : "max-w-[480px] mx-auto overflow-x-hidden"
         }`}
       >
         {children}

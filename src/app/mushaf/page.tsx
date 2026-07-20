@@ -12,6 +12,7 @@ import { SURAH_PAGES } from "@/lib/constants";
 import { QuranPage, PageAyah, SurahInfo } from "@/lib/types";
 import { fetchQuranPage, fetchAllSurahs } from "@/lib/api";
 import { useT } from "@/hooks/useT";
+import { useViewMode } from "@/contexts/ViewModeContext";
 
 const TOTAL_PAGES = 604;
 
@@ -282,6 +283,7 @@ function JumpPanel({
 // ─── Main E-book component ─────────────────────────────────────────────────────
 function MushafBookInner() {
   const t = useT();
+  const { mode } = useViewMode();
   const searchParams = useSearchParams();
   const startPage = Number(searchParams.get("page")) || 1;
 
@@ -412,8 +414,8 @@ function MushafBookInner() {
             </div>
           ) : pageData ? (
             <div key={currentPage} className={animClass}>
-              {/* Mobile: single page in its own box */}
-              <div className="lg:hidden">
+              {mode === "mobile" ? (
+                /* Mobile mode: always one page */
                 <MushafPage
                   page={pageData}
                   onAyahClick={setSelectedAyah}
@@ -422,36 +424,29 @@ function MushafBookInner() {
                   playingAyah={playingAyah}
                   isMemorized={isMemorized}
                 />
-              </div>
-              {/* Desktop: both pages in one shared mushaf-book */}
-              <div className="hidden lg:block">
-                <div className="mushaf-book">
-                  <span className="mushaf-corner tl" aria-hidden="true" />
-                  <span className="mushaf-corner tr" aria-hidden="true" />
-                  <span className="mushaf-corner bl" aria-hidden="true" />
-                  <span className="mushaf-corner br" aria-hidden="true" />
-                  <div className="flex flex-row-reverse items-stretch">
-                    <div className="flex-1 min-w-0">
-                      <MushafPage
-                        page={pageData}
-                        bare
-                        onAyahClick={setSelectedAyah}
-                        selectedAyah={selectedAyah}
-                        getBookmark={getBookmark}
-                        playingAyah={playingAyah}
-                        isMemorized={isMemorized}
-                      />
-                    </div>
-                    {pageData2 && (
-                      <>
-                        <div className="mushaf-spine">
-                          <span className="mushaf-spine-star">✦</span>
-                          <div className="mushaf-spine-line" />
-                          <span className="mushaf-spine-star">✦</span>
-                        </div>
+              ) : (
+                /* Desktop mode: single page below lg, two pages at lg+ */
+                <>
+                  <div className="lg:hidden">
+                    <MushafPage
+                      page={pageData}
+                      onAyahClick={setSelectedAyah}
+                      selectedAyah={selectedAyah}
+                      getBookmark={getBookmark}
+                      playingAyah={playingAyah}
+                      isMemorized={isMemorized}
+                    />
+                  </div>
+                  <div className="hidden lg:block">
+                    <div className="mushaf-book">
+                      <span className="mushaf-corner tl" aria-hidden="true" />
+                      <span className="mushaf-corner tr" aria-hidden="true" />
+                      <span className="mushaf-corner bl" aria-hidden="true" />
+                      <span className="mushaf-corner br" aria-hidden="true" />
+                      <div className="flex flex-row-reverse items-stretch">
                         <div className="flex-1 min-w-0">
                           <MushafPage
-                            page={pageData2}
+                            page={pageData}
                             bare
                             onAyahClick={setSelectedAyah}
                             selectedAyah={selectedAyah}
@@ -460,11 +455,31 @@ function MushafBookInner() {
                             isMemorized={isMemorized}
                           />
                         </div>
-                      </>
-                    )}
+                        {pageData2 && (
+                          <>
+                            <div className="mushaf-spine">
+                              <span className="mushaf-spine-star">✦</span>
+                              <div className="mushaf-spine-line" />
+                              <span className="mushaf-spine-star">✦</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <MushafPage
+                                page={pageData2}
+                                bare
+                                onAyahClick={setSelectedAyah}
+                                selectedAyah={selectedAyah}
+                                getBookmark={getBookmark}
+                                playingAyah={playingAyah}
+                                isMemorized={isMemorized}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           ) : null}
 
