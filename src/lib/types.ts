@@ -100,8 +100,9 @@ export interface ClassRoom {
   id: string;
   name: string;
   code: string;        // 6-char join code for students
-  teacherId: string;
-  teacherName: string;
+  teacherId: string;   // primary teacher (legacy compat)
+  teacherName: string; // primary teacher name (legacy compat)
+  teacherIds?: string[]; // all co-teachers (includes primary)
   studentIds: string[];
   assignments: Assignment[];
   createdAt: number;
@@ -121,9 +122,9 @@ export interface CalendarEvent {
   description?: string;
   createdAt: number;
   // Audience targeting (new — replaces targetType/targetUserId for new events)
-  // "all" = everyone in that role; string[] = specific student IDs; undefined = no one in that role
-  targetStudents?: "all" | string[];
-  targetParents?: "all" | string[];  // student IDs whose parents to notify, or "all"
+  // "all" = everyone in that role; string[] = specific user IDs; undefined = no one in that role
+  targetStudents?: "all" | string[];  // student user IDs
+  targetParents?: "all" | string[];   // parent user IDs
   // Legacy fields kept for backward compat
   targetType?: "class" | "user";
   targetUserId?: string;

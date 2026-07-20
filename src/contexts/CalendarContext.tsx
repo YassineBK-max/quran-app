@@ -102,7 +102,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
           const tp = e.targetParents;
           if (!tp) return false;
           if (tp === "all") return true;
-          return tp.some((sid) => childIds.includes(sid));
+          return tp.includes(user.id); // targetParents stores parent user IDs directly
         }
         return false;
       }
@@ -113,8 +113,9 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         return true;
       }
       if (user.role === "parent") {
+        // legacy: targetUserId stored a student ID; check if that student is the parent's child
         if (e.targetType === "user") return e.targetUserId ? childIds.includes(e.targetUserId) : false;
-        return true;
+        return true; // class-wide legacy events visible to parents
       }
       return false;
     });

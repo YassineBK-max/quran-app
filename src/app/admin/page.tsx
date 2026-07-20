@@ -202,7 +202,14 @@ function ClassDetailPanel({
 }) {
   const [tab, setTab] = useState<"students" | "calendar">("students");
   const [showCalendar, setShowCalendar] = useState(false);
-  const teacher = users.find((u) => u.id === cls.teacherId);
+  const [showAddTeacher, setShowAddTeacher] = useState(false);
+  const [newTeacherId, setNewTeacherId] = useState("");
+  const { addTeacherToClass, removeTeacherFromClass } = useClassroom();
+
+  const currentTeacherIds = cls.teacherIds ?? [cls.teacherId];
+  const currentTeachers = currentTeacherIds.map((id) => users.find((u) => u.id === id)).filter(Boolean) as import("@/lib/types").User[];
+  const availableTeachers = users.filter((u) => u.role === "teacher" && !currentTeacherIds.includes(u.id));
+  const teacher = currentTeachers[0];
 
   const students = cls.studentIds
     .map((sid) => users.find((u) => u.id === sid))
@@ -266,6 +273,56 @@ function ClassDetailPanel({
           {/* ── Students tab ───────────────────────────── */}
           {tab === "students" && (
             <div className="p-3 space-y-2">
+
+              {/* Teachers section */}
+              <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Teachers</p>
+                  {availableTeachers.length > 0 && (
+                    <button onClick={() => setShowAddTeacher(!showAddTeacher)}
+                      className="text-[10px] font-medium text-blue-600 hover:underline">
+                      + Add teacher
+                    </button>
+                  )}
+                </div>
+                {showAddTeacher && (
+                  <div className="flex gap-2 mb-2">
+                    <select value={newTeacherId} onChange={(e) => setNewTeacherId(e.target.value)}
+                      className="flex-1 bg-muted border border-border rounded-lg px-2 py-1.5 text-xs">
+                      <option value="">Select teacher...</option>
+                      {availableTeachers.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      disabled={!newTeacherId}
+                      onClick={() => { if (newTeacherId) { addTeacherToClass(cls.id, newTeacherId); setNewTeacherId(""); setShowAddTeacher(false); } }}
+                      className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40">
+                      Add
+                    </button>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  {currentTeachers.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-[10px] font-bold">
+                          {t.name[0].toUpperCase()}
+                        </div>
+                        <span className="text-xs font-medium">{t.displayName ?? t.name}</span>
+                        {t.id === cls.teacherId && <span className="text-[9px] text-muted-foreground">(primary)</span>}
+                      </div>
+                      {currentTeachers.length > 1 && (
+                        <button onClick={() => removeTeacherFromClass(cls.id, t.id)}
+                          className="text-[10px] text-red-500 hover:text-red-600 font-medium">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {students.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">لا يوجد طلاب في هذا الفصل</p>
               ) : (
@@ -428,7 +485,7 @@ export default function AdminPage() {
       return cls.length > 0 ? cls.map((c) => c.name).join(", ") : null;
     }
     if (u.role === "teacher") {
-      const cls = classes.filter((c) => c.teacherId === u.id);
+      const cls = classes.filter((c) => (c.teacherIds ?? [c.teacherId]).includes(u.id));
       return cls.length > 0 ? cls.map((c) => c.name).join(", ") : null;
     }
     if (u.role === "parent") {
@@ -632,7 +689,8 @@ export default function AdminPage() {
               <p className="text-sm text-muted-foreground text-center py-8">{t.admin_no_classes}</p>
             ) : (
               classes.map((c) => {
-                const teacher = users.find((u) => u.id === c.teacherId);
+                const teacherList = (c.teacherIds ?? [c.teacherId]).map((tid) => users.find((u) => u.id === tid)).filter(Boolean) as import("@/lib/types").User[];
+                const teacher = teacherList[0];
                 const studentCount = c.studentIds.length;
                 // Compute average memorization across enrolled students
                 const totalMemo = c.studentIds.reduce((sum, sid) => {
@@ -661,8 +719,10 @@ export default function AdminPage() {
                       <p className="text-sm font-semibold">{c.name}</p>
                       <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">{c.code}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{t.classroom_teacher} {c.teacherName}</p>
-                    {!teacher && <p className="text-xs text-red-500 mt-0.5">Teacher account removed</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {t.classroom_teacher} {teacherList.map((u) => u.displayName ?? u.name).join(", ") || c.teacherName}
+                    </p>
+                    {teacherList.length === 0 && <p className="text-xs text-red-500 mt-0.5">Teacher account removed</p>}
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-xs text-muted-foreground">{studentCount} {t.admin_students_label}</span>
                       <span className="text-xs text-muted-foreground">{c.assignments.length} {t.admin_assignments_label}</span>

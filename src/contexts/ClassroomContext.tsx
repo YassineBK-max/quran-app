@@ -23,6 +23,8 @@ interface ClassroomContextType {
   removeAssignment: (classId: string, assignmentId: string) => void;
   updateAssignment: (classId: string, assignmentId: string, patch: { title?: string; description?: string; dueDate?: string }) => void;
   expelUserFromClasses: (userId: string, role: string) => void;
+  addTeacherToClass: (classId: string, teacherId: string) => void;
+  removeTeacherFromClass: (classId: string, teacherId: string) => void;
   getClass: (id: string) => ClassRoom | undefined;
   getClassByCode: (code: string) => ClassRoom | undefined;
   getTeacherClasses: () => ClassRoom[];
@@ -32,13 +34,15 @@ const ClassroomCtx = createContext<ClassroomContextType>({
   classes: [],
   myClass: null,
   myClasses: [],
-  createClass: () => ({ id: "", name: "", code: "", teacherId: "", teacherName: "", studentIds: [], assignments: [], createdAt: 0 }),
+  createClass: () => ({ id: "", name: "", code: "", teacherId: "", teacherName: "", teacherIds: [], studentIds: [], assignments: [], createdAt: 0 }),
   joinClass: () => null,
   leaveClass: () => {},
   addAssignment: () => {},
   removeAssignment: () => {},
   updateAssignment: () => {},
   expelUserFromClasses: () => {},
+  addTeacherToClass: () => {},
+  removeTeacherFromClass: () => {},
   getClass: () => undefined,
   getClassByCode: () => undefined,
   getTeacherClasses: () => [],
@@ -65,6 +69,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         code: genCode(),
         teacherId: user.id,
         teacherName: user.name,
+        teacherIds: [user.id],
         studentIds: [],
         assignments: [],
         createdAt: Date.now(),
@@ -151,11 +156,17 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     (userId: string, role: string) => {
       setClasses((prev) => {
         if (role === "teacher") {
-          // Delete all classes taught by this teacher; students lose access
-          return prev.filter((c) => c.teacherId !== userId);
+          // Remove teacher from all classes; delete class only if they were the sole teacher
+          return prev
+            .map((c) => {
+              const ids = c.teacherIds ?? [c.teacherId];
+              const remaining = ids.filter((id) => id !== userId);
+              if (remaining.length === 0) return null; // class has no teachers left — will be removed
+              return { ...c, teacherIds: remaining, teacherId: remaining[0], teacherName: c.teacherName };
+            })
+            .filter(Boolean) as ClassRoom[];
         }
         if (role === "student") {
-          // Remove student from all classes they're in
           return prev.map((c) => ({
             ...c,
             studentIds: c.studentIds.filter((sid) => sid !== userId),
@@ -167,10 +178,39 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     [setClasses]
   );
 
+  const addTeacherToClass = useCallback(
+    (classId: string, teacherId: string) => {
+      setClasses((prev) =>
+        prev.map((c) => {
+          if (c.id !== classId) return c;
+          const existing = c.teacherIds ?? [c.teacherId];
+          if (existing.includes(teacherId)) return c;
+          return { ...c, teacherIds: [...existing, teacherId] };
+        })
+      );
+    },
+    [setClasses]
+  );
+
+  const removeTeacherFromClass = useCallback(
+    (classId: string, teacherId: string) => {
+      setClasses((prev) =>
+        prev.map((c) => {
+          if (c.id !== classId) return c;
+          const existing = c.teacherIds ?? [c.teacherId];
+          const remaining = existing.filter((id) => id !== teacherId);
+          if (remaining.length === 0) return c; // refuse to remove last teacher
+          return { ...c, teacherIds: remaining, teacherId: remaining[0] };
+        })
+      );
+    },
+    [setClasses]
+  );
+
   const getClass = useCallback((id: string) => classes.find((c) => c.id === id), [classes]);
   const getClassByCode = useCallback((code: string) => classes.find((c) => c.code === code.toUpperCase()), [classes]);
   const getTeacherClasses = useCallback(
-    () => (user ? classes.filter((c) => c.teacherId === user.id) : []),
+    () => user ? classes.filter((c) => (c.teacherIds ?? [c.teacherId]).includes(user.id)) : [],
     [user, classes]
   );
 
@@ -178,7 +218,8 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     <ClassroomCtx.Provider value={{
       classes, myClass, myClasses, createClass, joinClass, leaveClass,
       addAssignment, removeAssignment, updateAssignment,
-      expelUserFromClasses, getClass, getClassByCode, getTeacherClasses,
+      expelUserFromClasses, addTeacherToClass, removeTeacherFromClass,
+      getClass, getClassByCode, getTeacherClasses,
     }}>
       {children}
     </ClassroomCtx.Provider>

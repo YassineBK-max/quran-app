@@ -54,6 +54,7 @@ interface EventFormProps {
   classId: string;
   classes: { id: string; name: string }[];
   students: { id: string; name: string }[];
+  parents: { id: string; name: string; studentName: string }[];
   initial?: CalendarEvent;
   t: import("@/lib/i18n").Translations;
   onSave: (ev: Omit<CalendarEvent, "id" | "classId" | "createdAt">, classId: string) => void;
@@ -61,22 +62,7 @@ interface EventFormProps {
   onDelete?: () => void;
 }
 
-function deriveInitialStudentsMode(ev?: CalendarEvent): "all" | "specific" | "none" {
-  if (!ev) return "all";
-  if (ev.targetStudents === "all" || ev.targetStudents === undefined) return "all";
-  if (Array.isArray(ev.targetStudents)) return ev.targetStudents.length > 0 ? "specific" : "none";
-  // legacy
-  if (ev.targetType === "user") return "specific";
-  return "all";
-}
-function deriveInitialParentsMode(ev?: CalendarEvent): "all" | "specific" | "none" {
-  if (!ev || ev.targetParents === undefined) return "none";
-  if (ev.targetParents === "all") return "all";
-  if (Array.isArray(ev.targetParents)) return ev.targetParents.length > 0 ? "specific" : "none";
-  return "none";
-}
-
-function EventForm({ date, classId, classes, students, initial, t, onSave, onCancel, onDelete }: EventFormProps) {
+function EventForm({ date, classId, classes, students, parents, initial, t, onSave, onCancel, onDelete }: EventFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [type, setType] = useState<CalendarEvent["type"]>(initial?.type ?? "session");
   const [startTime, setStartTime] = useState(initial?.startTime ?? "");
@@ -84,16 +70,21 @@ function EventForm({ date, classId, classes, students, initial, t, onSave, onCan
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [desc, setDesc] = useState(initial?.description ?? "");
   const [selectedClass, setSelectedClass] = useState(initial?.classId ?? classId ?? classes[0]?.id ?? "");
-  // Audience
-  const [studentsMode, setStudentsMode] = useState<"all" | "specific" | "none">(deriveInitialStudentsMode(initial));
-  const [parentsMode, setParentsMode] = useState<"all" | "specific" | "none">(deriveInitialParentsMode(initial));
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(
+
+  // Audience — all student IDs selected, or "all"
+  const allStudentIds = students.map((s) => s.id);
+  const allParentIds = parents.map((p) => p.id);
+  const initStudentIds: string[] =
+    initial?.targetStudents === "all" ? allStudentIds :
     Array.isArray(initial?.targetStudents) ? initial.targetStudents :
-    initial?.targetType === "user" && initial.targetUserId ? [initial.targetUserId] : []
-  );
-  const [selectedParentStudentIds, setSelectedParentStudentIds] = useState<string[]>(
-    Array.isArray(initial?.targetParents) ? initial.targetParents : []
-  );
+    initial?.targetType === "user" && initial.targetUserId ? [initial.targetUserId] :
+    allStudentIds; // default: all
+  const initParentIds: string[] =
+    initial?.targetParents === "all" ? allParentIds :
+    Array.isArray(initial?.targetParents) ? initial.targetParents :
+    []; // default: none
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(initStudentIds);
+  const [selectedParentIds, setSelectedParentIds] = useState<string[]>(initParentIds);
 
   const EVENT_TYPES: { type: CalendarEvent["type"]; label: string }[] = [
     { type: "session",  label: t.calendar_session },
@@ -102,20 +93,19 @@ function EventForm({ date, classId, classes, students, initial, t, onSave, onCan
     { type: "goal",     label: t.calendar_goal },
   ];
 
-  const toggleStudentId = (id: string, list: string[], setList: (v: string[]) => void) => {
+  const toggle = (id: string, list: string[], setList: (v: string[]) => void) =>
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
-  };
 
   const handleSave = () => {
     if (!title.trim()) return;
     const targetStudents: CalendarEvent["targetStudents"] =
-      studentsMode === "all" ? "all" :
-      studentsMode === "specific" ? selectedStudentIds :
-      undefined;
+      selectedStudentIds.length === 0 ? undefined :
+      selectedStudentIds.length === allStudentIds.length ? "all" :
+      selectedStudentIds;
     const targetParents: CalendarEvent["targetParents"] =
-      parentsMode === "all" ? "all" :
-      parentsMode === "specific" ? selectedParentStudentIds :
-      undefined;
+      selectedParentIds.length === 0 ? undefined :
+      selectedParentIds.length === allParentIds.length ? "all" :
+      selectedParentIds;
     onSave({
       title: title.trim(), type, date,
       startTime: startTime || undefined,
@@ -189,78 +179,64 @@ function EventForm({ date, classId, classes, students, initial, t, onSave, onCan
           )}
 
           {/* Audience checklist */}
-          {students.length > 0 && (
+          {(students.length > 0 || parents.length > 0) && (
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-2">{t.calendar_audience}</label>
               <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
 
                 {/* ── Students group ── */}
-                <p className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/40">
-                  Students
-                </p>
-
-                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
-                  <input type="radio" name="studentsMode" checked={studentsMode === "all"} onChange={() => setStudentsMode("all")} className="accent-primary" />
-                  <span className="text-sm">{t.calendar_audience_all_students}</span>
-                </label>
-
-                <div>
-                  <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
-                    <input type="radio" name="studentsMode" checked={studentsMode === "specific"} onChange={() => setStudentsMode("specific")} className="accent-primary" />
-                    <span className="text-sm">{t.calendar_audience_specific_students}</span>
+                {/* ── Students ── */}
+                <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    {t.calendar_audience_all_students}
+                  </p>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-muted-foreground">
+                    <input type="checkbox"
+                      checked={selectedStudentIds.length === allStudentIds.length && allStudentIds.length > 0}
+                      onChange={() => setSelectedStudentIds(
+                        selectedStudentIds.length === allStudentIds.length ? [] : [...allStudentIds]
+                      )}
+                      className="accent-primary" />
+                    All
                   </label>
-                  {studentsMode === "specific" && (
-                    <div className="px-4 pb-2.5 space-y-1 bg-muted/30">
-                      {students.map((s) => (
-                        <label key={s.id} className="flex items-center gap-2.5 py-1 cursor-pointer">
-                          <input type="checkbox" checked={selectedStudentIds.includes(s.id)}
-                            onChange={() => toggleStudentId(s.id, selectedStudentIds, setSelectedStudentIds)}
-                            className="accent-primary" />
-                          <span className="text-sm">{s.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
                 </div>
-
-                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
-                  <input type="radio" name="studentsMode" checked={studentsMode === "none"} onChange={() => setStudentsMode("none")} className="accent-primary" />
-                  <span className="text-sm text-muted-foreground">No students</span>
-                </label>
-
-                {/* ── Parents group ── */}
-                <p className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/40">
-                  Parents
-                </p>
-
-                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
-                  <input type="radio" name="parentsMode" checked={parentsMode === "all"} onChange={() => setParentsMode("all")} className="accent-primary" />
-                  <span className="text-sm">{t.calendar_audience_all_parents}</span>
-                </label>
-
-                <div>
-                  <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
-                    <input type="radio" name="parentsMode" checked={parentsMode === "specific"} onChange={() => setParentsMode("specific")} className="accent-primary" />
-                    <span className="text-sm">{t.calendar_audience_specific_parents}</span>
+                {students.map((s) => (
+                  <label key={s.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                    <input type="checkbox" checked={selectedStudentIds.includes(s.id)}
+                      onChange={() => toggle(s.id, selectedStudentIds, setSelectedStudentIds)}
+                      className="accent-primary" />
+                    <span className="text-sm">{s.name}</span>
                   </label>
-                  {parentsMode === "specific" && (
-                    <div className="px-4 pb-2.5 space-y-1 bg-muted/30">
-                      {students.map((s) => (
-                        <label key={s.id} className="flex items-center gap-2.5 py-1 cursor-pointer">
-                          <input type="checkbox" checked={selectedParentStudentIds.includes(s.id)}
-                            onChange={() => toggleStudentId(s.id, selectedParentStudentIds, setSelectedParentStudentIds)}
-                            className="accent-primary" />
-                          <span className="text-sm">{s.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                ))}
 
-                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
-                  <input type="radio" name="parentsMode" checked={parentsMode === "none"} onChange={() => setParentsMode("none")} className="accent-primary" />
-                  <span className="text-sm text-muted-foreground">No parents</span>
-                </label>
+                {/* ── Parents ── */}
+                {parents.length > 0 && (<>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-t border-border">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      {t.calendar_audience_all_parents}
+                    </p>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-muted-foreground">
+                      <input type="checkbox"
+                        checked={selectedParentIds.length === allParentIds.length && allParentIds.length > 0}
+                        onChange={() => setSelectedParentIds(
+                          selectedParentIds.length === allParentIds.length ? [] : [...allParentIds]
+                        )}
+                        className="accent-primary" />
+                      All
+                    </label>
+                  </div>
+                  {parents.map((p) => (
+                    <label key={p.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                      <input type="checkbox" checked={selectedParentIds.includes(p.id)}
+                        onChange={() => toggle(p.id, selectedParentIds, setSelectedParentIds)}
+                        className="accent-primary" />
+                      <div>
+                        <p className="text-sm">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.studentName}</p>
+                      </div>
+                    </label>
+                  ))}
+                </>)}
               </div>
             </div>
           )}
@@ -581,6 +557,22 @@ export default function CalendarPage() {
     const studentIds = allTeacherClasses.flatMap((c) => c.studentIds);
     return users.filter((u) => studentIds.includes(u.id)).map((u) => ({ id: u.id, name: u.name }));
   }, [isTeacher, allTeacherClasses, users]);
+
+  const teacherParents = useMemo(() => {
+    if (!isTeacher) return [];
+    const result: { id: string; name: string; studentName: string }[] = [];
+    const seen = new Set<string>();
+    for (const student of teacherStudents) {
+      const studentUser = users.find((u) => u.id === student.id);
+      for (const pid of studentUser?.parentIds ?? []) {
+        if (seen.has(pid)) continue;
+        seen.add(pid);
+        const parent = users.find((u) => u.id === pid);
+        if (parent) result.push({ id: parent.id, name: parent.name, studentName: student.name });
+      }
+    }
+    return result;
+  }, [isTeacher, teacherStudents, users]);
 
   const visibleEvents = useMemo(() => {
     if (isTeacher) {
@@ -909,6 +901,7 @@ export default function CalendarPage() {
           classId={defaultClassId}
           classes={allTeacherClasses.map((c) => ({ id: c.id, name: c.name }))}
           students={teacherStudents}
+          parents={teacherParents}
           initial={editingEvent ?? undefined}
           t={t}
           onSave={handleSaveEvent}
