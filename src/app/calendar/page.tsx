@@ -83,7 +83,7 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
   const handleSave = () => {
     if (!title.trim()) return;
     onSave({ title: title.trim(), type, date, startTime: startTime || undefined,
-      endTime: type === "deadline" ? undefined : (endTime || undefined),
+      endTime: (type === "deadline" || type === "goal") ? undefined : (endTime || undefined),
       notes: notes || undefined, description: desc || undefined, targetType,
       targetUserId: targetType === "user" ? targetUserId : undefined }, selectedClass);
   };
@@ -118,9 +118,11 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
               ))}
             </div>
           </div>
-          {type === "deadline" ? (
+          {type === "deadline" || type === "goal" ? (
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_deadline_time}</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                {type === "deadline" ? t.calendar_deadline_time : t.calendar_goal_time}
+              </label>
               <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                 className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
             </div>
