@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
@@ -11,6 +11,7 @@ import { User, ClassRoom } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { getTierForCount, ROW_TIERS, RowTier } from "@/contexts/RowContext";
 import { RowPill } from "@/components/row/RowBadge";
+import { useCalendar } from "@/contexts/CalendarContext";
 
 type Tab = "overview" | "users" | "classes" | "messages";
 
@@ -103,6 +104,90 @@ function MessageSheet({ target, onClose, onSend }: { target: User; onClose: () =
   );
 }
 
+// ─── Class Calendar Modal ─────────────────────────────────────────────────────
+function ClassCalendarModal({ classId, className, onClose }: { classId: string; className: string; onClose: () => void }) {
+  const { getEventsForClass } = useCalendar();
+
+  const events = useMemo(() => {
+    return getEventsForClass(classId)
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [classId, getEventsForClass]);
+
+  const TYPE_COLORS: Record<string, string> = {
+    session:  "bg-blue-500",
+    meeting:  "bg-purple-500",
+    deadline: "bg-red-500",
+    goal:     "bg-[var(--primary)]",
+  };
+
+  let lastMonth = "";
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-lg max-h-[85dvh] flex flex-col bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div>
+            <p className="font-bold text-sm">{className}</p>
+            <p className="text-xs text-muted-foreground">Calendar events</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:bg-muted">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {events.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">No events scheduled for this class.</p>
+          ) : (
+            <div className="space-y-0 relative">
+              <div className="absolute left-[20px] top-0 bottom-0 w-px bg-border" />
+              {events.map((ev, idx) => {
+                const monthLabel = new Date(ev.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" });
+                const showMonth = monthLabel !== lastMonth;
+                lastMonth = monthLabel;
+                return (
+                  <div key={ev.id}>
+                    {showMonth && (
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-10 py-3">{monthLabel}</p>
+                    )}
+                    <div className="flex items-start gap-3 py-1.5">
+                      <div className="shrink-0 w-10 flex items-center justify-center pt-1">
+                        <div className={`w-4 h-4 rounded-full ${TYPE_COLORS[ev.type] ?? "bg-muted"}`} />
+                      </div>
+                      <div className="flex-1 bg-muted rounded-xl p-3 mb-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <p className="text-xs font-semibold">{ev.title}</p>
+                          <span className="text-[9px] text-muted-foreground">{ev.date}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-card border border-border capitalize">{ev.type}</span>
+                          {ev.startTime && (
+                            <span className="text-[9px] text-muted-foreground">{ev.startTime}{ev.endTime ? `–${ev.endTime}` : ""}</span>
+                          )}
+                          {ev.targetStudents === "all" && <span className="text-[9px] text-blue-500">All students</span>}
+                          {Array.isArray(ev.targetStudents) && ev.targetStudents.length > 0 && (
+                            <span className="text-[9px] text-blue-500">{ev.targetStudents.length} student(s)</span>
+                          )}
+                          {ev.targetParents === "all" && <span className="text-[9px] text-purple-500">All parents</span>}
+                          {Array.isArray(ev.targetParents) && ev.targetParents.length > 0 && (
+                            <span className="text-[9px] text-purple-500">{ev.targetParents.length} parent(s)</span>
+                          )}
+                        </div>
+                        {ev.description && <p className="text-[10px] text-muted-foreground mt-1">{ev.description}</p>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Class Detail Panel ───────────────────────────────────────────────────────
 function ClassDetailPanel({
   cls,
@@ -116,6 +201,7 @@ function ClassDetailPanel({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"students" | "calendar">("students");
+  const [showCalendar, setShowCalendar] = useState(false);
   const teacher = users.find((u) => u.id === cls.teacherId);
 
   const students = cls.studentIds
@@ -155,10 +241,16 @@ function ClassDetailPanel({
               <span className="text-[10px] text-muted-foreground">{students.length} طالب</span>
             </div>
           </div>
+          <button onClick={() => setShowCalendar(true)} className="p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-primary shrink-0" title="View class calendar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </button>
           <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:bg-muted shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
+        {showCalendar && (
+          <ClassCalendarModal classId={cls.id} className={cls.name} onClose={() => setShowCalendar(false)} />
+        )}
 
         {/* Tabs */}
         <div className="grid grid-cols-2 gap-1 p-2 bg-muted/50 border-b border-border shrink-0">

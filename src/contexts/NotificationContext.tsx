@@ -61,6 +61,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // Track new events and notify; also notify about upcoming deadlines/meetings in 24h
   useEffect(() => {
     if (!user) return;
+    // Admins view class events through the admin panel — skip their feed entirely
+    if (user.role === "admin") return;
     const now = Date.now();
     const in24h = now + 24 * 60 * 60 * 1000;
     const userEvents = getEventsForUser();

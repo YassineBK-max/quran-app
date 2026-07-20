@@ -120,8 +120,13 @@ export interface CalendarEvent {
   notes?: string;      // session notes / recap
   description?: string;
   createdAt: number;
-  targetType?: "class" | "user";   // who this is for (default: "class")
-  targetUserId?: string;            // specific student ID if targetType === "user"
+  // Audience targeting (new — replaces targetType/targetUserId for new events)
+  // "all" = everyone in that role; string[] = specific student IDs; undefined = no one in that role
+  targetStudents?: "all" | string[];
+  targetParents?: "all" | string[];  // student IDs whose parents to notify, or "all"
+  // Legacy fields kept for backward compat
+  targetType?: "class" | "user";
+  targetUserId?: string;
 }
 
 // --- Messaging ---

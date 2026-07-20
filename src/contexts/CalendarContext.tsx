@@ -77,19 +77,47 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
   const getEventsForUser = useCallback(() => {
     if (!user) return [];
-    if (user.role === "parent") {
-      const childIds = getLinkedChildIds(user);
-      return events.filter(
-        (e) =>
-          userClassIds.includes(e.classId) ||
-          (e.targetUserId && childIds.includes(e.targetUserId))
-      );
+    // Admins view class calendars through the admin panel, not their personal feed
+    if (user.role === "admin") return [];
+    // Teachers see all events in their classes
+    if (user.role === "teacher") {
+      return events.filter((e) => userClassIds.includes(e.classId));
     }
-    return events.filter(
-      (e) =>
-        userClassIds.includes(e.classId) ||
-        (e.targetType === "user" && e.targetUserId === user.id)
-    );
+
+    const childIds = user.role === "parent" ? getLinkedChildIds(user) : [];
+
+    return events.filter((e) => {
+      if (!userClassIds.includes(e.classId)) return false;
+
+      // New audience system: targetStudents / targetParents set explicitly
+      const hasNewTargeting = e.targetStudents !== undefined || e.targetParents !== undefined;
+      if (hasNewTargeting) {
+        if (user.role === "student") {
+          const ts = e.targetStudents;
+          if (!ts) return false;
+          if (ts === "all") return true;
+          return ts.includes(user.id);
+        }
+        if (user.role === "parent") {
+          const tp = e.targetParents;
+          if (!tp) return false;
+          if (tp === "all") return true;
+          return tp.some((sid) => childIds.includes(sid));
+        }
+        return false;
+      }
+
+      // Legacy targeting (backward compat)
+      if (user.role === "student") {
+        if (e.targetType === "user") return e.targetUserId === user.id;
+        return true;
+      }
+      if (user.role === "parent") {
+        if (e.targetType === "user") return e.targetUserId ? childIds.includes(e.targetUserId) : false;
+        return true;
+      }
+      return false;
+    });
   }, [events, user, userClassIds]);
 
   const getSessions = useCallback(

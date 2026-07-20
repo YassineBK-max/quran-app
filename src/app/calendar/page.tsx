@@ -55,23 +55,45 @@ interface EventFormProps {
   classes: { id: string; name: string }[];
   students: { id: string; name: string }[];
   initial?: CalendarEvent;
-  canAssignPerson: boolean;
   t: import("@/lib/i18n").Translations;
   onSave: (ev: Omit<CalendarEvent, "id" | "classId" | "createdAt">, classId: string) => void;
   onCancel: () => void;
   onDelete?: () => void;
 }
 
-function EventForm({ date, classId, classes, students, initial, canAssignPerson, t, onSave, onCancel, onDelete }: EventFormProps) {
+function deriveInitialStudentsMode(ev?: CalendarEvent): "all" | "specific" | "none" {
+  if (!ev) return "all";
+  if (ev.targetStudents === "all" || ev.targetStudents === undefined) return "all";
+  if (Array.isArray(ev.targetStudents)) return ev.targetStudents.length > 0 ? "specific" : "none";
+  // legacy
+  if (ev.targetType === "user") return "specific";
+  return "all";
+}
+function deriveInitialParentsMode(ev?: CalendarEvent): "all" | "specific" | "none" {
+  if (!ev || ev.targetParents === undefined) return "none";
+  if (ev.targetParents === "all") return "all";
+  if (Array.isArray(ev.targetParents)) return ev.targetParents.length > 0 ? "specific" : "none";
+  return "none";
+}
+
+function EventForm({ date, classId, classes, students, initial, t, onSave, onCancel, onDelete }: EventFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [type, setType] = useState<CalendarEvent["type"]>(initial?.type ?? "session");
   const [startTime, setStartTime] = useState(initial?.startTime ?? "");
   const [endTime, setEndTime] = useState(initial?.endTime ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [desc, setDesc] = useState(initial?.description ?? "");
-  const [targetType, setTargetType] = useState<"class" | "user">(initial?.targetType ?? "class");
-  const [targetUserId, setTargetUserId] = useState(initial?.targetUserId ?? "");
   const [selectedClass, setSelectedClass] = useState(initial?.classId ?? classId ?? classes[0]?.id ?? "");
+  // Audience
+  const [studentsMode, setStudentsMode] = useState<"all" | "specific" | "none">(deriveInitialStudentsMode(initial));
+  const [parentsMode, setParentsMode] = useState<"all" | "specific" | "none">(deriveInitialParentsMode(initial));
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(
+    Array.isArray(initial?.targetStudents) ? initial.targetStudents :
+    initial?.targetType === "user" && initial.targetUserId ? [initial.targetUserId] : []
+  );
+  const [selectedParentStudentIds, setSelectedParentStudentIds] = useState<string[]>(
+    Array.isArray(initial?.targetParents) ? initial.targetParents : []
+  );
 
   const EVENT_TYPES: { type: CalendarEvent["type"]; label: string }[] = [
     { type: "session",  label: t.calendar_session },
@@ -80,12 +102,27 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
     { type: "goal",     label: t.calendar_goal },
   ];
 
+  const toggleStudentId = (id: string, list: string[], setList: (v: string[]) => void) => {
+    setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  };
+
   const handleSave = () => {
     if (!title.trim()) return;
-    onSave({ title: title.trim(), type, date, startTime: startTime || undefined,
+    const targetStudents: CalendarEvent["targetStudents"] =
+      studentsMode === "all" ? "all" :
+      studentsMode === "specific" ? selectedStudentIds :
+      undefined;
+    const targetParents: CalendarEvent["targetParents"] =
+      parentsMode === "all" ? "all" :
+      parentsMode === "specific" ? selectedParentStudentIds :
+      undefined;
+    onSave({
+      title: title.trim(), type, date,
+      startTime: startTime || undefined,
       endTime: (type === "deadline" || type === "goal") ? undefined : (endTime || undefined),
-      notes: notes || undefined, description: desc || undefined, targetType,
-      targetUserId: targetType === "user" ? targetUserId : undefined }, selectedClass);
+      notes: notes || undefined, description: desc || undefined,
+      targetStudents, targetParents,
+    }, selectedClass);
   };
 
   return (
@@ -140,30 +177,91 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
               </div>
             </div>
           )}
-          {canAssignPerson && (
+          {/* Class selector (when teacher has multiple classes) */}
+          {classes.length > 1 && (
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_assign_to}</label>
-              <div className="flex gap-2 mb-2">
-                {(["class", "user"] as const).map((tt) => (
-                  <button key={tt} type="button" onClick={() => setTargetType(tt)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-all ${targetType === tt ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground border-border"}`}>
-                    {tt === "class" ? t.calendar_class : t.calendar_person}
-                  </button>
-                ))}
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_class}</label>
+              <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm">
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Audience checklist */}
+          {students.length > 0 && (
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-2">{t.calendar_audience}</label>
+              <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
+
+                {/* ── Students group ── */}
+                <p className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/40">
+                  Students
+                </p>
+
+                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                  <input type="radio" name="studentsMode" checked={studentsMode === "all"} onChange={() => setStudentsMode("all")} className="accent-primary" />
+                  <span className="text-sm">{t.calendar_audience_all_students}</span>
+                </label>
+
+                <div>
+                  <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                    <input type="radio" name="studentsMode" checked={studentsMode === "specific"} onChange={() => setStudentsMode("specific")} className="accent-primary" />
+                    <span className="text-sm">{t.calendar_audience_specific_students}</span>
+                  </label>
+                  {studentsMode === "specific" && (
+                    <div className="px-4 pb-2.5 space-y-1 bg-muted/30">
+                      {students.map((s) => (
+                        <label key={s.id} className="flex items-center gap-2.5 py-1 cursor-pointer">
+                          <input type="checkbox" checked={selectedStudentIds.includes(s.id)}
+                            onChange={() => toggleStudentId(s.id, selectedStudentIds, setSelectedStudentIds)}
+                            className="accent-primary" />
+                          <span className="text-sm">{s.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                  <input type="radio" name="studentsMode" checked={studentsMode === "none"} onChange={() => setStudentsMode("none")} className="accent-primary" />
+                  <span className="text-sm text-muted-foreground">No students</span>
+                </label>
+
+                {/* ── Parents group ── */}
+                <p className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/40">
+                  Parents
+                </p>
+
+                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                  <input type="radio" name="parentsMode" checked={parentsMode === "all"} onChange={() => setParentsMode("all")} className="accent-primary" />
+                  <span className="text-sm">{t.calendar_audience_all_parents}</span>
+                </label>
+
+                <div>
+                  <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                    <input type="radio" name="parentsMode" checked={parentsMode === "specific"} onChange={() => setParentsMode("specific")} className="accent-primary" />
+                    <span className="text-sm">{t.calendar_audience_specific_parents}</span>
+                  </label>
+                  {parentsMode === "specific" && (
+                    <div className="px-4 pb-2.5 space-y-1 bg-muted/30">
+                      {students.map((s) => (
+                        <label key={s.id} className="flex items-center gap-2.5 py-1 cursor-pointer">
+                          <input type="checkbox" checked={selectedParentStudentIds.includes(s.id)}
+                            onChange={() => toggleStudentId(s.id, selectedParentStudentIds, setSelectedParentStudentIds)}
+                            className="accent-primary" />
+                          <span className="text-sm">{s.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer">
+                  <input type="radio" name="parentsMode" checked={parentsMode === "none"} onChange={() => setParentsMode("none")} className="accent-primary" />
+                  <span className="text-sm text-muted-foreground">No parents</span>
+                </label>
               </div>
-              {targetType === "class" && classes.length > 1 && (
-                <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm">
-                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              )}
-              {targetType === "user" && (
-                <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)}
-                  className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm">
-                  <option value="">{t.calendar_select_person}</option>
-                  {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              )}
             </div>
           )}
           <div>
@@ -812,7 +910,6 @@ export default function CalendarPage() {
           classes={allTeacherClasses.map((c) => ({ id: c.id, name: c.name }))}
           students={teacherStudents}
           initial={editingEvent ?? undefined}
-          canAssignPerson={isTeacher && teacherStudents.length > 0}
           t={t}
           onSave={handleSaveEvent}
           onCancel={() => { setShowForm(false); setEditingEvent(null); }}
