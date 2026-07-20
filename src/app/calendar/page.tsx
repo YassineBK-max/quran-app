@@ -29,12 +29,6 @@ const TYPE_BG: Record<CalendarEvent["type"], string> = {
   goal:     "bg-primary/10 text-primary border-primary/20",
 };
 
-const TYPE_ICONS: Record<CalendarEvent["type"], string> = {
-  session:  "📚",
-  meeting:  "🤝",
-  deadline: "⏰",
-  goal:     "🎯",
-};
 
 const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -62,7 +56,7 @@ interface EventFormProps {
   students: { id: string; name: string }[];
   initial?: CalendarEvent;
   canAssignPerson: boolean;
-  t: Record<string, string>;
+  t: import("@/lib/i18n").Translations;
   onSave: (ev: Omit<CalendarEvent, "id" | "classId" | "createdAt">, classId: string) => void;
   onCancel: () => void;
   onDelete?: () => void;
@@ -88,7 +82,8 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
 
   const handleSave = () => {
     if (!title.trim()) return;
-    onSave({ title: title.trim(), type, date, startTime: startTime || undefined, endTime: endTime || undefined,
+    onSave({ title: title.trim(), type, date, startTime: startTime || undefined,
+      endTime: type === "deadline" ? undefined : (endTime || undefined),
       notes: notes || undefined, description: desc || undefined, targetType,
       targetUserId: targetType === "user" ? targetUserId : undefined }, selectedClass);
   };
@@ -108,33 +103,41 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
         </div>
         <div className="overflow-y-auto flex-1 p-4 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Title</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_title_label}</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.calendar_event_title} autoFocus
               className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Type</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_type_label}</label>
             <div className="grid grid-cols-2 gap-2">
               {EVENT_TYPES.map(({ type: et, label }) => (
                 <button key={et} type="button" onClick={() => setType(et)}
-                  className={`flex items-center gap-2 py-2.5 px-3 rounded-xl text-xs font-medium border transition-all ${type === et ? TYPE_BG[et] + " border-current/30" : "bg-muted text-muted-foreground border-border"}`}>
-                  <span>{TYPE_ICONS[et]}</span>{label}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-all ${type === et ? TYPE_BG[et] + " border-current/30" : "bg-muted text-muted-foreground border-border"}`}>
+                  {label}
                 </button>
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {type === "deadline" ? (
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_start_time}</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_deadline_time}</label>
               <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                 className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_end_time}</label>
-              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_start_time}</label>
+                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_end_time}</label>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
+              </div>
             </div>
-          </div>
+          )}
           {canAssignPerson && (
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1.5">{t.calendar_assign_to}</label>
@@ -174,7 +177,7 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
         </div>
         <div className="p-4 border-t border-border flex gap-2 shrink-0">
           {onDelete && (
-            <button onClick={onDelete} className="py-3 px-4 rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20 text-sm font-medium min-h-[48px]">Delete</button>
+            <button onClick={onDelete} className="py-3 px-4 rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20 text-sm font-medium min-h-[48px]">{t.calendar_delete}</button>
           )}
           <button onClick={onCancel} className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-medium text-sm min-h-[48px]">{t.assignment_cancel}</button>
           <button onClick={handleSave} disabled={!title.trim()} className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-40 min-h-[48px]">{t.calendar_add_btn}</button>
@@ -186,7 +189,7 @@ function EventForm({ date, classId, classes, students, initial, canAssignPerson,
 
 // ─── Feature 4: Upcoming Sessions Widget ─────────────────────────────────────
 
-function UpcomingWidget({ events, todayYMD }: { events: CalendarEvent[]; todayYMD: string }) {
+function UpcomingWidget({ events, todayYMD, t }: { events: CalendarEvent[]; todayYMD: string; t: import("@/lib/i18n").Translations }) {
   const upcoming = useMemo(() => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() + 14);
@@ -201,7 +204,7 @@ function UpcomingWidget({ events, todayYMD }: { events: CalendarEvent[]; todayYM
 
   return (
     <div>
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-0.5">Upcoming</p>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-0.5">{t.calendar_upcoming}</p>
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: "none" }}>
         {upcoming.map((ev) => {
           const isToday = ev.date === todayYMD;
@@ -212,13 +215,12 @@ function UpcomingWidget({ events, todayYMD }: { events: CalendarEvent[]; todayYM
               style={{ borderLeftWidth: 3, borderLeftColor: ev.type === "session" ? "#3b82f6" : ev.type === "deadline" ? "#ef4444" : ev.type === "meeting" ? "#a855f7" : "var(--primary)" }}
             >
               <p className="text-[9px] font-semibold text-muted-foreground uppercase">
-                {isToday ? "Today" : shortDate(ev.date)}
+                {isToday ? t.calendar_today : shortDate(ev.date)}
               </p>
               <p className="text-xs font-medium leading-tight line-clamp-2">{ev.title}</p>
               {ev.startTime && (
                 <p className="text-[9px] text-muted-foreground">{ev.startTime}{ev.endTime ? `–${ev.endTime}` : ""}</p>
               )}
-              <span className="text-[9px] self-start">{TYPE_ICONS[ev.type]}</span>
             </div>
           );
         })}
@@ -233,7 +235,7 @@ type TimelineItem =
   | { kind: "event"; date: string; ev: CalendarEvent }
   | { kind: "milestone"; date: string; ms: Milestone };
 
-function TimelineView({ events, milestones }: { events: CalendarEvent[]; milestones: Milestone[] }) {
+function TimelineView({ events, milestones, t }: { events: CalendarEvent[]; milestones: Milestone[]; t: import("@/lib/i18n").Translations }) {
   const items = useMemo<TimelineItem[]>(() => {
     const list: TimelineItem[] = [
       ...events.map((ev) => ({ kind: "event" as const, date: ev.date, ev })),
@@ -245,9 +247,8 @@ function TimelineView({ events, milestones }: { events: CalendarEvent[]; milesto
   if (items.length === 0) {
     return (
       <div className="py-16 text-center text-muted-foreground">
-        <p className="text-3xl mb-3">📋</p>
-        <p className="text-sm">No activity yet</p>
-        <p className="text-xs mt-1">Sessions and milestones will appear here</p>
+        <p className="text-sm">{t.calendar_no_activity}</p>
+        <p className="text-xs mt-1">{t.calendar_no_activity_desc}</p>
       </div>
     );
   }
@@ -280,9 +281,7 @@ function TimelineView({ events, milestones }: { events: CalendarEvent[]; milesto
                     {item.ms.tierIcon}
                   </div>
                 ) : (
-                  <div className={`w-5 h-5 rounded-full ${TYPE_COLORS[item.ev.type]} flex items-center justify-center`}>
-                    <span className="text-[9px] text-white">{TYPE_ICONS[item.ev.type]}</span>
-                  </div>
+                  <div className={`w-5 h-5 rounded-full ${TYPE_COLORS[item.ev.type]}`} />
                 )}
               </div>
 
@@ -292,11 +291,11 @@ function TimelineView({ events, milestones }: { events: CalendarEvent[]; milesto
                   <>
                     <div className="flex items-center justify-between mb-0.5">
                       <p className="text-xs font-bold" style={{ color: ROW_TIERS[item.ms.tierRow - 1]?.color }}>
-                        Reached {item.ms.tierName}!
+                        {t.calendar_reached} {item.ms.tierName}!
                       </p>
                       <span className="text-[9px] text-muted-foreground">{friendlyDate(item.ms.date)}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{item.ms.ayahs} ayahs memorized</p>
+                    <p className="text-[10px] text-muted-foreground">{item.ms.ayahs} {t.calendar_ayahs_memorized}</p>
                   </>
                 ) : (
                   <>
@@ -306,7 +305,7 @@ function TimelineView({ events, milestones }: { events: CalendarEvent[]; milesto
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-[9px] px-1.5 py-0.5 rounded border ${TYPE_BG[item.ev.type]} capitalize`}>
-                        {TYPE_ICONS[item.ev.type]} {item.ev.type}
+                        {item.ev.type}
                       </span>
                       {(item.ev.startTime || item.ev.endTime) && (
                         <span className="text-[9px] text-muted-foreground">
@@ -323,6 +322,128 @@ function TimelineView({ events, milestones }: { events: CalendarEvent[]; milesto
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Day Detail Modal ─────────────────────────────────────────────────────────
+
+interface DayModalProps {
+  date: string;
+  events: CalendarEvent[];
+  milestones: Milestone[];
+  isTeacher: boolean;
+  activeDates: string[];
+  todayYMD: string;
+  users: { id: string; name: string }[];
+  totalSlots: number;
+  freeSlots: number;
+  t: import("@/lib/i18n").Translations;
+  onClose: () => void;
+  onAddEvent: () => void;
+  onEditEvent: (ev: CalendarEvent) => void;
+}
+
+function DayDetailModal({ date, events, milestones, isTeacher, activeDates, todayYMD, users, totalSlots, freeSlots, t, onClose, onAddEvent, onEditEvent }: DayModalProps) {
+  const parsedDate = parseDateLabel(date);
+  const isToday = date === todayYMD;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[80dvh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div>
+            <p className="font-semibold text-sm">
+              {parsedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            </p>
+            {isToday && <p className="text-xs text-primary font-medium">{t.calendar_today}</p>}
+            {!isTeacher && activeDates.includes(date) && (
+              <p className="text-[10px] text-orange-500 font-medium mt-0.5">{t.calendar_streak_recorded}</p>
+            )}
+            {milestones.map((ms, i) => (
+              <p key={i} className="text-[10px] font-medium mt-0.5" style={{ color: ROW_TIERS[ms.tierRow - 1]?.color }}>
+                {ms.tierIcon} {t.calendar_reached} {ms.tierName} · {ms.ayahs} {t.calendar_ayahs_memorized}
+              </p>
+            ))}
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        {/* Slot summary (teachers) */}
+        {isTeacher && totalSlots > 0 && (
+          <div className="px-4 py-2 border-b border-border flex items-center gap-2 text-xs shrink-0">
+            <span className="text-muted-foreground">{t.calendar_booking_slots}</span>
+            <span className="font-semibold">{freeSlots} {t.calendar_slots_free}</span>
+            <span className="text-muted-foreground">/ {totalSlots} {t.calendar_slots_total}</span>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden ml-2">
+              <div className="h-full rounded-full transition-all"
+                style={{ width: `${Math.round(((totalSlots - freeSlots) / totalSlots) * 100)}%`, background: freeSlots === 0 ? "#ef4444" : "#22c55e" }} />
+            </div>
+          </div>
+        )}
+
+        {/* Add event prompt (teachers) */}
+        {isTeacher && (
+          <div className="px-4 py-3 border-b border-border shrink-0 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{t.calendar_add_event_prompt}</p>
+            <button onClick={onAddEvent}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              {t.calendar_add_event}
+            </button>
+          </div>
+        )}
+
+        {/* Events list */}
+        <div className="overflow-y-auto flex-1">
+          {events.length === 0 ? (
+            <div className="py-10 text-center text-muted-foreground text-sm">
+              <p>{isTeacher ? t.calendar_empty_teacher : t.calendar_empty_student}</p>
+              {isTeacher && (
+                <button onClick={onAddEvent} className="mt-3 text-primary text-xs font-medium hover:underline">
+                  + {t.calendar_add_event}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {events.map((ev) => {
+                const targetUser = ev.targetUserId ? users.find((u) => u.id === ev.targetUserId) : null;
+                return (
+                  <div key={ev.id} className="flex items-start gap-3 px-4 py-3"
+                    onClick={() => isTeacher && onEditEvent(ev)}
+                    role={isTeacher ? "button" : undefined}
+                    tabIndex={isTeacher ? 0 : undefined}
+                    style={{ cursor: isTeacher ? "pointer" : "default" }}>
+                    <div className={`w-1 self-stretch rounded-full shrink-0 ${TYPE_COLORS[ev.type]}`} />
+                    <div className="flex-1 min-w-0 py-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold">{ev.title}</p>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${TYPE_BG[ev.type]} capitalize shrink-0`}>
+                          {ev.type}
+                        </span>
+                      </div>
+                      {(ev.startTime || ev.endTime) && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ""}</p>
+                      )}
+                      {targetUser && <p className="text-xs text-muted-foreground mt-0.5">{targetUser.name}</p>}
+                      {ev.description && <p className="text-xs text-muted-foreground mt-0.5">{ev.description}</p>}
+                      {ev.notes && <p className="text-xs italic text-muted-foreground/80 mt-1">{ev.notes}</p>}
+                    </div>
+                    {isTeacher && (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground shrink-0 mt-1"><path d="m9 18 6-6-6-6"/></svg>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -349,6 +470,7 @@ export default function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [showDayModal, setShowDayModal] = useState(false);
 
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const allTeacherClasses = useMemo(() => isTeacher ? getTeacherClasses() : [], [isTeacher, getTeacherClasses]);
@@ -444,27 +566,26 @@ export default function CalendarPage() {
           <Link href="/booking"
             className="flex items-center gap-3 p-3 rounded-xl border hover:bg-muted/40 transition-colors group"
             style={{ borderColor: "rgba(200,147,42,0.4)", background: "rgba(200,147,42,0.05)" }}>
-            <span className="text-lg">🗓️</span>
             <div className="flex-1">
-              <p className="text-sm font-semibold">Manage Availability</p>
-              <p className="text-xs text-muted-foreground">Set slots students can book</p>
+              <p className="text-sm font-semibold">{t.calendar_manage_avail}</p>
+              <p className="text-xs text-muted-foreground">{t.calendar_manage_avail_desc}</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground shrink-0"><path d="m9 18 6-6-6-6"/></svg>
           </Link>
         )}
 
         {/* Feature 4: Upcoming sessions widget */}
-        <UpcomingWidget events={visibleEvents} todayYMD={todayYMD} />
+        <UpcomingWidget events={visibleEvents} todayYMD={todayYMD} t={t} />
 
         {/* View toggle */}
         <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
           <button onClick={() => setView("calendar")}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${view === "calendar" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            📅 Calendar
+            {t.calendar_view_calendar}
           </button>
           <button onClick={() => setView("timeline")}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${view === "timeline" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            ⏱ Timeline
+            {t.calendar_view_timeline}
           </button>
         </div>
 
@@ -487,11 +608,11 @@ export default function CalendarPage() {
 
             {/* Legend */}
             <div className="flex items-center gap-3 flex-wrap text-[9px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />Streak day</span>
-              {milestones.length > 0 && <span className="flex items-center gap-1"><span className="text-xs">⭐</span>Milestone</span>}
+              {!isTeacher && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />{t.calendar_legend_streak}</span>}
+              {milestones.length > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />{t.calendar_legend_milestone}</span>}
               {isTeacher && slots.length > 0 && <>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-green-500/40 inline-block border border-green-500/40" />Slots free</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-500/30 inline-block border border-red-500/30" />Fully booked</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-green-500/40 inline-block border border-green-500/40" />{t.calendar_legend_free}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-500/30 inline-block border border-red-500/30" />{t.calendar_legend_booked}</span>
               </>}
             </div>
 
@@ -529,7 +650,7 @@ export default function CalendarPage() {
                   } : {};
 
                   return (
-                    <button key={ymd} onClick={() => setSelectedDay(ymd)}
+                    <button key={ymd} onClick={() => { setSelectedDay(ymd); setShowDayModal(true); }}
                       style={!isSelected ? heatmapStyle : undefined}
                       className={`aspect-square sm:aspect-auto sm:h-16 flex flex-col items-center justify-start pt-1.5 gap-0.5 transition-colors border-b border-r border-border/50 last:border-r-0 relative ${isLastRow ? "border-b-0" : ""} ${isSelected ? "bg-primary/10" : "hover:bg-muted"}`}>
 
@@ -549,13 +670,13 @@ export default function CalendarPage() {
                           <span key={ev.id} className={`w-1.5 h-1.5 rounded-full ${TYPE_COLORS[ev.type]}`} />
                         ))}
                         {dayEvs.length > 2 && <span className="text-[7px] text-muted-foreground">+{dayEvs.length - 2}</span>}
-                        {/* Feature 1: tiny flame for streak days */}
-                        {hasStreak && (
-                          <span className="text-[9px] leading-none" title="Streak day">🔥</span>
+                        {/* Feature 1: streak dot (not shown for teachers) */}
+                        {hasStreak && !isTeacher && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
                         )}
-                        {/* Feature 2: star for milestone */}
+                        {/* Feature 2: milestone dot */}
                         {hasMilestone && (
-                          <span className="text-[9px] leading-none" title={milestonesByDate[ymd][0].tierName}>⭐</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block" />
                         )}
                       </div>
                     </button>
@@ -572,16 +693,16 @@ export default function CalendarPage() {
                     {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                   </p>
                   {selectedDay === todayYMD && <p className="text-xs text-primary font-medium">{t.calendar_today}</p>}
-                  {/* Feature 1: streak info */}
-                  {activeDates.includes(selectedDay) && (
-                    <p className="text-[10px] text-orange-500 font-medium flex items-center gap-1 mt-0.5">
-                      🔥 Streak day recorded
+                  {/* Feature 1: streak info (hidden for teachers) */}
+                  {!isTeacher && activeDates.includes(selectedDay) && (
+                    <p className="text-[10px] text-orange-500 font-medium mt-0.5">
+                      {t.calendar_streak_recorded}
                     </p>
                   )}
                   {/* Feature 2: milestone info */}
                   {(milestonesByDate[selectedDay] ?? []).map((ms, i) => (
-                    <p key={i} className="text-[10px] font-medium flex items-center gap-1 mt-0.5" style={{ color: ROW_TIERS[ms.tierRow - 1]?.color }}>
-                      {ms.tierIcon} Reached {ms.tierName} · {ms.ayahs} ayahs
+                    <p key={i} className="text-[10px] font-medium mt-0.5" style={{ color: ROW_TIERS[ms.tierRow - 1]?.color }}>
+                      {ms.tierIcon} {t.calendar_reached} {ms.tierName} · {ms.ayahs} {t.calendar_ayahs_memorized}
                     </p>
                   ))}
                 </div>
@@ -597,9 +718,9 @@ export default function CalendarPage() {
               {/* Feature 3: slot summary for selected day (teachers) */}
               {isTeacher && (totalSlotsByDate[selectedDay] ?? 0) > 0 && (
                 <div className="px-4 py-2 border-b border-border flex items-center gap-2 text-xs">
-                  <span className="text-muted-foreground">Booking slots:</span>
-                  <span className="font-semibold">{slotsByDate[selectedDay] ?? 0} free</span>
-                  <span className="text-muted-foreground">/ {totalSlotsByDate[selectedDay]} total</span>
+                  <span className="text-muted-foreground">{t.calendar_booking_slots}</span>
+                  <span className="font-semibold">{slotsByDate[selectedDay] ?? 0} {t.calendar_slots_free}</span>
+                  <span className="text-muted-foreground">/ {totalSlotsByDate[selectedDay]} {t.calendar_slots_total}</span>
                   <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden ml-2">
                     <div className="h-full rounded-full transition-all"
                       style={{
@@ -612,7 +733,6 @@ export default function CalendarPage() {
 
               {dayEvents.length === 0 ? (
                 <div className="py-10 text-center text-muted-foreground text-sm">
-                  <p className="text-2xl mb-2">📅</p>
                   <p>{isTeacher ? t.calendar_empty_teacher : t.calendar_empty_student}</p>
                   {isTeacher && (
                     <button onClick={() => { setEditingEvent(null); setShowForm(true); }}
@@ -636,13 +756,13 @@ export default function CalendarPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold">{ev.title}</p>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded border ${TYPE_BG[ev.type]} capitalize shrink-0`}>
-                              {TYPE_ICONS[ev.type]} {ev.type}
+                              {ev.type}
                             </span>
                           </div>
                           {(ev.startTime || ev.endTime) && (
                             <p className="text-xs text-muted-foreground mt-0.5">{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ""}</p>
                           )}
-                          {targetUser && <p className="text-xs text-muted-foreground mt-0.5">👤 {targetUser.name}</p>}
+                          {targetUser && <p className="text-xs text-muted-foreground mt-0.5">{targetUser.name}</p>}
                           {ev.description && <p className="text-xs text-muted-foreground mt-0.5">{ev.description}</p>}
                           {ev.notes && <p className="text-xs italic text-muted-foreground/80 mt-1">{ev.notes}</p>}
                         </div>
@@ -660,10 +780,28 @@ export default function CalendarPage() {
 
         {/* ── TIMELINE VIEW ─────────────────────────────────────────────── */}
         {view === "timeline" && (
-          <TimelineView events={visibleEvents} milestones={milestones} />
+          <TimelineView events={visibleEvents} milestones={milestones} t={t} />
         )}
 
       </main>
+
+      {showDayModal && !showForm && (
+        <DayDetailModal
+          date={selectedDay}
+          events={dayEvents}
+          milestones={milestonesByDate[selectedDay] ?? []}
+          isTeacher={isTeacher}
+          activeDates={activeDates}
+          todayYMD={todayYMD}
+          users={users}
+          totalSlots={totalSlotsByDate[selectedDay] ?? 0}
+          freeSlots={slotsByDate[selectedDay] ?? 0}
+          t={t}
+          onClose={() => setShowDayModal(false)}
+          onAddEvent={() => { setEditingEvent(null); setShowDayModal(false); setShowForm(true); }}
+          onEditEvent={(ev) => { setEditingEvent(ev); setShowDayModal(false); setShowForm(true); }}
+        />
+      )}
 
       {showForm && (
         <EventForm
@@ -673,7 +811,7 @@ export default function CalendarPage() {
           students={teacherStudents}
           initial={editingEvent ?? undefined}
           canAssignPerson={isTeacher && teacherStudents.length > 0}
-          t={t as Record<string, string>}
+          t={t}
           onSave={handleSaveEvent}
           onCancel={() => { setShowForm(false); setEditingEvent(null); }}
           onDelete={editingEvent ? () => { removeEvent(editingEvent.id); setShowForm(false); setEditingEvent(null); } : undefined}
