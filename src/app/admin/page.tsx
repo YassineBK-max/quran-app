@@ -142,7 +142,7 @@ function ClassCalendarModal({ classId, className, onClose }: { classId: string; 
           ) : (
             <div className="space-y-0 relative">
               <div className="absolute left-[20px] top-0 bottom-0 w-px bg-border" />
-              {events.map((ev, idx) => {
+              {events.map((ev) => {
                 const monthLabel = new Date(ev.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" });
                 const showMonth = monthLabel !== lastMonth;
                 lastMonth = monthLabel;
@@ -690,7 +690,6 @@ export default function AdminPage() {
             ) : (
               classes.map((c) => {
                 const teacherList = (c.teacherIds ?? [c.teacherId]).map((tid) => users.find((u) => u.id === tid)).filter(Boolean) as import("@/lib/types").User[];
-                const teacher = teacherList[0];
                 const studentCount = c.studentIds.length;
                 // Compute average memorization across enrolled students
                 const totalMemo = c.studentIds.reduce((sum, sid) => {
