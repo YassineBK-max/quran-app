@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useBooking } from "@/contexts/BookingContext";
 import { useMemorization } from "@/contexts/MemorizationContext";
+import { useCalendar } from "@/contexts/CalendarContext";
 import { isSupabaseReady } from "@/lib/supabase";
 import { useT } from "@/hooks/useT";
 import { Assignment } from "@/lib/types";
@@ -71,6 +72,7 @@ export default function ClassroomPage() {
   const { myClasses, createClass, joinClass, leaveClass, getTeacherClasses, removeAssignment, updateAssignment } = useClassroom();
   const { getAvailableSlots, getMyBookings, getMySlots, slotBookingCount } = useBooking();
   const { setStudentId } = useMemorization();
+  const { getEventsForUser } = useCalendar();
   const t = useT();
   const router = useRouter();
 
@@ -100,6 +102,14 @@ export default function ClassroomPage() {
     const activeClass = selectedClassId
       ? myClasses.find((c) => c.id === selectedClassId) ?? myClasses[0]
       : myClasses[0];
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    const upcomingEvents = activeClass
+      ? getEventsForUser()
+          .filter((e) => e.classId === activeClass.id && e.date >= todayStr)
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(0, 10)
+      : [];
 
     return (
       <>
@@ -222,6 +232,38 @@ export default function ClassroomPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Upcoming events */}
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <h3 className="text-sm font-semibold mb-3">{t.calendar_upcoming}</h3>
+                    {upcomingEvents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">{t.calendar_no_activity}</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {upcomingEvents.map((ev) => {
+                          const color = { session: "#3b82f6", deadline: "#ef4444", goal: "#22c55e", meeting: "#a855f7" }[ev.type] ?? "#6b7280";
+                          const displayTime = ev.startTime ?? ev.time;
+                          const displayDate = new Date(ev.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                          return (
+                            <div key={ev.id} className="flex items-start gap-3 border border-border rounded-lg p-3" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-medium">{ev.title}</p>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: color + "22", color }}>
+                                    {ev.type}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {displayDate}{displayTime ? ` · ${displayTime}` : ""}
+                                </p>
+                                {ev.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{ev.description}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Book a Session widget */}
                   {isSupabaseReady && (() => {
