@@ -10,7 +10,7 @@ import { useMemorization } from "@/contexts/MemorizationContext";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { isSupabaseReady } from "@/lib/supabase";
 import { useT } from "@/hooks/useT";
-import { Assignment } from "@/lib/types";
+import { Assignment, CalendarEvent } from "@/lib/types";
 
 // ─── Assignment card with inline edit ─────────────────────────────────────────
 function AssignmentCard({ assignment, classId, canEdit, t, onUpdate, onDelete }: {
@@ -84,6 +84,9 @@ export default function ClassroomPage() {
   const [addCode, setAddCode] = useState("");
   const [addError, setAddError] = useState("");
   const [addSuccess, setAddSuccess] = useState("");
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+  const [selectedCalDay, setSelectedCalDay] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -104,16 +107,74 @@ export default function ClassroomPage() {
       : myClasses[0];
 
     const todayStr = new Date().toISOString().split("T")[0];
-    const upcomingEvents = activeClass
-      ? getEventsForUser()
-          .filter((e) => e.classId === activeClass.id && e.date >= todayStr)
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(0, 10)
+    const nowMs = Date.now();
+
+    const isWithin24h = (ev: CalendarEvent) => {
+      const timeStr = ev.startTime ?? ev.time ?? "23:59";
+      const ms = new Date(`${ev.date}T${timeStr}:00`).getTime();
+      return ms >= nowMs && ms - nowMs <= 86400000;
+    };
+
+    const TYPE_COLORS: Record<string, string> = {
+      session: "#3b82f6", deadline: "#ef4444", goal: "#22c55e", meeting: "#a855f7",
+    };
+    const TYPE_LABELS: Record<string, string> = {
+      session: t.calendar_type_session,
+      deadline: t.calendar_type_deadline,
+      goal: t.calendar_type_goal,
+      meeting: t.calendar_type_meeting,
+    };
+
+    const allClassEvents = activeClass
+      ? getEventsForUser().filter((e) => e.classId === activeClass.id)
       : [];
+    const upcomingEvents = allClassEvents
+      .filter((e) => e.date >= todayStr)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const selectedDayEvents = selectedCalDay
+      ? allClassEvents.filter((e) => e.date === selectedCalDay)
+      : [];
+
+    const firstDayOfMonth = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const calCells: (number | null)[] = [
+      ...Array(firstDayOfMonth).fill(null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+
+    const renderEventCard = (ev: CalendarEvent) => {
+      const urgent = isWithin24h(ev);
+      const color = TYPE_COLORS[ev.type] ?? "#6b7280";
+      const displayTime = ev.startTime ?? ev.time;
+      const displayDate = new Date(ev.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return (
+        <div
+          key={ev.id}
+          className={`rounded-xl p-3 border ${urgent ? "border-red-500/50 bg-red-500/5" : "border-border bg-card"}`}
+          style={{ borderLeftWidth: 4, borderLeftColor: urgent ? "#ef4444" : color }}
+        >
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            {urgent && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+                {t.classroom_urgent_soon}
+              </span>
+            )}
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: color + "22", color }}>
+              {TYPE_LABELS[ev.type] ?? ev.type}
+            </span>
+          </div>
+          <p className="text-sm font-semibold leading-snug">{ev.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {displayDate}{displayTime ? ` · ${displayTime}` : ""}
+          </p>
+          {ev.description && <p className="text-xs text-muted-foreground mt-1">{ev.description}</p>}
+        </div>
+      );
+    };
 
     return (
       <>
-        <Header title={t.classroom_title} />
+        <Header title={t.classroom_student_title} />
         <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
           {/* DB Classrooms entry point */}
           {isSupabaseReady && (
@@ -129,7 +190,7 @@ export default function ClassroomPage() {
             </Link>
           )}
 
-          {/* Join class code input — always visible at top */}
+          {/* Join class code input */}
           <div className="bg-card border border-border rounded-xl p-3">
             <p className="text-xs font-semibold text-muted-foreground mb-2">
               {myClasses.length > 0 ? "Join another class" : t.classroom_join_class}
@@ -160,7 +221,6 @@ export default function ClassroomPage() {
           </div>
 
           {myClasses.length === 0 ? (
-            // Legacy join form if no classes yet
             <div className="bg-card border border-border rounded-xl p-4 space-y-3 text-center py-8">
               <p className="text-3xl mb-2">🎓</p>
               <p className="text-sm text-muted-foreground">Enter a class code above to join your first class.</p>
@@ -183,6 +243,7 @@ export default function ClassroomPage() {
 
               {activeClass && (
                 <>
+                  {/* Class info */}
                   <div className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-start justify-between">
                       <div>
@@ -200,6 +261,84 @@ export default function ClassroomPage() {
                     </div>
                   </div>
 
+                  {/* Mini Calendar */}
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <h3 className="text-sm font-semibold mb-3">{t.classroom_my_calendar}</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <button
+                        onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear((y) => y - 1); } else setCalMonth((m) => m - 1); }}
+                        className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                      </button>
+                      <span className="text-sm font-semibold">
+                        {new Date(calYear, calMonth, 1).toLocaleString("en-US", { month: "long", year: "numeric" })}
+                      </span>
+                      <button
+                        onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); }}
+                        className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-7 mb-1">
+                      {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                        <div key={d} className="text-center text-[10px] text-muted-foreground font-medium py-1">{d}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-0.5">
+                      {calCells.map((d, i) => {
+                        if (!d) return <div key={i} />;
+                        const ymd = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        const isToday = ymd === todayStr;
+                        const isSelected = ymd === selectedCalDay;
+                        const dayEvs = allClassEvents.filter((e) => e.date === ymd);
+                        const hasUrgent = dayEvs.some((e) => isWithin24h(e));
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedCalDay(isSelected ? null : ymd)}
+                            className={`flex flex-col items-center justify-center rounded-lg py-1.5 min-h-[38px] transition-colors ${
+                              isSelected ? "bg-primary text-primary-foreground" :
+                              isToday ? "bg-primary/15 text-primary font-bold" :
+                              "hover:bg-muted text-foreground"
+                            }`}
+                          >
+                            <span className="text-xs leading-none">{d}</span>
+                            {dayEvs.length > 0 && (
+                              <span className={`w-1 h-1 rounded-full mt-0.5 ${
+                                isSelected ? "bg-primary-foreground" : hasUrgent ? "bg-red-500" : "bg-primary"
+                              }`} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedCalDay && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">
+                          {new Date(selectedCalDay + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                        </p>
+                        {selectedDayEvents.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">{t.calendar_no_activity}</p>
+                        ) : (
+                          <div className="space-y-2">{selectedDayEvents.map(renderEventCard)}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* All upcoming events */}
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <h3 className="text-sm font-semibold mb-3">{t.classroom_events}</h3>
+                    {upcomingEvents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">{t.calendar_no_activity}</p>
+                    ) : (
+                      <div className="space-y-2">{upcomingEvents.map(renderEventCard)}</div>
+                    )}
+                  </div>
+
+                  {/* Classmates */}
                   <div className="bg-card border border-border rounded-xl p-4">
                     <h3 className="text-sm font-semibold mb-3">{t.classroom_classmates} ({activeClass.studentIds.length})</h3>
                     <div className="space-y-2">
@@ -218,6 +357,7 @@ export default function ClassroomPage() {
                     </div>
                   </div>
 
+                  {/* Assignments */}
                   {activeClass.assignments.length > 0 && (
                     <div className="bg-card border border-border rounded-xl p-4">
                       <h3 className="text-sm font-semibold mb-3">{t.classroom_assignments} ({activeClass.assignments.length})</h3>
@@ -233,41 +373,8 @@ export default function ClassroomPage() {
                     </div>
                   )}
 
-                  {/* Upcoming events */}
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <h3 className="text-sm font-semibold mb-3">{t.calendar_upcoming}</h3>
-                    {upcomingEvents.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-3">{t.calendar_no_activity}</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {upcomingEvents.map((ev) => {
-                          const color = { session: "#3b82f6", deadline: "#ef4444", goal: "#22c55e", meeting: "#a855f7" }[ev.type] ?? "#6b7280";
-                          const displayTime = ev.startTime ?? ev.time;
-                          const displayDate = new Date(ev.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                          return (
-                            <div key={ev.id} className="flex items-start gap-3 border border-border rounded-lg p-3" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-sm font-medium">{ev.title}</p>
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: color + "22", color }}>
-                                    {ev.type}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {displayDate}{displayTime ? ` · ${displayTime}` : ""}
-                                </p>
-                                {ev.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{ev.description}</p>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
                   {/* Book a Session widget */}
                   {isSupabaseReady && (() => {
-                    const todayStr = new Date().toISOString().split("T")[0];
                     const available = getAvailableSlots().filter((s) => s.date >= todayStr);
                     const booked = getMyBookings().filter((b) => b.status === "confirmed" && (b.slot?.date ?? "") >= todayStr);
                     return (

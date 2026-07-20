@@ -184,6 +184,14 @@ const en = {
   classroom_view_progress: "View & mark progress →",
   classroom_assignment_title: "Assignment title",
   classroom_assignment_desc: "Description (optional)",
+  classroom_student_title: "My Classroom",
+  classroom_events: "Events",
+  classroom_my_calendar: "My Calendar",
+  classroom_urgent_soon: "Soon",
+  calendar_type_session: "Session",
+  calendar_type_deadline: "Deadline",
+  calendar_type_goal: "Goal",
+  calendar_type_meeting: "Meeting",
 
   // --- Notifications ---
   notifications_title: "Notifications",
@@ -572,6 +580,14 @@ const ar: typeof en = {
   classroom_view_progress: "عرض وتسجيل التقدم ←",
   classroom_assignment_title: "عنوان الواجب",
   classroom_assignment_desc: "الوصف (اختياري)",
+  classroom_student_title: "فصلي الدراسي",
+  classroom_events: "الأحداث",
+  classroom_my_calendar: "تقويمي",
+  classroom_urgent_soon: "قريباً",
+  calendar_type_session: "جلسة",
+  calendar_type_deadline: "موعد نهائي",
+  calendar_type_goal: "هدف",
+  calendar_type_meeting: "اجتماع",
 
   // --- Notifications ---
   notifications_title: "الإشعارات",
