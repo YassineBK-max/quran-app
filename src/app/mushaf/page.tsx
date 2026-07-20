@@ -84,7 +84,7 @@ function MushafPage({
   }, [page.ayahs]);
 
   return (
-    <div className="mushaf-book min-h-[70dvh]">
+    <div className="mushaf-book">
       {/* Corner ornaments */}
       <span className="mushaf-corner tl" aria-hidden="true" />
       <span className="mushaf-corner tr" aria-hidden="true" />
@@ -282,6 +282,7 @@ function MushafBookInner() {
 
   const [currentPage, setCurrentPage] = useState(startPage);
   const [pageData, setPageData] = useState<QuranPage | null>(null);
+  const [pageData2, setPageData2] = useState<QuranPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showJump, setShowJump] = useState(false);
@@ -318,11 +319,11 @@ function MushafBookInner() {
     setSelectedAyah(null);
     if (dir) setDirection(dir);
     try {
-      const data = await fetchPage(n);
+      const [data, data2] = await Promise.all([fetchPage(n), fetchPage(n + 1)]);
       if (data) {
         setPageData(data);
+        setPageData2(data2 ?? null);
         setCurrentPage(n);
-        // Update URL without navigation
         const url = new URL(window.location.href);
         url.searchParams.set("page", String(n));
         window.history.replaceState(null, "", url.toString());
@@ -333,8 +334,8 @@ function MushafBookInner() {
       setLoading(false);
       navigating.current = false;
     }
-    // Pre-fetch neighbors
-    fetchPage(n + 1).catch(() => {});
+    // Pre-fetch ahead and behind
+    fetchPage(n + 2).catch(() => {});
     fetchPage(n - 1).catch(() => {});
   }, [fetchPage]);
 
@@ -359,6 +360,14 @@ function MushafBookInner() {
 
   const animClass = direction === "next" ? "ebook-page-next" : direction === "prev" ? "ebook-page-prev" : "";
 
+  const handleAreaClick = (e: React.MouseEvent) => {
+    if (showJump) return;
+    const target = e.target as HTMLElement;
+    if (target.closest(".mushaf-word") || target.closest("button") || target.closest("a") || target.closest("input")) return;
+    if (e.clientX > window.innerWidth / 2) goTo(currentPage - 1, "prev");
+    else goTo(currentPage + 1, "next");
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <Header
@@ -374,9 +383,10 @@ function MushafBookInner() {
         }
       />
 
-      {/* Book area */}
+      {/* Book area — full screen, click left/right half to navigate */}
       <div
         className="flex-1 overflow-y-auto pb-20"
+        onClick={handleAreaClick}
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; touchStartY.current = e.touches[0].clientY; }}
         onTouchEnd={(e) => {
           const dx = e.changedTouches[0].clientX - touchStartX.current;
@@ -387,7 +397,7 @@ function MushafBookInner() {
           }
         }}
       >
-        <div className="max-w-2xl mx-auto px-2 sm:px-4 py-4">
+        <div className="p-[5px]">
           {loading ? (
             <PageSkeleton />
           ) : error ? (
@@ -397,14 +407,31 @@ function MushafBookInner() {
             </div>
           ) : pageData ? (
             <div key={currentPage} className={animClass}>
-              <MushafPage
-                page={pageData}
-                onAyahClick={setSelectedAyah}
-                selectedAyah={selectedAyah}
-                getBookmark={getBookmark}
-                playingAyah={playingAyah}
-                isMemorized={isMemorized}
-              />
+              {/* Single page on mobile, two pages side-by-side on desktop (RTL: current=right, next=left) */}
+              <div className="flex flex-col lg:flex-row-reverse gap-[5px]">
+                <div className="flex-1">
+                  <MushafPage
+                    page={pageData}
+                    onAyahClick={setSelectedAyah}
+                    selectedAyah={selectedAyah}
+                    getBookmark={getBookmark}
+                    playingAyah={playingAyah}
+                    isMemorized={isMemorized}
+                  />
+                </div>
+                {pageData2 && (
+                  <div className="hidden lg:block flex-1">
+                    <MushafPage
+                      page={pageData2}
+                      onAyahClick={setSelectedAyah}
+                      selectedAyah={selectedAyah}
+                      getBookmark={getBookmark}
+                      playingAyah={playingAyah}
+                      isMemorized={isMemorized}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
 

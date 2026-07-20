@@ -605,10 +605,9 @@ body {
   animation: ebook-slide-in-from-right 0.28s cubic-bezier(0.22,1,0.36,1) both;
 }
 
-/* ─── Mushaf book – fits within viewport ──────────────────────────────────── */
+/* ─── Mushaf book scrollbar + full-height ────────────────────────────────── */
 .mushaf-book {
-  max-height: calc(100dvh - 200px);
-  overflow-y: auto;
+  min-height: calc(100dvh - 130px);
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--primary) 25%, transparent) transparent;
 }
