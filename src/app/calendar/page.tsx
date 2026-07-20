@@ -29,6 +29,10 @@ const TYPE_BG: Record<CalendarEvent["type"], string> = {
   goal:     "bg-primary/10 text-primary border-primary/20",
 };
 
+const TYPE_HEX: Record<CalendarEvent["type"], string> = {
+  session: "#3b82f6", deadline: "#ef4444", goal: "#22c55e", meeting: "#a855f7",
+};
+
 
 const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -617,6 +621,12 @@ export default function CalendarPage() {
     return map;
   }, [milestones]);
 
+  const nowMs = Date.now();
+  const studentUpcoming = useMemo(
+    () => isTeacher ? [] : visibleEvents.filter((e) => e.date >= todayYMD).sort((a, b) => a.date.localeCompare(b.date)),
+    [isTeacher, visibleEvents, todayYMD]
+  );
+
   if (!user) {
     return (
       <>
@@ -668,6 +678,44 @@ export default function CalendarPage() {
 
         {/* Feature 4: Upcoming sessions widget */}
         <UpcomingWidget events={visibleEvents} todayYMD={todayYMD} t={t} />
+
+        {/* Student upcoming events — boxed list with 24h red highlighting */}
+        {!isTeacher && studentUpcoming.length > 0 && (
+          <div className="bg-card border border-border rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3">{t.classroom_events}</h3>
+            <div className="space-y-2">
+              {studentUpcoming.map((ev) => {
+                const timeStr = ev.startTime ?? ev.time ?? "23:59";
+                const evMs = new Date(`${ev.date}T${timeStr}:00`).getTime();
+                const urgent = evMs >= nowMs && evMs - nowMs <= 86400000;
+                const color = TYPE_HEX[ev.type];
+                const displayTime = ev.startTime ?? ev.time;
+                const displayDate = new Date(ev.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                return (
+                  <div key={ev.id}
+                    className={`rounded-xl p-3 border ${urgent ? "border-red-500/50 bg-red-500/5" : "border-border"}`}
+                    style={{ borderLeftWidth: 4, borderLeftColor: urgent ? "#ef4444" : color }}>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      {urgent && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+                          {t.classroom_urgent_soon}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: color + "22", color }}>
+                        {t[`calendar_type_${ev.type}` as keyof typeof t] as string}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold">{ev.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {displayDate}{displayTime ? ` · ${displayTime}` : ""}
+                    </p>
+                    {ev.description && <p className="text-xs text-muted-foreground mt-1">{ev.description}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* View toggle */}
         <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
