@@ -17,38 +17,38 @@ function SignatureBg() {
         {/* Khatam grid – gold outer, cyan inner */}
         <pattern id="hp-khatam" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
           <g fill="none" strokeLinecap="round">
-            <path d="M60 4 L116 60 L60 116 L4 60 Z"  stroke="#d4a843" strokeWidth="0.9" opacity="0.13"/>
-            <path d="M60 32 L88 60 L60 88 L32 60 Z"  stroke="#00b8d4" strokeWidth="0.6" opacity="0.09"/>
-            <line x1="60" y1="4"   x2="60" y2="32"  stroke="#d4a843" strokeWidth="0.4" opacity="0.08"/>
-            <line x1="116" y1="60" x2="88" y2="60"  stroke="#d4a843" strokeWidth="0.4" opacity="0.08"/>
-            <line x1="60" y1="116" x2="60" y2="88"  stroke="#d4a843" strokeWidth="0.4" opacity="0.08"/>
-            <line x1="4"  y1="60"  x2="32" y2="60"  stroke="#d4a843" strokeWidth="0.4" opacity="0.08"/>
-            <line x1="60" y1="4"   x2="88" y2="32"  stroke="#00b8d4" strokeWidth="0.3" opacity="0.06"/>
-            <line x1="116" y1="60" x2="88" y2="88"  stroke="#00b8d4" strokeWidth="0.3" opacity="0.06"/>
-            <line x1="60" y1="116" x2="32" y2="88"  stroke="#00b8d4" strokeWidth="0.3" opacity="0.06"/>
-            <line x1="4"  y1="60"  x2="32" y2="32"  stroke="#00b8d4" strokeWidth="0.3" opacity="0.06"/>
-            <circle cx="0"   cy="0"   r="1.5" fill="#d4a843" opacity="0.35"/>
-            <circle cx="120" cy="0"   r="1.5" fill="#00b8d4" opacity="0.3"/>
-            <circle cx="0"   cy="120" r="1.5" fill="#00b8d4" opacity="0.3"/>
-            <circle cx="120" cy="120" r="1.5" fill="#d4a843" opacity="0.35"/>
+            <path d="M60 4 L116 60 L60 116 L4 60 Z"  stroke="#d4a843" strokeWidth="3" opacity="0.13"/>
+            <path d="M60 32 L88 60 L60 88 L32 60 Z"  stroke="#00b8d4" strokeWidth="3" opacity="0.09"/>
+            <line x1="60" y1="4"   x2="60" y2="32"  stroke="#d4a843" strokeWidth="3" opacity="0.08"/>
+            <line x1="116" y1="60" x2="88" y2="60"  stroke="#d4a843" strokeWidth="3" opacity="0.08"/>
+            <line x1="60" y1="116" x2="60" y2="88"  stroke="#d4a843" strokeWidth="3" opacity="0.08"/>
+            <line x1="4"  y1="60"  x2="32" y2="60"  stroke="#d4a843" strokeWidth="3" opacity="0.08"/>
+            <line x1="60" y1="4"   x2="88" y2="32"  stroke="#00b8d4" strokeWidth="3" opacity="0.06"/>
+            <line x1="116" y1="60" x2="88" y2="88"  stroke="#00b8d4" strokeWidth="3" opacity="0.06"/>
+            <line x1="60" y1="116" x2="32" y2="88"  stroke="#00b8d4" strokeWidth="3" opacity="0.06"/>
+            <line x1="4"  y1="60"  x2="32" y2="32"  stroke="#00b8d4" strokeWidth="3" opacity="0.06"/>
+            <circle cx="0"   cy="0"   r="2.5" fill="#d4a843" opacity="0.35"/>
+            <circle cx="120" cy="0"   r="2.5" fill="#00b8d4" opacity="0.3"/>
+            <circle cx="0"   cy="120" r="2.5" fill="#00b8d4" opacity="0.3"/>
+            <circle cx="120" cy="120" r="2.5" fill="#d4a843" opacity="0.35"/>
           </g>
         </pattern>
 
         {/* Herbaceous vines – deep blue */}
         <pattern id="hp-vine" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
           <g fill="none" stroke="#1a3a6e" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M0,120 C30,95 90,30 120,0"        strokeWidth="0.8" opacity="0.07"/>
-            <path d="M120,240 C150,215 210,150 240,120"  strokeWidth="0.8" opacity="0.07"/>
-            <path d="M0,0 C30,25 95,90 120,120"          strokeWidth="0.55" opacity="0.04"/>
-            <path d="M120,120 C150,145 205,210 240,240"   strokeWidth="0.55" opacity="0.04"/>
-            <path d="M58,62 C48,52 42,56 35,46"    strokeWidth="0.55" opacity="0.06"/>
+            <path d="M0,120 C30,95 90,30 120,0"        strokeWidth="3" opacity="0.07"/>
+            <path d="M120,240 C150,215 210,150 240,120"  strokeWidth="3" opacity="0.07"/>
+            <path d="M0,0 C30,25 95,90 120,120"          strokeWidth="3" opacity="0.04"/>
+            <path d="M120,120 C150,145 205,210 240,240"   strokeWidth="3" opacity="0.04"/>
+            <path d="M58,62 C48,52 42,56 35,46"    strokeWidth="3" opacity="0.06"/>
             <path d="M35,46 C29,38 38,34 35,46"    fill="#1a3a6e" strokeWidth="0" opacity="0.06"/>
             <path d="M35,46 C27,42 34,52 35,46"    fill="#1a3a6e" strokeWidth="0" opacity="0.06"/>
-            <path d="M84,37 C91,26 100,29 107,20"  strokeWidth="0.55" opacity="0.06"/>
+            <path d="M84,37 C91,26 100,29 107,20"  strokeWidth="3" opacity="0.06"/>
             <path d="M107,20 C113,12 118,19 107,20" fill="#1a3a6e" strokeWidth="0" opacity="0.06"/>
             <path d="M107,20 C100,12 114,13 107,20" fill="#1a3a6e" strokeWidth="0" opacity="0.06"/>
-            <path d="M177,183 C188,172 198,177 205,167" strokeWidth="0.55" opacity="0.06"/>
-            <path d="M143,212 C132,202 127,207 119,199"  strokeWidth="0.55" opacity="0.06"/>
+            <path d="M177,183 C188,172 198,177 205,167" strokeWidth="3" opacity="0.06"/>
+            <path d="M143,212 C132,202 127,207 119,199"  strokeWidth="3" opacity="0.06"/>
           </g>
         </pattern>
       </defs>
@@ -102,105 +102,6 @@ function StarEmblem() {
   );
 }
 
-// ── Mosque illustration ───────────────────────────────────────────────────
-function MosqueSilhouette() {
-  return (
-    <svg
-      viewBox="0 0 400 200"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-label="Mosque illustration"
-      role="img"
-      className="w-full max-w-[320px]"
-    >
-      {/* Ground */}
-      <line x1="10" y1="192" x2="390" y2="192" stroke="#1a3a6e" strokeWidth="1.5" opacity="0.35"/>
-
-      {/* ── Left minaret ── */}
-      <rect x="22" y="148" width="26" height="44" stroke="#1a3a6e" strokeWidth="1.1"/>
-      <rect x="26" y="50" width="18" height="98" stroke="#1a3a6e" strokeWidth="0.9"/>
-      <path d="M19,146 L19,140 L57,140 L57,146" stroke="#1a3a6e" strokeWidth="0.8"/>
-      <line x1="19" y1="146" x2="57" y2="146" stroke="#1a3a6e" strokeWidth="0.8"/>
-      <line x1="26" y1="98"  x2="44" y2="98"  stroke="#1a3a6e" strokeWidth="0.5" strokeDasharray="2,3"/>
-      {/* Cap */}
-      <path d="M26,50 L35,14 L44,50" stroke="#d4a843" strokeWidth="1.1"/>
-      {/* Crescent */}
-      <path d="M31,11 A5,5 0 0,1 39,11 A4,4 0 0,0 31,11" stroke="#d4a843" strokeWidth="1"/>
-
-      {/* ── Right minaret ── */}
-      <rect x="352" y="148" width="26" height="44" stroke="#1a3a6e" strokeWidth="1.1"/>
-      <rect x="356" y="50" width="18" height="98" stroke="#1a3a6e" strokeWidth="0.9"/>
-      <path d="M343,146 L343,140 L381,140 L381,146" stroke="#1a3a6e" strokeWidth="0.8"/>
-      <line x1="343" y1="146" x2="381" y2="146" stroke="#1a3a6e" strokeWidth="0.8"/>
-      <line x1="356" y1="98"  x2="374" y2="98"  stroke="#1a3a6e" strokeWidth="0.5" strokeDasharray="2,3"/>
-      <path d="M356,50 L365,14 L374,50" stroke="#d4a843" strokeWidth="1.1"/>
-      <path d="M361,11 A5,5 0 0,1 369,11 A4,4 0 0,0 361,11" stroke="#d4a843" strokeWidth="1"/>
-
-      {/* ── Main building ── */}
-      <rect x="58" y="162" width="284" height="30" stroke="#1a3a6e" strokeWidth="1.2"/>
-      <rect x="64" y="155" width="272" height="8"  stroke="#1a3a6e" strokeWidth="0.8"/>
-
-      {/* ── Left small dome ── */}
-      <path d="M70,155 C70,128 86,114 106,114 C126,114 142,128 142,155"
-        stroke="#d4a843" strokeWidth="1"/>
-      <line x1="106" y1="114" x2="106" y2="104" stroke="#d4a843" strokeWidth="0.8"/>
-      <circle cx="106" cy="102" r="2.5" stroke="#d4a843" strokeWidth="0.8"/>
-      {/* Window inside small dome */}
-      <path d="M94,155 L94,141 C94,134 106,129 106,129 C106,129 118,134 118,141 L118,155"
-        stroke="#00b8d4" strokeWidth="0.8"/>
-
-      {/* ── Right small dome ── */}
-      <path d="M258,155 C258,128 274,114 294,114 C314,114 330,128 330,155"
-        stroke="#d4a843" strokeWidth="1"/>
-      <line x1="294" y1="114" x2="294" y2="104" stroke="#d4a843" strokeWidth="0.8"/>
-      <circle cx="294" cy="102" r="2.5" stroke="#d4a843" strokeWidth="0.8"/>
-      <path d="M282,155 L282,141 C282,134 294,129 294,129 C294,129 306,134 306,141 L306,155"
-        stroke="#00b8d4" strokeWidth="0.8"/>
-
-      {/* ── Central main dome ── */}
-      {/* Drum */}
-      <rect x="146" y="128" width="108" height="27" stroke="#1a3a6e" strokeWidth="1"/>
-      {/* Dome body – onion profile */}
-      <path d="M146,128 C146,98 158,68 200,44 C242,68 254,98 254,128"
-        stroke="#d4a843" strokeWidth="1.3"/>
-      {/* Dome lattice lines */}
-      <path d="M174,108 C182,76 200,54 200,44" stroke="#d4a843" strokeWidth="0.5" strokeDasharray="3,3" opacity="0.5"/>
-      <path d="M226,108 C218,76 200,54 200,44" stroke="#d4a843" strokeWidth="0.5" strokeDasharray="3,3" opacity="0.5"/>
-      {/* Finial */}
-      <line x1="200" y1="44" x2="200" y2="30" stroke="#d4a843" strokeWidth="1"/>
-      <circle cx="200" cy="28" r="3"           stroke="#d4a843" strokeWidth="0.9"/>
-      {/* Crescent */}
-      <path d="M196,25 A5,5 0 0,1 204,25 A4,4 0 0,0 196,25" stroke="#d4a843" strokeWidth="1.1"/>
-      {/* Drum windows */}
-      <path d="M156,155 L156,141 C156,136 162,132 162,132 C162,132 168,136 168,141 L168,155"
-        stroke="#00b8d4" strokeWidth="0.75"/>
-      <path d="M232,155 L232,141 C232,136 238,132 238,132 C238,132 244,136 244,141 L244,155"
-        stroke="#00b8d4" strokeWidth="0.75"/>
-
-      {/* ── Main entrance arch ── */}
-      <path d="M179,192 L179,168 C179,151 200,143 200,143 C200,143 221,151 221,168 L221,192"
-        stroke="#00b8d4" strokeWidth="1.1"/>
-
-      {/* ── Wing windows ── */}
-      <path d="M72,192 L72,177 C72,170 79,165 79,165 C79,165 86,170 86,177 L86,192"
-        stroke="#00b8d4" strokeWidth="0.75"/>
-      <path d="M100,192 L100,177 C100,170 107,165 107,165 C107,165 114,170 114,177 L114,192"
-        stroke="#00b8d4" strokeWidth="0.75"/>
-      <path d="M286,192 L286,177 C286,170 293,165 293,165 C293,165 300,170 300,177 L300,192"
-        stroke="#00b8d4" strokeWidth="0.75"/>
-      <path d="M314,192 L314,177 C314,170 321,165 321,165 C321,165 328,170 328,177 L328,192"
-        stroke="#00b8d4" strokeWidth="0.75"/>
-
-      {/* Decorative merlons */}
-      <path d="M64,162 L76,162 L76,155 L88,155 L88,162 L100,162"
-        stroke="#1a3a6e" strokeWidth="0.7"/>
-      <path d="M300,162 L312,162 L312,155 L324,155 L324,162 L336,162"
-        stroke="#1a3a6e" strokeWidth="0.7"/>
-    </svg>
-  );
-}
-
 // ── Globe icon ────────────────────────────────────────────────────────────
 function GlobeIcon() {
   return (
@@ -247,6 +148,29 @@ export default function HomePage() {
       className="min-h-dvh flex flex-col relative overflow-hidden"
       style={{ background: "linear-gradient(155deg, #f0f6ff 0%, #ffffff 55%, #f5f8ff 100%)" }}
     >
+      {/* Background photo – left half, 50% opacity */}
+      <div
+        className="absolute inset-y-0 left-0 w-1/2 pointer-events-none"
+        style={{ zIndex: 0 }}
+      >
+        <Image
+          src="/bg-alcazar.png"
+          alt=""
+          fill
+          sizes="50vw"
+          className="object-cover"
+          style={{ opacity: 0.5 }}
+          priority
+        />
+        {/* Fade out toward the right so it blends with white */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(to right, transparent 30%, rgba(248,251,255,1) 100%)",
+          }}
+        />
+      </div>
+
       {/* Background layers */}
       <SignatureBg />
       <CornerFan pos="tl" />
@@ -411,11 +335,6 @@ export default function HomePage() {
           </svg>
           <div className="flex-1 h-px"
             style={{ background: "linear-gradient(to left, transparent, rgba(212,168,67,0.45))" }}/>
-        </div>
-
-        {/* Mosque illustration */}
-        <div className="mb-7 w-full flex justify-center">
-          <MosqueSilhouette />
         </div>
 
         {/* Islamic quote card */}
