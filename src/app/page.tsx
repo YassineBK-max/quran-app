@@ -1,40 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMemorization } from "@/contexts/MemorizationContext";
-import { fetchAllSurahs } from "@/lib/api";
-import { SurahInfo } from "@/lib/types";
+import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/hooks/useT";
 
-function IslamicStarEmblem() {
-  return (
-    <svg
-      width="80"
-      height="80"
-      viewBox="0 0 72 72"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      className="drop-shadow-[0_0_18px_rgba(212,168,67,0.5)]"
-    >
-      {/* Outer glow ring */}
-      <circle cx="36" cy="36" r="34" stroke="#d4a843" strokeWidth="0.6" opacity="0.35" />
-      <circle cx="36" cy="36" r="30" stroke="#d4a843" strokeWidth="0.3" opacity="0.2" />
-      {/* 8-pointed star (khatam) */}
-      <polygon
-        points="36,4 41,23 59,13 49,31 68,36 49,41 59,59 41,49 36,68 31,49 13,59 23,41 4,36 23,31 13,13 31,23"
-        fill="#d4a843"
-        opacity="0.92"
-      />
-      {/* Inner circle detail */}
-      <circle cx="36" cy="36" r="9" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
-      <circle cx="36" cy="36" r="4" fill="rgba(255,255,255,0.2)" />
-    </svg>
-  );
-}
-
-function IslamicGeoBg() {
+// ── Herbaceous-khatam signature background ────────────────────────────────
+function SignatureBg() {
   return (
     <svg
       className="absolute inset-0 w-full h-full pointer-events-none"
@@ -42,304 +15,414 @@ function IslamicGeoBg() {
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <pattern id="islamicGeo" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
-          <g fill="none" stroke="#d4a843" opacity="0.08">
-            {/* Outer diamond */}
-            <path d="M45 3 L87 45 L45 87 L3 45 Z" strokeWidth="1"/>
-            {/* Inner square diamond */}
-            <path d="M45 24 L66 45 L45 66 L24 45 Z" strokeWidth="0.7"/>
-            {/* Spokes */}
-            <line x1="45" y1="3"  x2="45" y2="24" strokeWidth="0.5"/>
-            <line x1="87" y1="45" x2="66" y2="45" strokeWidth="0.5"/>
-            <line x1="45" y1="87" x2="45" y2="66" strokeWidth="0.5"/>
-            <line x1="3"  y1="45" x2="24" y2="45" strokeWidth="0.5"/>
-            {/* Corner dots */}
-            <circle cx="0"  cy="0"  r="1.8" fill="#d4a843" opacity="0.5"/>
-            <circle cx="90" cy="0"  r="1.8" fill="#d4a843" opacity="0.5"/>
-            <circle cx="0"  cy="90" r="1.8" fill="#d4a843" opacity="0.5"/>
-            <circle cx="90" cy="90" r="1.8" fill="#d4a843" opacity="0.5"/>
+        {/* Khatam diamond grid – gold */}
+        <pattern id="hp-khatam" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke="#d4a843" strokeLinecap="round">
+            <path d="M60 4 L116 60 L60 116 L4 60 Z" strokeWidth="0.9" opacity="0.08"/>
+            <path d="M60 32 L88 60 L60 88 L32 60 Z" strokeWidth="0.6" opacity="0.07"/>
+            <line x1="60" y1="4"   x2="60" y2="32"  strokeWidth="0.4" opacity="0.06"/>
+            <line x1="116" y1="60" x2="88" y2="60"  strokeWidth="0.4" opacity="0.06"/>
+            <line x1="60" y1="116" x2="60" y2="88"  strokeWidth="0.4" opacity="0.06"/>
+            <line x1="4"  y1="60"  x2="32" y2="60"  strokeWidth="0.4" opacity="0.06"/>
+            <line x1="60" y1="4"   x2="88" y2="32"  strokeWidth="0.3" opacity="0.04"/>
+            <line x1="116" y1="60" x2="88" y2="88"  strokeWidth="0.3" opacity="0.04"/>
+            <line x1="60" y1="116" x2="32" y2="88"  strokeWidth="0.3" opacity="0.04"/>
+            <line x1="4"  y1="60"  x2="32" y2="32"  strokeWidth="0.3" opacity="0.04"/>
+            <circle cx="0"   cy="0"   r="1.5" fill="#d4a843" opacity="0.28"/>
+            <circle cx="120" cy="0"   r="1.5" fill="#d4a843" opacity="0.28"/>
+            <circle cx="0"   cy="120" r="1.5" fill="#d4a843" opacity="0.28"/>
+            <circle cx="120" cy="120" r="1.5" fill="#d4a843" opacity="0.28"/>
+          </g>
+        </pattern>
+
+        {/* Herbaceous vines – seamless 240×240 diagonal tile */}
+        <pattern id="hp-vine" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke="#3a7a50" strokeLinecap="round" strokeLinejoin="round">
+            {/* Primary diagonal: bottom-left to top-right */}
+            <path d="M0,120 C30,95 90,30 120,0"       strokeWidth="0.9" opacity="0.12"/>
+            <path d="M120,240 C150,215 210,150 240,120" strokeWidth="0.9" opacity="0.12"/>
+            {/* Secondary diagonal (cross): top-left to bottom-right */}
+            <path d="M0,0 C30,25 95,90 120,120"         strokeWidth="0.65" opacity="0.07"/>
+            <path d="M120,120 C150,145 205,210 240,240"  strokeWidth="0.65" opacity="0.07"/>
+            {/* Branch 1 off primary near (58,62) */}
+            <path d="M58,62 C48,52 42,56 35,46"  strokeWidth="0.6" opacity="0.1"/>
+            <path d="M35,46 C29,38 38,34 35,46"  fill="#3a7a50" strokeWidth="0" opacity="0.08"/>
+            <path d="M35,46 C27,42 34,52 35,46"  fill="#3a7a50" strokeWidth="0" opacity="0.08"/>
+            {/* Branch 2 near (84,36) */}
+            <path d="M84,37 C91,26 100,29 107,20" strokeWidth="0.6" opacity="0.1"/>
+            <path d="M107,20 C113,12 118,19 107,20" fill="#3a7a50" strokeWidth="0" opacity="0.08"/>
+            <path d="M107,20 C100,12 114,13 107,20" fill="#3a7a50" strokeWidth="0" opacity="0.08"/>
+            {/* Curl near (46,72) */}
+            <path d="M46,72 C42,64 50,60 46,72" strokeWidth="0.5" opacity="0.08"/>
+            {/* Branch 3 on mirrored stem near (178,182) */}
+            <path d="M177,183 C188,172 198,177 205,167" strokeWidth="0.6" opacity="0.1"/>
+            <path d="M205,167 C211,159 217,165 205,167" fill="#3a7a50" strokeWidth="0" opacity="0.08"/>
+            {/* Branch 4 near (143,212) */}
+            <path d="M143,212 C132,202 127,207 119,199" strokeWidth="0.6" opacity="0.1"/>
+            <path d="M119,199 C111,191 120,187 119,199" fill="#3a7a50" strokeWidth="0" opacity="0.08"/>
           </g>
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill="url(#islamicGeo)" />
+      <rect width="100%" height="100%" fill="url(#hp-khatam)"/>
+      <rect width="100%" height="100%" fill="url(#hp-vine)"/>
     </svg>
   );
 }
 
-function NavCard({
-  href,
-  arabicLabel,
-  subtitle,
-  icon,
-  fullWidth = false,
-}: {
-  href: string;
-  arabicLabel: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  fullWidth?: boolean;
-}) {
+// ── Corner fan medallions ─────────────────────────────────────────────────
+function CornerFan({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
+  const cls = { tl: "top-0 left-0", tr: "top-0 right-0", bl: "bottom-0 left-0", br: "bottom-0 right-0" }[pos];
+  const sx = pos === "tr" || pos === "br" ? -1 : 1;
+  const sy = pos === "bl" || pos === "br" ? -1 : 1;
   return (
-    <Link
-      href={href}
-      className={`${fullWidth ? "col-span-2" : ""} rounded-2xl p-5 flex flex-col items-center gap-2.5 text-white active:scale-[0.97] transition-transform`}
-      style={{
-        background: "rgba(255,255,255,0.07)",
-        backdropFilter: "blur(8px)",
-        border: "1px solid rgba(212,168,67,0.28)",
-      }}
+    <svg
+      className={`absolute ${cls} pointer-events-none`}
+      width="150" height="150"
+      viewBox="0 0 150 150"
+      fill="none"
+      aria-hidden="true"
+      style={{ transform: `scale(${sx},${sy})` }}
     >
-      <div style={{ color: "#d4a843" }}>{icon}</div>
-      <div className="text-center">
-        <p
-          className="text-base font-bold leading-tight"
-          style={{ fontFamily: '"Amiri", serif', color: "#f0d890" }}
-        >
-          {arabicLabel}
-        </p>
-        <p className="text-xs mt-0.5" style={{ color: "rgba(212,235,200,0.75)" }}>
-          {subtitle}
-        </p>
-      </div>
-    </Link>
+      <path d="M0,0 Q150,0 150,150" stroke="#d4a843" strokeWidth="0.8" opacity="0.13"/>
+      <path d="M0,0 Q112,0 112,112" stroke="#d4a843" strokeWidth="0.6" opacity="0.10"/>
+      <path d="M0,0 Q75,0 75,75"   stroke="#d4a843" strokeWidth="0.5" opacity="0.08"/>
+      <line x1="0" y1="0" x2="75"  y2="75"  stroke="#d4a843" strokeWidth="0.4" opacity="0.09"/>
+      <line x1="0" y1="0" x2="105" y2="42"  stroke="#d4a843" strokeWidth="0.4" opacity="0.07"/>
+      <line x1="0" y1="0" x2="42"  y2="105" stroke="#d4a843" strokeWidth="0.4" opacity="0.07"/>
+      <polygon points="14,3 17,10 24,10 18,15 20,22 14,17 8,22 10,15 4,10 11,10"
+        fill="#d4a843" opacity="0.20"/>
+      <path d="M38,0 C30,20 8,28 0,42 C14,24 28,12 38,0" fill="#3a7a50" opacity="0.11"/>
+      <path d="M0,38 C20,30 28,8 42,0 C24,14 12,28 0,38" fill="#3a7a50" opacity="0.07"/>
+    </svg>
   );
 }
 
-export default function CoverPage() {
-  const { user, logout } = useAuth();
-  const { getProgress, getMemorizedCount } = useMemorization();
+// ── 8-Point star emblem ───────────────────────────────────────────────────
+function StarEmblem() {
+  return (
+    <svg
+      width="62" height="62" viewBox="0 0 72 72" fill="none" aria-hidden="true"
+      className="drop-shadow-[0_0_22px_rgba(212,168,67,0.38)]"
+    >
+      <circle cx="36" cy="36" r="33" stroke="#d4a843" strokeWidth="0.5" opacity="0.28"/>
+      <circle cx="36" cy="36" r="27" stroke="#d4a843" strokeWidth="0.35" opacity="0.18"/>
+      <polygon
+        points="36,6 40,22 56,14 48,30 66,36 48,42 56,58 40,50 36,66 32,50 16,58 24,42 6,36 24,30 16,14 32,22"
+        fill="#d4a843" opacity="0.88"
+      />
+      <circle cx="36" cy="36" r="8" fill="none" stroke="rgba(255,255,255,0.17)" strokeWidth="1"/>
+      <circle cx="36" cy="36" r="3" fill="rgba(255,255,255,0.14)"/>
+    </svg>
+  );
+}
+
+// ── Globe icon ────────────────────────────────────────────────────────────
+function GlobeIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M2 12h20"/>
+      <path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>
+    </svg>
+  );
+}
+
+// ── 8-point mini star ─────────────────────────────────────────────────────
+function MiniStar() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 10 10" fill="#0c1a0e" aria-hidden="true">
+      <polygon points="5,0 6,4 10,5 6,6 5,10 4,6 0,5 4,4"/>
+    </svg>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────
+export default function HomePage() {
+  const { user } = useAuth();
+  const { settings, updateSettings } = useSettings();
   const t = useT();
-  const [surahs, setSurahs] = useState<SurahInfo[]>([]);
+  const router = useRouter();
+  const isAr = settings.language === "ar";
 
   useEffect(() => {
-    fetchAllSurahs().then(setSurahs).catch(() => {});
-  }, []);
+    if (user) router.replace("/surahs");
+  }, [user, router]);
 
-  const inProgress = surahs.filter((s) => {
-    const count = getMemorizedCount(s.number);
-    const progress = getProgress(s.number, s.numberOfAyahs);
-    return count > 0 && progress < 100;
-  });
+  if (user) return null;
 
-  const BookIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-    </svg>
-  );
-  const ClassroomIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-  const LoginIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-      <polyline points="10 17 15 12 10 7" />
-      <line x1="15" y1="12" x2="3" y2="12" />
-    </svg>
-  );
-  const GearIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
+  const toggleLang = () => updateSettings({ language: isAr ? "en" : "ar" });
 
   return (
     <div
-      className="min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden"
-      style={{ background: "linear-gradient(160deg, #0c2016 0%, #1a3a26 50%, #0e2a1a 100%)" }}
+      className="min-h-dvh flex flex-col relative overflow-hidden"
+      style={{ background: "linear-gradient(155deg, #081610 0%, #0e2418 45%, #0c2016 100%)" }}
     >
-      {/* Islamic geometric background pattern */}
-      <IslamicGeoBg />
+      {/* Background layers */}
+      <SignatureBg />
+      <CornerFan pos="tl" />
+      <CornerFan pos="tr" />
+      <CornerFan pos="bl" />
+      <CornerFan pos="br" />
 
-      {/* Ambient glow accents */}
+      {/* Radial ambient glow */}
       <div
-        className="absolute top-[-100px] right-[-80px] w-72 h-72 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(212,168,67,0.06) 0%, transparent 70%)" }}
-      />
-      <div
-        className="absolute bottom-[-80px] left-[-60px] w-56 h-56 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(74,170,116,0.08) 0%, transparent 70%)" }}
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 65% 55% at 50% 38%, rgba(212,168,67,0.035) 0%, transparent 70%)",
+        }}
       />
 
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 py-4 z-10">
-        {/* Gold decorative top accent */}
+      {/* ── Top bar ───────────────────────────────────────────────── */}
+      <header
+        className="relative z-20 flex items-center justify-between px-5 py-3 gap-3"
+        style={{ borderBottom: "1px solid rgba(212,168,67,0.1)" }}
+      >
+        {/* Top gold accent line */}
         <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(212,168,67,0.5), transparent)" }}
+          className="absolute top-0 inset-x-0 h-px"
+          style={{
+            background: "linear-gradient(90deg, transparent, rgba(212,168,67,0.48), transparent)",
+          }}
         />
-        <div />
-        <div className="flex items-center gap-2">
-          {user ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: "rgba(212,235,200,0.85)", fontFamily: '"Cairo", sans-serif' }}>
-                {user.displayName ?? user.name}
-              </span>
-              <button
-                onClick={logout}
-                className="text-xs px-3 py-1.5 rounded-lg transition-colors min-h-[36px]"
-                style={{
-                  color: "rgba(212,168,67,0.9)",
-                  border: "1px solid rgba(212,168,67,0.3)",
-                  fontFamily: '"Cairo", sans-serif',
-                }}
-              >
-                {t.signout}
-              </button>
-            </div>
-          ) : (
-            <Link
-              href="/login"
-              className="text-xs px-3 py-1.5 rounded-lg transition-colors min-h-[36px] flex items-center"
-              style={{
-                color: "rgba(212,168,67,0.9)",
-                border: "1px solid rgba(212,168,67,0.3)",
-                fontFamily: '"Cairo", sans-serif',
-              }}
-            >
-              {t.signin}
-            </Link>
-          )}
-        </div>
-      </div>
 
-      {/* Main content */}
-      <div className="relative z-10 w-full max-w-sm">
-
-        {/* Islamic emblem + title */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-5">
-            <IslamicStarEmblem />
-          </div>
-
-          {/* Gold ornamental line */}
-          <div className="flex items-center gap-3 mb-4 px-4">
-            <div className="flex-1 h-px" style={{ background: "linear-gradient(to right, transparent, rgba(212,168,67,0.5))" }} />
-            <span style={{ color: "rgba(212,168,67,0.7)", fontSize: "0.6rem", letterSpacing: "0.2em" }}>✦</span>
-            <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(212,168,67,0.5))" }} />
-          </div>
-
-          <h1
-            className="text-5xl font-bold mb-2 leading-tight"
-            style={{ fontFamily: '"Amiri", serif', color: "#f0ead0" }}
-          >
-            القرآن الكريم
-          </h1>
-          <p
-            className="text-xs tracking-[0.22em] uppercase mb-4"
-            style={{ color: "rgba(212,168,67,0.7)", fontFamily: '"Cairo", sans-serif' }}
-          >
-            The Noble Quran
-          </p>
-          <p
-            className="text-xl"
-            style={{ fontFamily: '"Amiri", serif', color: "rgba(220,210,180,0.85)", direction: "rtl" }}
-          >
-            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-          </p>
-        </div>
-
-        {/* In-progress surahs */}
-        {inProgress.length > 0 && (
+        {/* Left: logo space + app name placeholder */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* Logo placeholder – replace with <Image> */}
           <div
-            className="mb-4 rounded-2xl p-4"
+            className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
             style={{
-              background: "rgba(255,255,255,0.06)",
-              backdropFilter: "blur(8px)",
-              border: "1px solid rgba(212,168,67,0.2)",
+              border: "1.5px dashed rgba(212,168,67,0.32)",
+              background: "rgba(212,168,67,0.04)",
             }}
           >
-            <div className="islamic-divider mb-3" style={{ color: "rgba(212,168,67,0.7)" }}>
-              <span>{t.home_in_progress}</span>
-            </div>
-            <div className="space-y-2">
-              {inProgress.slice(0, 3).map((s) => {
-                const progress = getProgress(s.number, s.numberOfAyahs);
-                return (
-                  <Link
-                    key={s.number}
-                    href={`/surah/${s.number}`}
-                    className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-white/5"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-white text-xs font-medium truncate" style={{ fontFamily: '"Cairo", sans-serif' }}>
-                          {s.englishName}
-                        </p>
-                        <p
-                          className="text-[10px] font-semibold shrink-0 ml-2"
-                          style={{ color: "#d4a843" }}
-                        >
-                          {progress}%
-                        </p>
-                      </div>
-                      <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.12)" }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${progress}%`, background: "linear-gradient(90deg, #c8932a, #f0d060)" }}
-                        />
-                      </div>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d4a843" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-60"><path d="m9 18 6-6-6-6"/></svg>
-                  </Link>
-                );
-              })}
-            </div>
+            <span
+              className="text-[6.5px] font-mono tracking-tighter leading-none"
+              style={{ color: "rgba(212,168,67,0.42)" }}
+            >
+              LOGO
+            </span>
           </div>
-        )}
 
-        {/* Navigation cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <NavCard
-            href="/surahs"
-            arabicLabel="القرآن"
-            subtitle={t.cover_read_listen}
-            icon={<BookIcon />}
-            fullWidth
+          {/* App name placeholder – replace with your name */}
+          <span
+            className="hidden sm:block text-[11px] font-mono tracking-widest"
+            style={{
+              color: "rgba(212,168,67,0.36)",
+              border: "1px dashed rgba(212,168,67,0.22)",
+              borderRadius: "2px",
+              padding: "2px 8px",
+            }}
+          >
+            APP NAME
+          </span>
+        </div>
+
+        {/* Right: controls */}
+        <nav className="flex items-center gap-1.5">
+          {/* Language toggle */}
+          <button
+            onClick={toggleLang}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg min-h-[34px] transition-colors"
+            style={{
+              color: "rgba(212,168,67,0.72)",
+              border: "1px solid rgba(212,168,67,0.18)",
+              background: "rgba(212,168,67,0.03)",
+              fontFamily: '"Cairo", sans-serif',
+            }}
+          >
+            <GlobeIcon />
+            <span>{isAr ? "English" : "العربية"}</span>
+          </button>
+
+          {/* Contact Us – hidden on mobile */}
+          <a
+            href="#contact"
+            className="hidden sm:flex items-center text-xs px-3 py-1.5 rounded-lg min-h-[34px] transition-colors"
+            style={{ color: "rgba(212,235,200,0.55)", fontFamily: '"Cairo", sans-serif' }}
+          >
+            {isAr ? "اتصل بنا" : "Contact Us"}
+          </a>
+
+          {/* Sign In */}
+          <Link
+            href="/login"
+            className="text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] flex items-center font-medium transition-colors hover:bg-white/5"
+            style={{
+              color: "rgba(212,168,67,0.85)",
+              border: "1px solid rgba(212,168,67,0.28)",
+              background: "rgba(212,168,67,0.04)",
+              fontFamily: '"Cairo", sans-serif',
+            }}
+          >
+            {t.signin}
+          </Link>
+
+          {/* Sign Up – solid gold box */}
+          <Link
+            href="/signup"
+            className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] font-semibold transition-opacity hover:opacity-90 active:scale-[0.98]"
+            style={{
+              background: "linear-gradient(135deg, #b07a20 0%, #d4a843 55%, #e8c04a 100%)",
+              color: "#091510",
+              fontFamily: '"Cairo", sans-serif',
+              boxShadow:
+                "0 1px 10px rgba(212,168,67,0.25), inset 0 1px 0 rgba(255,255,255,0.14)",
+            }}
+          >
+            <MiniStar />
+            {t.signup}
+          </Link>
+        </nav>
+      </header>
+
+      {/* ── Hero ──────────────────────────────────────────────────── */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-14 text-center">
+
+        {/* 8-point star emblem */}
+        <div className="mb-6">
+          <StarEmblem />
+        </div>
+
+        {/* Arabic title */}
+        <h1
+          className="text-5xl sm:text-6xl font-bold leading-tight mb-1"
+          style={{ fontFamily: '"Amiri", serif', color: "#f0ead0" }}
+        >
+          القرآن الكريم
+        </h1>
+        <p
+          className="text-[10px] tracking-[0.32em] uppercase mb-7"
+          style={{ color: "rgba(212,168,67,0.58)", fontFamily: '"Cairo", sans-serif' }}
+        >
+          The Noble Quran
+        </p>
+
+        {/* Gold ornamental rule */}
+        <div className="flex items-center gap-3 mb-9 w-full max-w-[280px]">
+          <div
+            className="flex-1 h-px"
+            style={{
+              background: "linear-gradient(to right, transparent, rgba(212,168,67,0.42))",
+            }}
           />
-
-          {user ? (
-            <>
-              <NavCard
-                href={user.role === "admin" ? "/admin" : "/classroom"}
-                arabicLabel="الفصل"
-                subtitle={user.role === "admin" ? t.cover_admin_panel : t.cover_classroom}
-                icon={<ClassroomIcon />}
-              />
-              <NavCard
-                href="/settings"
-                arabicLabel="الإعدادات"
-                subtitle={t.nav_settings}
-                icon={<GearIcon />}
-              />
-            </>
-          ) : (
-            <>
-              <NavCard
-                href="/login"
-                arabicLabel="تسجيل الدخول"
-                subtitle={t.signin}
-                icon={<LoginIcon />}
-              />
-              <NavCard
-                href="/settings"
-                arabicLabel="الإعدادات"
-                subtitle={t.nav_settings}
-                icon={<GearIcon />}
-              />
-            </>
-          )}
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="#d4a843" opacity="0.6" aria-hidden="true">
+            <polygon points="5,0 6,4 10,5 6,6 5,10 4,6 0,5 4,4"/>
+          </svg>
+          <div
+            className="flex-1 h-px"
+            style={{
+              background: "linear-gradient(to left, transparent, rgba(212,168,67,0.42))",
+            }}
+          />
         </div>
 
-        {/* Bottom ornament */}
-        <div className="text-center mt-8">
-          <p style={{ color: "rgba(212,168,67,0.35)", fontSize: "1.4rem" }}>﷽</p>
+        {/* Islamic quote card */}
+        <div
+          className="w-full max-w-sm mb-10 rounded-2xl p-5"
+          style={{
+            background: "rgba(255,255,255,0.035)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            border: "1px solid rgba(212,168,67,0.15)",
+            borderLeftWidth: isAr ? 1 : 4,
+            borderRightWidth: isAr ? 4 : 1,
+            borderLeftColor: isAr
+              ? "rgba(212,168,67,0.15)"
+              : "rgba(212,168,67,0.75)",
+            borderRightColor: isAr
+              ? "rgba(212,168,67,0.75)"
+              : "rgba(212,168,67,0.15)",
+          }}
+        >
+          <p
+            className="text-xl mb-3 leading-loose"
+            style={{
+              fontFamily: '"Amiri", serif',
+              color: "rgba(240,232,208,0.9)",
+              direction: "rtl",
+              textAlign: "right",
+            }}
+          >
+            إِنَّا أَنزَلْنَاهُ قُرْآنًا عَرَبِيًّا لَّعَلَّكُمْ تَعْقِلُونَ
+          </p>
+          <p
+            className="text-xs italic mb-2 leading-relaxed"
+            style={{
+              color: "rgba(210,200,175,0.62)",
+              fontFamily: '"Cairo", sans-serif',
+              textAlign: isAr ? "right" : "left",
+              direction: isAr ? "rtl" : "ltr",
+            }}
+          >
+            &ldquo;Indeed, We revealed it as an Arabic Quran so that you may understand.&rdquo;
+          </p>
+          <p
+            className="text-[10px] tracking-widest"
+            style={{
+              color: "rgba(212,168,67,0.48)",
+              fontFamily: '"Cairo", sans-serif',
+              textAlign: isAr ? "right" : "left",
+            }}
+          >
+            — Surah Yusuf 12:2
+          </p>
         </div>
-      </div>
+
+        {/* Placeholder labels – replace with real content */}
+        <div className="flex flex-col items-center gap-2.5">
+          <span
+            className="text-sm font-mono tracking-widest"
+            style={{
+              color: "rgba(212,168,67,0.35)",
+              border: "1px dashed rgba(212,168,67,0.2)",
+              borderRadius: "3px",
+              padding: "4px 16px",
+            }}
+          >
+            [ School / Institution Name ]
+          </span>
+          <span
+            className="text-xs font-mono tracking-wider"
+            style={{
+              color: "rgba(212,168,67,0.24)",
+              border: "1px dashed rgba(212,168,67,0.14)",
+              borderRadius: "3px",
+              padding: "3px 14px",
+            }}
+          >
+            [ Your tagline or description ]
+          </span>
+        </div>
+      </main>
+
+      {/* ── Footer ────────────────────────────────────────────────── */}
+      <footer className="relative z-10 flex items-center justify-center pb-5 gap-5">
+        <div
+          className="h-px w-20"
+          style={{
+            background: "linear-gradient(to right, transparent, rgba(212,168,67,0.18))",
+          }}
+        />
+        <span
+          className="text-[9px] font-mono tracking-widest"
+          style={{
+            color: "rgba(212,168,67,0.2)",
+            border: "1px dashed rgba(212,168,67,0.13)",
+            borderRadius: "2px",
+            padding: "2px 8px",
+          }}
+        >
+          © YEAR — YOUR ORGANIZATION
+        </span>
+        <div
+          className="h-px w-20"
+          style={{
+            background: "linear-gradient(to left, transparent, rgba(212,168,67,0.18))",
+          }}
+        />
+      </footer>
     </div>
   );
 }
