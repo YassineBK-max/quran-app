@@ -19,17 +19,17 @@
 }
 
 .dark {
-  --background: #0c2016;
-  --foreground: #e0d8cc;
-  --primary: #4aaa74;
-  --primary-foreground: #0c2016;
-  --card: #12281a;
-  --card-foreground: #e0d8cc;
-  --border: #2a4432;
-  --muted: #091a10;
-  --muted-foreground: #7aaa8a;
+  --background: #040e1e;
+  --foreground: #d8e8f4;
+  --primary: #00b8d4;
+  --primary-foreground: #040e1e;
+  --card: #071428;
+  --card-foreground: #d8e8f4;
+  --border: #162040;
+  --muted: #050d1c;
+  --muted-foreground: #5a90a8;
   --gold: #d4a843;
-  --gold-foreground: #0c2016;
+  --gold-foreground: #040e1e;
 }
 
 /* ── Futuristic theme ── */
