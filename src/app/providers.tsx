@@ -53,7 +53,7 @@ function ActivityTracker() {
 }
 
 const STANDALONE_PAGES = ["/", "/login", "/signup"];
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/"];
 
 // Pages where BottomNav/AudioPlayer are hidden
 function Shell({ children }: { children: ReactNode }) {
