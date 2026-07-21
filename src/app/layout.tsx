@@ -10,7 +10,7 @@ const geistSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "القرآن الكريم",
+  title: "The Quran Academy",
   description: "Read, listen, memorize and study the Holy Quran",
 };
 

@@ -1,7 +1,6 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/hooks/useT";
@@ -139,17 +138,10 @@ function MiniStar() {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { settings, updateSettings } = useSettings();
   const t = useT();
-  const router = useRouter();
   const isAr = settings.language === "ar";
-
-  useEffect(() => {
-    if (user) router.replace("/surahs");
-  }, [user, router]);
-
-  if (user) return null;
 
   const toggleLang = () => updateSettings({ language: isAr ? "en" : "ar" });
 
@@ -187,35 +179,20 @@ export default function HomePage() {
           }}
         />
 
-        {/* Left: logo space + app name placeholder */}
+        {/* Left: logo + app name */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* Logo placeholder – replace with <Image> */}
-          <div
-            className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-            style={{
-              border: "1.5px dashed rgba(212,168,67,0.32)",
-              background: "rgba(212,168,67,0.04)",
-            }}
-          >
-            <span
-              className="text-[6.5px] font-mono tracking-tighter leading-none"
-              style={{ color: "rgba(212,168,67,0.42)" }}
-            >
-              LOGO
-            </span>
-          </div>
-
-          {/* App name placeholder – replace with your name */}
+          <Image
+            src="/logo-qapp.png"
+            alt="The Quran Academy"
+            width={32}
+            height={32}
+            className="rounded-md"
+          />
           <span
-            className="hidden sm:block text-[11px] font-mono tracking-widest"
-            style={{
-              color: "rgba(212,168,67,0.36)",
-              border: "1px dashed rgba(212,168,67,0.22)",
-              borderRadius: "2px",
-              padding: "2px 8px",
-            }}
+            className="hidden sm:block text-sm font-semibold"
+            style={{ color: "#f0d890", fontFamily: '"Cairo", sans-serif' }}
           >
-            APP NAME
+            The Quran Academy
           </span>
         </div>
 
@@ -236,44 +213,65 @@ export default function HomePage() {
             <span>{isAr ? "English" : "العربية"}</span>
           </button>
 
-          {/* Contact Us – hidden on mobile */}
-          <a
-            href="#contact"
-            className="hidden sm:flex items-center text-xs px-3 py-1.5 rounded-lg min-h-[34px] transition-colors"
-            style={{ color: "rgba(212,235,200,0.55)", fontFamily: '"Cairo", sans-serif' }}
-          >
-            {isAr ? "اتصل بنا" : "Contact Us"}
-          </a>
-
-          {/* Sign In */}
-          <Link
-            href="/login"
-            className="text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] flex items-center font-medium transition-colors hover:bg-white/5"
-            style={{
-              color: "rgba(212,168,67,0.85)",
-              border: "1px solid rgba(212,168,67,0.28)",
-              background: "rgba(212,168,67,0.04)",
-              fontFamily: '"Cairo", sans-serif',
-            }}
-          >
-            {t.signin}
-          </Link>
-
-          {/* Sign Up – solid gold box */}
-          <Link
-            href="/signup"
-            className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] font-semibold transition-opacity hover:opacity-90 active:scale-[0.98]"
-            style={{
-              background: "linear-gradient(135deg, #b07a20 0%, #d4a843 55%, #e8c04a 100%)",
-              color: "#091510",
-              fontFamily: '"Cairo", sans-serif',
-              boxShadow:
-                "0 1px 10px rgba(212,168,67,0.25), inset 0 1px 0 rgba(255,255,255,0.14)",
-            }}
-          >
-            <MiniStar />
-            {t.signup}
-          </Link>
+          {user ? (
+            <>
+              {/* Logged-in: user name + sign out */}
+              <span
+                className="hidden sm:block text-xs"
+                style={{ color: "rgba(212,235,200,0.65)", fontFamily: '"Cairo", sans-serif' }}
+              >
+                {user.displayName ?? user.name}
+              </span>
+              <button
+                onClick={logout}
+                className="text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] flex items-center font-medium transition-colors hover:bg-white/5"
+                style={{
+                  color: "rgba(212,168,67,0.85)",
+                  border: "1px solid rgba(212,168,67,0.28)",
+                  background: "rgba(212,168,67,0.04)",
+                  fontFamily: '"Cairo", sans-serif',
+                }}
+              >
+                {t.signout}
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Logged-out: Contact Us + Sign In + Sign Up */}
+              <a
+                href="#contact"
+                className="hidden sm:flex items-center text-xs px-3 py-1.5 rounded-lg min-h-[34px] transition-colors"
+                style={{ color: "rgba(212,235,200,0.55)", fontFamily: '"Cairo", sans-serif' }}
+              >
+                {isAr ? "اتصل بنا" : "Contact Us"}
+              </a>
+              <Link
+                href="/login"
+                className="text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] flex items-center font-medium transition-colors hover:bg-white/5"
+                style={{
+                  color: "rgba(212,168,67,0.85)",
+                  border: "1px solid rgba(212,168,67,0.28)",
+                  background: "rgba(212,168,67,0.04)",
+                  fontFamily: '"Cairo", sans-serif',
+                }}
+              >
+                {t.signin}
+              </Link>
+              <Link
+                href="/signup"
+                className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg min-h-[34px] font-semibold transition-opacity hover:opacity-90 active:scale-[0.98]"
+                style={{
+                  background: "linear-gradient(135deg, #b07a20 0%, #d4a843 55%, #e8c04a 100%)",
+                  color: "#091510",
+                  fontFamily: '"Cairo", sans-serif',
+                  boxShadow: "0 1px 10px rgba(212,168,67,0.25), inset 0 1px 0 rgba(255,255,255,0.14)",
+                }}
+              >
+                <MiniStar />
+                {t.signup}
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 
@@ -370,18 +368,13 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Placeholder labels – replace with real content */}
+        {/* Institution name + tagline placeholder */}
         <div className="flex flex-col items-center gap-2.5">
           <span
-            className="text-sm font-mono tracking-widest"
-            style={{
-              color: "rgba(212,168,67,0.35)",
-              border: "1px dashed rgba(212,168,67,0.2)",
-              borderRadius: "3px",
-              padding: "4px 16px",
-            }}
+            className="text-sm font-semibold tracking-wide"
+            style={{ color: "rgba(212,168,67,0.55)", fontFamily: '"Cairo", sans-serif' }}
           >
-            [ School / Institution Name ]
+            The Quran Academy
           </span>
           <span
             className="text-xs font-mono tracking-wider"
@@ -414,7 +407,7 @@ export default function HomePage() {
             padding: "2px 8px",
           }}
         >
-          © YEAR — YOUR ORGANIZATION
+          © 2025 — The Quran Academy
         </span>
         <div
           className="h-px w-20"
