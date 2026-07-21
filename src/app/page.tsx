@@ -154,7 +154,7 @@ export default function HomePage() {
         style={{ zIndex: 0 }}
       >
         <Image
-          src="/bg-alcazar.png"
+          src="/mosque_bg.png"
           alt=""
           fill
           sizes="50vw"
