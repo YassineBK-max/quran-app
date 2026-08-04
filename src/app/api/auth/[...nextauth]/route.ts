@@ -7,6 +7,10 @@ const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      // Only request minimal scopes
+      authorization: {
+        params: { scope: "openid email profile" },
+      },
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
@@ -14,8 +18,22 @@ const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async redirect({ baseUrl }) {
+    // Validate redirect target — prevent open redirects
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url;
+      } catch {
+        // malformed URL — fall through to safe default
+      }
       return `${baseUrl}/auth/google-callback`;
+    },
+    // Only allow verified Google emails
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") {
+        return Boolean((profile as { email_verified?: boolean })?.email_verified);
+      }
+      return true;
     },
   },
 };

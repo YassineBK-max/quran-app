@@ -69,9 +69,9 @@ function ResetPasswordInner() {
       return;
     }
 
-    // Sync the new password into the localStorage account
+    // Sync the new password into the localStorage account (hashed)
     if (sessionEmail) {
-      updatePassword(sessionEmail, newPassword);
+      await updatePassword(sessionEmail, newPassword);
     }
 
     setPhase("success");

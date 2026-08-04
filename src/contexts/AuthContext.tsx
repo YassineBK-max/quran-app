@@ -1,26 +1,18 @@
 "use client";
 import { createContext, useContext, ReactNode, useCallback, useEffect, useLayoutEffect, useState, useRef } from "react";
 
-// Fires before paint on client, falls back to useEffect on server
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { User, UserRole } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { broadcastUserActivity } from "@/lib/supabase";
+import { hashPassword, verifyPassword, generateId, generateParentCode } from "@/lib/crypto";
 
-const SEEDED_ADMINS = [
-  { email: "kassab.salaheddine@gmail.com", name: "Salah", password: "Academy@2030" },
-  { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine", password: "academy@2030" },
+// Admin emails seeded by role only — no passwords in source code.
+// These accounts have no password; they must log in via Google OAuth.
+const SEEDED_ADMIN_EMAILS: Array<{ email: string; name: string }> = [
+  { email: "kassab.salaheddine@gmail.com", name: "Salah" },
+  { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine" },
 ];
-
-const DEFAULT_TEACHER_CODE = "QURAN_ADMIN_2024";
-
-function genId() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function genParentCode() {
-  return Math.random().toString(36).toUpperCase().slice(2, 10);
-}
 
 interface AuthContextType {
   user: User | null;
@@ -28,9 +20,9 @@ interface AuthContextType {
   isLoaded: boolean;
   teacherCode: string;
   setTeacherCode: (code: string) => void;
-  login: (email: string, password: string) => string | null;
+  login: (email: string, password: string) => Promise<string | null>;
   loginWithEmail: (email: string) => string | null;
-  signup: (name: string, email: string, password: string, role: UserRole, code?: string) => string | null;
+  signup: (name: string, email: string, password: string, role: UserRole, code?: string) => Promise<string | null>;
   signupGoogle: (name: string, email: string, role: UserRole, code?: string) => string | null;
   logout: () => void;
   getUserById: (id: string) => User | undefined;
@@ -38,18 +30,18 @@ interface AuthContextType {
   deleteUser: (id: string) => void;
   linkChildToParent: (studentCode: string) => string | null;
   markEmailVerified: (email: string) => void;
-  updatePassword: (email: string, newPassword: string) => void;
+  updatePassword: (email: string, newPassword: string) => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthContextType>({
   user: null,
   users: [],
   isLoaded: false,
-  teacherCode: DEFAULT_TEACHER_CODE,
+  teacherCode: "",
   setTeacherCode: () => {},
-  login: () => null,
+  login: async () => null,
   loginWithEmail: () => null,
-  signup: () => null,
+  signup: async () => null,
   signupGoogle: () => null,
   logout: () => {},
   getUserById: () => undefined,
@@ -57,7 +49,7 @@ const AuthCtx = createContext<AuthContextType>({
   deleteUser: () => {},
   linkChildToParent: () => null,
   markEmailVerified: () => {},
-  updatePassword: () => {},
+  updatePassword: async () => {},
 });
 
 interface StoredUser extends User {
@@ -65,7 +57,6 @@ interface StoredUser extends User {
   isGoogle?: boolean;
 }
 
-// Helper: get all linked child IDs for a parent (handles legacy single-child field)
 export function getLinkedChildIds(user: User): string[] {
   if (user.linkedChildIds && user.linkedChildIds.length > 0) return user.linkedChildIds;
   if (user.linkedChildId) return [user.linkedChildId];
@@ -75,26 +66,35 @@ export function getLinkedChildIds(user: User): string[] {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [storedUsers, setStoredUsers] = useLocalStorage<StoredUser[]>("quran-users", []);
   const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>("quran-current-user", null);
-  const [teacherCode, setTeacherCodeState] = useLocalStorage<string>("quran-teacher-code", DEFAULT_TEACHER_CODE);
+  const [teacherCode, setTeacherCodeState] = useLocalStorage<string>("quran-teacher-code", "");
   const [isLoaded, setIsLoaded] = useState(false);
   const seededRef = useRef(false);
+  // Per-email login attempt tracking: { count, lockedUntil timestamp }
+  const loginAttemptsRef = useRef<Record<string, { count: number; lockedUntil: number }>>({});
 
   useIsomorphicLayoutEffect(() => {
     setIsLoaded(true);
   }, []);
 
+  // Seed admin roles by email only — no passwords stored in source
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
     setStoredUsers((prev) => {
       const updated = [...prev];
-      for (const admin of SEEDED_ADMINS) {
+      for (const admin of SEEDED_ADMIN_EMAILS) {
         const exists = updated.find((u) => u.email.toLowerCase() === admin.email.toLowerCase());
         if (!exists) {
-          updated.push({ id: `seeded-${admin.email}`, email: admin.email, name: admin.name, role: "admin", createdAt: Date.now(), passwordHash: admin.password });
+          updated.push({
+            id: generateId(),
+            email: admin.email,
+            name: admin.name,
+            role: "admin",
+            createdAt: Date.now(),
+          });
         } else if (exists.role !== "admin") {
           const idx = updated.indexOf(exists);
-          updated[idx] = { ...exists, role: "admin", passwordHash: admin.password };
+          updated[idx] = { ...exists, role: "admin" };
         }
       }
       return updated;
@@ -113,23 +113,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback(
-    (email: string, password: string): string | null => {
-      const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password);
-      if (!found) return "Invalid email or password.";
+    async (email: string, password: string): Promise<string | null> => {
+      const now = Date.now();
+      const key = email.toLowerCase();
+      const attempt = loginAttemptsRef.current[key] ?? { count: 0, lockedUntil: 0 };
+
+      if (attempt.lockedUntil > now) {
+        const secs = Math.ceil((attempt.lockedUntil - now) / 1000);
+        return `Too many failed attempts. Please wait ${secs} seconds before trying again.`;
+      }
+
+      const found = storedUsers.find((u) => u.email.toLowerCase() === key);
+      const valid = found ? await verifyPassword(password, found.passwordHash) : false;
+
+      if (!found || !valid) {
+        const count = attempt.count + 1;
+        loginAttemptsRef.current[key] = {
+          count,
+          lockedUntil: count >= 5 ? now + 60_000 : 0,
+        };
+        return "Invalid email or password.";
+      }
+
+      // Transparently migrate plaintext passwords to PBKDF2 on successful login
+      if (found.passwordHash && !found.passwordHash.startsWith("pbkdf2v1:")) {
+        const newHash = await hashPassword(password);
+        setStoredUsers((prev) =>
+          prev.map((u) => (u.id === found.id ? { ...u, passwordHash: newHash } : u))
+        );
+      }
+
+      // Clear rate limit on success
+      delete loginAttemptsRef.current[key];
+
       if (found.emailVerified === false) {
         return "EMAIL_NOT_VERIFIED";
       }
+
       setCurrentUserId(found.id);
       broadcastUserActivity({ type: "login", userId: found.id, userName: found.name, userEmail: found.email, userRole: found.role, ts: Date.now() });
       return null;
     },
-    [storedUsers, setCurrentUserId]
+    [storedUsers, setCurrentUserId, setStoredUsers]
   );
 
+  // Used by Google OAuth callback — also enforces email verification
   const loginWithEmail = useCallback(
     (email: string): string | null => {
       const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
       if (!found) return "Account not found.";
+      if (found.emailVerified === false) return "EMAIL_NOT_VERIFIED";
       setCurrentUserId(found.id);
       return null;
     },
@@ -137,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signup = useCallback(
-    (name: string, email: string, password: string, role: UserRole, code?: string): string | null => {
+    async (name: string, email: string, password: string, role: UserRole, code?: string): Promise<string | null> => {
       if (storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
         return "An account with this email already exists.";
       }
@@ -148,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let firstChildId: string | undefined;
 
       if (role === "teacher" || role === "admin") {
-        if (code !== teacherCode) return "Invalid teacher code.";
+        if (!teacherCode || code !== teacherCode) return "Invalid teacher code.";
       }
       if (role === "parent") {
         if (!code?.trim()) return "Please enter your child's parent code.";
@@ -159,14 +192,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firstChildId = student.id;
       }
 
+      const passwordHash = await hashPassword(password);
+
       const newUser: StoredUser = {
-        id: genId(),
+        id: generateId(),
         email,
         name,
         role,
         createdAt: Date.now(),
-        passwordHash: password,
-        ...(role === "student" ? { parentCode: genParentCode() } : {}),
+        passwordHash,
+        ...(role === "student" ? { parentCode: generateParentCode() } : {}),
         ...(role === "parent" && firstChildId
           ? { linkedChildId: firstChildId, linkedChildIds: [firstChildId] }
           : {}),
@@ -200,17 +235,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
         return "This name is already taken. Please choose another.";
       }
-      if ((role === "teacher" || role === "admin") && code !== teacherCode) {
+      if ((role === "teacher" || role === "admin") && (!teacherCode || code !== teacherCode)) {
         return "Invalid teacher code.";
       }
       const newUser: StoredUser = {
-        id: genId(),
+        id: generateId(),
         email,
         name,
         role,
         createdAt: Date.now(),
         isGoogle: true,
-        ...(role === "student" ? { parentCode: genParentCode() } : {}),
+        ...(role === "student" ? { parentCode: generateParentCode() } : {}),
       };
       setStoredUsers((prev) => [...prev, newUser]);
       setCurrentUserId(newUser.id);
@@ -220,7 +255,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
   );
 
-  // Link an additional student to the current parent account
   const linkChildToParent = useCallback(
     (studentCode: string): string | null => {
       if (!user || user.role !== "parent") return "You must be logged in as a parent.";
@@ -236,11 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStoredUsers((prev) =>
         prev.map((u) => {
           if (u.id === user.id) {
-            return {
-              ...u,
-              linkedChildId: updatedChildIds[0],
-              linkedChildIds: updatedChildIds,
-            };
+            return { ...u, linkedChildId: updatedChildIds[0], linkedChildIds: updatedChildIds };
           }
           if (u.id === student.id) {
             return { ...u, parentIds: [...(u.parentIds ?? []), user.id] };
@@ -265,10 +295,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const updatePassword = useCallback(
-    (email: string, newPassword: string) => {
+    async (email: string, newPassword: string): Promise<void> => {
+      const hash = await hashPassword(newPassword);
       setStoredUsers((prev) =>
         prev.map((u) =>
-          u.email.toLowerCase() === email.toLowerCase() ? { ...u, passwordHash: newPassword } : u
+          u.email.toLowerCase() === email.toLowerCase() ? { ...u, passwordHash: hash } : u
         )
       );
     },
@@ -282,7 +313,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStoredUsers((prev) => {
         const target = prev.find((u) => u.id === id);
         if (!target) return prev;
-        // Clean up parent links if the deleted user was a student
         let updated = prev.map((u) => {
           if (u.role === "parent") {
             const childIds = (u.linkedChildIds ?? (u.linkedChildId ? [u.linkedChildId] : [])).filter((cid) => cid !== id);
@@ -290,7 +320,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           return u;
         });
-        // Remove the user
         updated = updated.filter((u) => u.id !== id);
         return updated;
       });

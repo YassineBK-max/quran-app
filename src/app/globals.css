@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Homepage hero animations ── */
+@keyframes hp-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hp-anim   { animation: hp-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+.hp-anim-1 { animation-delay: 0.05s; }
+.hp-anim-2 { animation-delay: 0.16s; }
+.hp-anim-3 { animation-delay: 0.27s; }
+.hp-anim-4 { animation-delay: 0.38s; }
+.hp-anim-5 { animation-delay: 0.50s; }
+
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;500;600;700&display=swap');
 
 :root {

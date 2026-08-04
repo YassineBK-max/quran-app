@@ -134,6 +134,64 @@ function MiniStar() {
   );
 }
 
+// ── Calligraphic flourish – mirrors with dir prop ─────────────────────────
+function Flourish({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg
+      width="54" height="22" viewBox="0 0 54 22" fill="none" aria-hidden="true"
+      style={{ flexShrink: 0, transform: dir === "right" ? "scaleX(-1)" : undefined }}
+    >
+      {/* Main tapered stem */}
+      <path d="M 50,11 C 38,11 24,7 10,11 C 5,12.5 2,15 2,11"
+        stroke="#d4a843" strokeWidth="1.3" strokeLinecap="round" opacity="0.65"/>
+      {/* Upper leaf — gold */}
+      <path d="M 30,11 C 28,4 36,2 33,8"
+        stroke="#d4a843" strokeWidth="1" strokeLinecap="round" opacity="0.5"/>
+      {/* Lower leaf — cyan */}
+      <path d="M 20,11 C 18,18 26,20 23,14"
+        stroke="#00b8d4" strokeWidth="0.9" strokeLinecap="round" opacity="0.45"/>
+      {/* Second upper leaf */}
+      <path d="M 14,11 C 12,5 19,3 16,9"
+        stroke="#d4a843" strokeWidth="0.8" strokeLinecap="round" opacity="0.35"/>
+      {/* Terminal volute spiral */}
+      <path d="M 2,11 C 0,8.5 0.5,6 3,8.5 C 4.2,9.8 3.5,12 2,11"
+        stroke="#d4a843" strokeWidth="1" strokeLinecap="round" opacity="0.55"/>
+    </svg>
+  );
+}
+
+// ── Feature pill icons ────────────────────────────────────────────────────
+function StudentPillIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+      <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+    </svg>
+  );
+}
+function TeacherPillIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="3" width="20" height="14" rx="2"/>
+      <path d="M8 21h8m-4-4v4"/>
+      <path d="M7 8h.01M12 8h.01M17 8h.01"/>
+    </svg>
+  );
+}
+function ParentPillIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { user, logout } = useAuth();
@@ -406,25 +464,128 @@ export default function HomePage() {
           <ArrowIcon rtl={isAr} />
         </Link>
 
-        {/* App name + tagline placeholder */}
-        <div className="flex flex-col items-center gap-2">
+        {/* ── App identity + tagline + feature strip ── */}
+        <div className="flex flex-col items-center w-full max-w-sm">
+
+          {/* Brand name */}
           <span
-            className="text-sm font-semibold tracking-wide"
-            style={{ color: "rgba(0,160,190,0.5)", fontFamily: '"Cairo", sans-serif' }}
+            className="hp-anim hp-anim-1 text-sm font-semibold tracking-widest uppercase"
+            style={{ color: "rgba(0,150,180,0.55)", fontFamily: '"Cairo", sans-serif', letterSpacing: "0.18em" }}
           >
             The Quran Academy
           </span>
+
+          {/* Decorative Arabic light-word */}
           <span
-            className="text-xs font-mono tracking-wider"
+            className="hp-anim hp-anim-2 select-none"
+            aria-hidden="true"
             style={{
-              color: "rgba(20,60,100,0.28)",
-              border: "1px dashed rgba(20,60,100,0.18)",
-              borderRadius: "3px",
-              padding: "3px 14px",
+              fontFamily: '"Amiri", serif',
+              fontSize: "1.6rem",
+              color: "rgba(212,168,67,0.32)",
+              letterSpacing: "0.3em",
+              marginTop: "2px",
+              lineHeight: 1,
             }}
           >
-            [ Your tagline or description ]
+            نُورٌ
           </span>
+
+          {/* Tagline row with calligraphic flourishes */}
+          <div className="hp-anim hp-anim-3 flex items-center justify-center gap-2 w-full mt-2">
+            <Flourish dir="left" />
+            <p
+              style={{
+                fontFamily: '"Cairo", sans-serif',
+                fontSize: "clamp(0.78rem, 2.2vw, 0.98rem)",
+                fontWeight: 700,
+                letterSpacing: "0.11em",
+                textTransform: "uppercase",
+                background: "linear-gradient(90deg, #b07a20 0%, #0a1628 42%, #0090b8 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                textAlign: "center",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {isAr ? "احفَظ · تأمَّل · ازدهِر" : "Memorize · Reflect · Flourish"}
+            </p>
+            <Flourish dir="right" />
+          </div>
+
+          {/* Gold-to-cyan hairline rule */}
+          <div
+            className="hp-anim hp-anim-3"
+            style={{
+              width: "68%",
+              height: "1px",
+              marginTop: "10px",
+              background:
+                "linear-gradient(to right, transparent, #d4a843 20%, #00b8d4 50%, #d4a843 80%, transparent)",
+            }}
+          />
+
+          {/* Supporting description */}
+          <p
+            className="hp-anim hp-anim-4 text-center"
+            style={{
+              fontFamily: '"Cairo", sans-serif',
+              fontSize: "0.81rem",
+              color: "rgba(20,60,100,0.42)",
+              marginTop: "10px",
+              maxWidth: "270px",
+              lineHeight: 1.7,
+            }}
+          >
+            {isAr
+              ? "مكانٌ واحد للطلاب والمعلمين وأولياء الأمور للنمو معاً"
+              : "One place for students, teachers, and parents to grow together."}
+          </p>
+
+          {/* Feature pills */}
+          <div className="hp-anim hp-anim-5 flex items-center flex-wrap justify-center gap-2 mt-5">
+            {[
+              {
+                en: "Student", ar: "الطالب",
+                color: "#005f8a", bg: "rgba(0,100,160,0.07)", border: "rgba(0,184,212,0.38)",
+                icon: <StudentPillIcon />,
+                href: "/signup",
+              },
+              {
+                en: "Teacher", ar: "المعلم",
+                color: "#7a5010", bg: "rgba(212,168,67,0.09)", border: "rgba(212,168,67,0.42)",
+                icon: <TeacherPillIcon />,
+                href: "/signup",
+              },
+              {
+                en: "Parent",  ar: "ولي الأمر",
+                color: "#5b2da0", bg: "rgba(110,50,200,0.07)", border: "rgba(110,50,200,0.28)",
+                icon: <ParentPillIcon />,
+                href: "/signup",
+              },
+            ].map(({ en, ar, color, bg, border, icon, href }) => (
+              <Link
+                key={en}
+                href={href}
+                className="flex items-center gap-1.5 px-4 rounded-full font-bold transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                style={{
+                  background: bg,
+                  border: `1.5px solid ${border}`,
+                  color,
+                  fontFamily: '"Cairo", sans-serif',
+                  fontSize: "0.78rem",
+                  letterSpacing: "0.04em",
+                  minHeight: "36px",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              >
+                {icon}
+                {isAr ? ar : en}
+              </Link>
+            ))}
+          </div>
         </div>
       </main>
 
