@@ -16,7 +16,6 @@ import { MessageProvider } from "@/contexts/MessageContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { RowProvider } from "@/contexts/RowContext";
 import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
-import { ViewModeToggle } from "@/components/ui/ViewModeToggle";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,7 +73,6 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
       {!isStandalone && <AudioPlayer />}
       {!isStandalone && <BottomNav />}
-      {!isStandalone && <ViewModeToggle />}
       <MilestoneTracker />
     </RowProvider>
   );
