@@ -1,14 +1,22 @@
 "use client";
 import { useRow, ROW_TIERS, RowTier } from "@/contexts/RowContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import { useT } from "@/hooks/useT";
+
+function tierName(tier: RowTier, isAr: boolean) {
+  return isAr ? tier.nameAr : tier.nameEn;
+}
 
 // ─── Mini badge (used in nav / list items) ────────────────────────────────────
 export function RowPill({ tier, count }: { tier: RowTier; count?: number }) {
+  const { settings } = useSettings();
+  const isAr = settings.language === "ar";
   return (
     <span
       className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border"
       style={{ color: tier.color, borderColor: tier.ring, background: tier.ring }}
     >
-      {tier.icon} {tier.nameAr}
+      {tier.icon} {tierName(tier, isAr)}
       {count !== undefined && <span className="opacity-70">· {count}</span>}
     </span>
   );
@@ -17,6 +25,9 @@ export function RowPill({ tier, count }: { tier: RowTier; count?: number }) {
 // ─── Full row widget (profile / home) ─────────────────────────────────────────
 export function RowBadge() {
   const { count, currentTier, nextTier, progressToNext } = useRow();
+  const { settings } = useSettings();
+  const t = useT();
+  const isAr = settings.language === "ar";
 
   return (
     <div
@@ -29,16 +40,16 @@ export function RowBadge() {
           <span className="text-2xl leading-none">{currentTier.icon}</span>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider leading-none mb-0.5">
-              الصف {currentTier.row}
+              {t.row_label} {currentTier.row}
             </p>
             <p className="font-bold text-sm leading-none" style={{ color: currentTier.color }}>
-              {currentTier.nameAr}
+              {tierName(currentTier, isAr)}
             </p>
           </div>
         </div>
         <div className="text-right">
           <p className="text-xl font-bold tabular-nums">{count}</p>
-          <p className="text-[10px] text-muted-foreground">آية محفوظة</p>
+          <p className="text-[10px] text-muted-foreground">{t.row_ayahs_memorized}</p>
         </div>
       </div>
 
@@ -46,9 +57,9 @@ export function RowBadge() {
       {nextTier ? (
         <div className="space-y-1">
           <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>{currentTier.minAyahs} آية</span>
+            <span>{currentTier.minAyahs} {t.row_ayahs_short}</span>
             <span className="flex items-center gap-1">
-              {nextTier.icon} {nextTier.nameAr} · {nextTier.minAyahs} آية
+              {nextTier.icon} {tierName(nextTier, isAr)} · {nextTier.minAyahs} {t.row_ayahs_short}
             </span>
           </div>
           <div className="h-2 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
@@ -58,12 +69,12 @@ export function RowBadge() {
             />
           </div>
           <p className="text-[10px] text-muted-foreground text-center">
-            {nextTier.minAyahs - count} آية للترقي إلى الصف {nextTier.row}
+            {nextTier.minAyahs - count} {t.row_ayahs_to_next} {nextTier.row}
           </p>
         </div>
       ) : (
         <p className="text-center text-xs font-semibold" style={{ color: currentTier.color }}>
-          أتممت حفظ القرآن الكريم 🎉
+          {t.row_completed}
         </p>
       )}
 

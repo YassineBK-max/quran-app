@@ -3,14 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { RealtimeChannel } from "@supabase/supabase-js";
-import {
-  supabase,
-  isSupabaseReady,
-  ACTIVITY_CHANNEL,
-  ActivityPayload,
-  PresenceUser,
-} from "@/lib/supabase";
+import { useActivity } from "@/contexts/ActivityContext";
+import { isSupabaseReady, PresenceUser } from "@/lib/supabase";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,13 +68,11 @@ function RoleBadge({ role }: { role: string }) {
 export default function AdminActivityPage() {
   const { user, isLoaded, users } = useAuth();
   const router = useRouter();
+  const { connected, onlineUsers, events, clearEvents } = useActivity();
 
-  const [events, setEvents] = useState<ActivityPayload[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<Record<string, PresenceUser[]>>({});
-  const [connected, setConnected] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const seenTopIdRef = useRef<string | null>(null);
 
   // Route protection — redirect any non-admin immediately after auth loads
   useEffect(() => {
@@ -90,49 +82,21 @@ export default function AdminActivityPage() {
     }
   }, [isLoaded, user, router]);
 
-  // Supabase realtime subscription — keyed on user.id so it only re-runs on user change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Flash the newest event when it arrives (skip the baseline on first render)
   useEffect(() => {
-    if (!isLoaded || !user || user.role !== "admin") return;
-    if (!supabase) return;
-
-    const ch = supabase
-      .channel(ACTIVITY_CHANNEL, { config: { presence: { key: user.id } } })
-      .on("broadcast", { event: "user_activity" }, ({ payload }) => {
-        const p = payload as ActivityPayload;
-        const id = `${p.ts}-${p.userId}`;
-        setEvents((prev) => [p, ...prev].slice(0, 100));
-        setFlashId(id);
-        setTimeout(() => setFlashId(null), 1200);
-      })
-      .on("presence", { event: "sync" }, () => {
-        const raw = ch.presenceState() as Record<string, unknown[]>;
-        const parsed: Record<string, PresenceUser[]> = {};
-        for (const [key, list] of Object.entries(raw)) {
-          parsed[key] = list as PresenceUser[];
-        }
-        setOnlineUsers(parsed);
-      })
-      .subscribe((status) => {
-        setConnected(status === "SUBSCRIBED");
-        if (status === "SUBSCRIBED") {
-          // track admin's own presence
-          ch.track({
-            userId: user.id,
-            userName: user.name,
-            userRole: user.role,
-            joinedAt: Date.now(),
-          }).catch(() => {});
-        }
-      });
-
-    channelRef.current = ch;
-
-    return () => {
-      supabase!.removeChannel(ch);
-      channelRef.current = null;
-    };
-  }, [isLoaded, user?.id]);
+    if (events.length === 0) return;
+    const top = events[0];
+    const id = `${top.ts}-${top.userId}`;
+    if (seenTopIdRef.current === null) {
+      seenTopIdRef.current = id;
+      return;
+    }
+    if (seenTopIdRef.current === id) return;
+    seenTopIdRef.current = id;
+    setFlashId(id);
+    const t = setTimeout(() => setFlashId(null), 1200);
+    return () => clearTimeout(t);
+  }, [events]);
 
   // Don't render anything until auth resolves
   if (!isLoaded || !user || user.role !== "admin") return null;
@@ -288,7 +252,7 @@ export default function AdminActivityPage() {
                 </span>
                 {events.length > 0 && (
                   <button
-                    onClick={() => setEvents([])}
+                    onClick={clearEvents}
                     className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Clear

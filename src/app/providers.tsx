@@ -21,46 +21,19 @@ import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { useAuth } from "@/contexts/AuthContext";
 import { StreakProvider } from "@/contexts/StreakContext";
 import { MilestoneTracker } from "@/components/calendar/MilestoneTracker";
-import { supabase, ACTIVITY_CHANNEL } from "@/lib/supabase";
+import { ActivityProvider } from "@/contexts/ActivityContext";
 
-// Joins Supabase Presence channel while the user is logged in so the admin
-// activity dashboard can show who is currently on the site.
-function ActivityTracker() {
-  const { user, isLoaded } = useAuth();
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!isLoaded || !user || !supabase) return;
-
-    const ch = supabase.channel(ACTIVITY_CHANNEL);
-    ch.subscribe((status) => {
-      if (status !== "SUBSCRIBED") return;
-      ch.track({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        joinedAt: Date.now(),
-      }).catch(() => {});
-    });
-
-    return () => {
-      supabase!.removeChannel(ch);
-    };
-  }, [user?.id, isLoaded]);
-
-  return null;
-}
-
-const STANDALONE_PAGES = ["/", "/login", "/signup"];
+const STANDALONE_EXACT = ["/", "/login", "/signup"];
+const STANDALONE_PREFIXES = ["/auth/"];
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/"];
 
 // Pages where BottomNav/AudioPlayer are hidden
 function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { mode } = useViewMode();
-  const isStandalone = STANDALONE_PAGES.some(
-    (p) => pathname === p || pathname.startsWith(p + "?")
-  );
+  const isStandalone =
+    STANDALONE_EXACT.some((p) => pathname === p || pathname.startsWith(p + "?")) ||
+    STANDALONE_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
     <RowProvider>
@@ -120,14 +93,15 @@ export function Providers({ children }: { children: ReactNode }) {
                     <CalendarProvider>
                       <MessageProvider>
                         <NotificationProvider>
-                          <ActivityTracker />
-                          <StreakProvider>
-                            <AuthGuard>
-                              <Shell>
-                                {children}
-                              </Shell>
-                            </AuthGuard>
-                          </StreakProvider>
+                          <ActivityProvider>
+                            <StreakProvider>
+                              <AuthGuard>
+                                <Shell>
+                                  {children}
+                                </Shell>
+                              </AuthGuard>
+                            </StreakProvider>
+                          </ActivityProvider>
                         </NotificationProvider>
                       </MessageProvider>
                     </CalendarProvider>

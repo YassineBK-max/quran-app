@@ -366,6 +366,14 @@ const en = {
   mushaf_read_book: "Read as Book",
   mushaf_read_book_desc: "Complete Quran · 604 pages",
   go: "Go",
+
+  // --- Row / rank badge ---
+  row_level_heading: "Memorization Level",
+  row_label: "Row",
+  row_ayahs_memorized: "ayahs memorized",
+  row_ayahs_short: "ayahs",
+  row_ayahs_to_next: "ayahs to Row",
+  row_completed: "You completed memorizing the Noble Quran! 🎉",
 }
 
 const ar: typeof en = {
@@ -733,6 +741,14 @@ const ar: typeof en = {
   mushaf_read_book: "قراءة المصحف",
   mushaf_read_book_desc: "القرآن كاملاً · ٦٠٤ صفحة",
   go: "انتقل",
+
+  // --- Row / rank badge ---
+  row_level_heading: "مستوى الحفظ",
+  row_label: "الصف",
+  row_ayahs_memorized: "آية محفوظة",
+  row_ayahs_short: "آية",
+  row_ayahs_to_next: "آية للترقي إلى الصف",
+  row_completed: "أتممت حفظ القرآن الكريم 🎉",
 };
 
 export type Translations = typeof en;

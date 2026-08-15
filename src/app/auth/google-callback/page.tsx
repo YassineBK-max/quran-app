@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { AuthPageShell } from "@/components/auth/AuthBackground";
 
 export default function GoogleCallbackPage() {
   const { data: session, status } = useSession();
@@ -33,11 +34,11 @@ export default function GoogleCallbackPage() {
   }, [session, status, users, loginWithEmail, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-950 via-green-900 to-green-800 flex items-center justify-center">
-      <div className="text-white text-center">
-        <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-green-200">Signing you in with Google...</p>
+    <AuthPageShell>
+      <div className="text-center">
+        <div className="w-10 h-10 rounded-full animate-spin mx-auto mb-4" style={{ border: "2px solid rgba(0,184,212,0.2)", borderTopColor: "#00a8c8" }} />
+        <p className="text-sm" style={{ color: "rgba(0,120,160,0.7)", fontFamily: '"Cairo", sans-serif' }}>Signing you in with Google…</p>
       </div>
-    </div>
+    </AuthPageShell>
   );
 }

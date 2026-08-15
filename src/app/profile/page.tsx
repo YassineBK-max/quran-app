@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
         {/* Row / rank badge */}
         <section>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">مستوى الحفظ</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{t.row_level_heading}</h2>
           <RowBadge />
         </section>
 
