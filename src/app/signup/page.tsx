@@ -283,7 +283,7 @@ function SignupForm() {
 
     let err: string | null;
     if (isGoogle) {
-      err = signupGoogle(name, email, role, code || undefined);
+      err = signupGoogle(name, email, role);
     } else {
       err = await signup(name, email, password, role, code || undefined);
     }
@@ -652,19 +652,6 @@ function SignupForm() {
                       placeholder="ABC123"
                       maxLength={6}
                       className="uppercase tracking-widest font-mono text-center text-xl"
-                      autoComplete="off"
-                    />
-                  </Field>
-                )}
-
-                {role === "teacher" && (
-                  <Field label={t.signup_teacher_code} hint="Get this code from your school administrator">
-                    <NavyInput
-                      type="password"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      required
-                      placeholder={t.signup_teacher_code_placeholder}
                       autoComplete="off"
                     />
                   </Field>

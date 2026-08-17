@@ -18,12 +18,10 @@ interface AuthContextType {
   user: User | null;
   users: User[];
   isLoaded: boolean;
-  teacherCode: string;
-  setTeacherCode: (code: string) => void;
   login: (email: string, password: string) => Promise<string | null>;
   loginWithEmail: (email: string) => string | null;
   signup: (name: string, email: string, password: string, role: UserRole, code?: string) => Promise<string | null>;
-  signupGoogle: (name: string, email: string, role: UserRole, code?: string) => string | null;
+  signupGoogle: (name: string, email: string, role: UserRole) => string | null;
   logout: () => void;
   getUserById: (id: string) => User | undefined;
   updateUser: (id: string, partial: Partial<User>) => void;
@@ -37,8 +35,6 @@ const AuthCtx = createContext<AuthContextType>({
   user: null,
   users: [],
   isLoaded: false,
-  teacherCode: "",
-  setTeacherCode: () => {},
   login: async () => null,
   loginWithEmail: () => null,
   signup: async () => null,
@@ -66,7 +62,6 @@ export function getLinkedChildIds(user: User): string[] {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [storedUsers, setStoredUsers] = useLocalStorage<StoredUser[]>("quran-users", []);
   const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>("quran-current-user", null);
-  const [teacherCode, setTeacherCodeState] = useLocalStorage<string>("quran-teacher-code", "");
   const [isLoaded, setIsLoaded] = useState(false);
   const seededRef = useRef(false);
   // Per-email login attempt tracking: { count, lockedUntil timestamp }
@@ -101,7 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [setStoredUsers]);
 
-  const setTeacherCode = useCallback((code: string) => setTeacherCodeState(code), [setTeacherCodeState]);
   const user = storedUsers.find((u) => u.id === currentUserId) ?? null;
   const getUserById = useCallback((id: string) => storedUsers.find((u) => u.id === id), [storedUsers]);
 
@@ -180,9 +174,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let firstChildId: string | undefined;
 
-      if (role === "teacher" || role === "admin") {
-        if (!teacherCode || code !== teacherCode) return "Invalid teacher code.";
-      }
       if (role === "parent") {
         if (!code?.trim()) return "Please enter your child's parent code.";
         const student = storedUsers.find(
@@ -222,11 +213,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       broadcastUserActivity({ type: "signup", userId: newUser.id, userName: newUser.name, userEmail: newUser.email, userRole: newUser.role, ts: Date.now() });
       return null;
     },
-    [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
+    [storedUsers, setStoredUsers, setCurrentUserId]
   );
 
   const signupGoogle = useCallback(
-    (name: string, email: string, role: UserRole, code?: string): string | null => {
+    (name: string, email: string, role: UserRole): string | null => {
       const existing = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
       if (existing) {
         setCurrentUserId(existing.id);
@@ -234,9 +225,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
         return "This name is already taken. Please choose another.";
-      }
-      if ((role === "teacher" || role === "admin") && (!teacherCode || code !== teacherCode)) {
-        return "Invalid teacher code.";
       }
       const newUser: StoredUser = {
         id: generateId(),
@@ -252,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       broadcastUserActivity({ type: "signup", userId: newUser.id, userName: newUser.name, userEmail: newUser.email, userRole: newUser.role, ts: Date.now() });
       return null;
     },
-    [storedUsers, teacherCode, setStoredUsers, setCurrentUserId]
+    [storedUsers, setStoredUsers, setCurrentUserId]
   );
 
   const linkChildToParent = useCallback(
@@ -331,7 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
 
   return (
-    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, teacherCode, setTeacherCode, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, deleteUser, linkChildToParent, markEmailVerified, updatePassword }}>
+    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, deleteUser, linkChildToParent, markEmailVerified, updatePassword }}>
       {children}
     </AuthCtx.Provider>
   );

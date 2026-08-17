@@ -417,7 +417,7 @@ function ClassDetailPanel({
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { user, users, teacherCode, setTeacherCode, deleteUser } = useAuth();
+  const { user, users, deleteUser } = useAuth();
   const { classes, expelUserFromClasses } = useClassroom();
   const { sendMessage } = useMessages();
   const t = useT();
@@ -426,8 +426,6 @@ export default function AdminPage() {
   const [allMemoData] = useLocalStorage<Record<string, Record<number, unknown[]>>>("quran-memorization-all-users", {});
 
   const [tab, setTab] = useState<Tab>("overview");
-  const [newCode, setNewCode] = useState("");
-  const [codeSaved, setCodeSaved] = useState(false);
   const [msgContent, setMsgContent] = useState("");
   const [msgRecipient, setMsgRecipient] = useState("");
   const [msgType, setMsgType] = useState<"user" | "class">("user");
@@ -455,14 +453,6 @@ export default function AdminPage() {
   const teachers = users.filter((u) => u.role === "teacher");
   const students = users.filter((u) => u.role === "student");
   const parents  = users.filter((u) => u.role === "parent");
-
-  const handleSaveCode = () => {
-    if (!newCode.trim()) return;
-    setTeacherCode(newCode.trim());
-    setNewCode("");
-    setCodeSaved(true);
-    setTimeout(() => setCodeSaved(false), 3000);
-  };
 
   const handleSend = () => {
     if (!msgContent.trim() || !msgRecipient) return;
@@ -568,28 +558,6 @@ export default function AdminPage() {
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--gold)" }} className="shrink-0"><path d="m9 18 6-6-6-6"/></svg>
           </Link>
-
-          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-              <div>
-                <h2 className="text-sm font-semibold">{t.admin_teacher_code_title}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{t.admin_teacher_code_desc}</p>
-              </div>
-              <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3">
-                <span className="font-mono font-bold text-primary flex-1 tracking-wider text-sm">{teacherCode}</span>
-                <button onClick={() => navigator.clipboard?.writeText(teacherCode)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Copy">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder={t.admin_new_code}
-                  className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
-                <button onClick={handleSaveCode} disabled={!newCode.trim()}
-                  className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-40">
-                  {t.update}
-                </button>
-              </div>
-              {codeSaved && <p className="text-primary text-xs">{t.admin_code_saved}</p>}
-            </div>
           </div>
         )}
 
