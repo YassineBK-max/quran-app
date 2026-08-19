@@ -25,7 +25,7 @@ export default function GoogleCallbackPage() {
     const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existingUser) {
       const err = loginWithEmail(email);
-      if (!err) { router.push("/"); return; }
+      if (!err) { router.push("/surahs"); return; }
     }
 
     // New Google user — go to signup to choose role and enter codes

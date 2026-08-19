@@ -33,6 +33,7 @@ interface ClassroomsDbContextType {
   enrollments: ClassroomEnrollment[];
   loading: boolean;
   error: string | null;
+  schemaReady: boolean;
   createCourse: (name: string, description?: string) => Promise<Course>;
   removeCourse: (id: string) => Promise<void>;
   createClassroom: (input: {
@@ -60,6 +61,7 @@ const ClassroomsDbCtx = createContext<ClassroomsDbContextType>({
   enrollments: [],
   loading: false,
   error: null,
+  schemaReady: true,
   createCourse: async () => { throw new Error("not ready"); },
   removeCourse: async () => {},
   createClassroom: async () => { throw new Error("not ready"); },
@@ -77,6 +79,14 @@ const ClassroomsDbCtx = createContext<ClassroomsDbContextType>({
   refresh: async () => {},
 });
 
+// Supabase returns this when a table referenced by the app hasn't been created
+// in the connected project yet (i.e. the setup SQL at the top of classrooms-db.ts
+// was never run) — distinguish that from a real runtime/network error.
+function isMissingTableError(e: unknown): boolean {
+  const err = e as { code?: string; message?: string } | null;
+  return err?.code === "PGRST205" || !!err?.message?.includes("schema cache");
+}
+
 export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -84,6 +94,7 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   const [enrollments, setEnrollments] = useState<ClassroomEnrollment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [schemaReady, setSchemaReady] = useState(true);
 
   const load = useCallback(async () => {
     if (!isSupabaseReady) return;
@@ -94,8 +105,14 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
       setClassrooms(r);
       setEnrollments(e);
       setError(null);
+      setSchemaReady(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Load failed");
+      if (isMissingTableError(e)) {
+        setSchemaReady(false);
+        setError(null);
+      } else {
+        setError(e instanceof Error ? e.message : "Load failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -131,9 +148,14 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
 
   const createCourse = useCallback(async (name: string, description?: string): Promise<Course> => {
     if (!user) throw new Error("Not logged in");
-    const c = await insertCourse(name, description ?? null, user.id);
-    setCourses((prev) => [...prev, c]);
-    return c;
+    try {
+      const c = await insertCourse(name, description ?? null, user.id);
+      setCourses((prev) => [...prev, c]);
+      return c;
+    } catch (e) {
+      if (isMissingTableError(e)) setSchemaReady(false);
+      throw e;
+    }
   }, [user]);
 
   const removeCourse = useCallback(async (id: string) => {
@@ -152,16 +174,21 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
     description?: string;
   }): Promise<DbClassroom> => {
     if (!user) throw new Error("Not logged in");
-    const room = await insertClassroom({
-      course_id: courseId ?? null,
-      name,
-      teacher_id: user.id,
-      teacher_name: user.name,
-      description: description ?? null,
-      join_code: genJoinCode(),
-    });
-    setClassrooms((prev) => [...prev, room]);
-    return room;
+    try {
+      const room = await insertClassroom({
+        course_id: courseId ?? null,
+        name,
+        teacher_id: user.id,
+        teacher_name: user.name,
+        description: description ?? null,
+        join_code: genJoinCode(),
+      });
+      setClassrooms((prev) => [...prev, room]);
+      return room;
+    } catch (e) {
+      if (isMissingTableError(e)) setSchemaReady(false);
+      throw e;
+    }
   }, [user]);
 
   const removeClassroom = useCallback(async (id: string) => {
@@ -234,14 +261,14 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(() => ({
-    courses, classrooms, enrollments, loading, error,
+    courses, classrooms, enrollments, loading, error, schemaReady,
     createCourse, removeCourse, createClassroom, removeClassroom,
     enrollStudent, unenrollStudent, joinByCode,
     getClassroomStudents, getMyEnrollments, getMyClassrooms,
     getTeacherClassrooms, getCourseClassrooms, getStandaloneClassrooms,
     isEnrolled, refresh: load,
   }), [
-    courses, classrooms, enrollments, loading, error,
+    courses, classrooms, enrollments, loading, error, schemaReady,
     createCourse, removeCourse, createClassroom, removeClassroom,
     enrollStudent, unenrollStudent, joinByCode,
     getClassroomStudents, getMyEnrollments, getMyClassrooms,

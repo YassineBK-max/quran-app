@@ -260,7 +260,7 @@ export default function LoginPage() {
     setLoading(true);
     const err = await login(email, password);
     setLoading(false);
-    if (!err) { router.replace("/"); return; }
+    if (!err) { router.replace("/surahs"); return; }
     if (err === "EMAIL_NOT_VERIFIED") {
       setUnverifiedEmail(email);
       setError("Please verify your email before signing in. Check your inbox.");

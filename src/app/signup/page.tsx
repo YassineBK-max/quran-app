@@ -312,7 +312,7 @@ function SignupForm() {
     }
 
     setLoading(false);
-    router.push("/");
+    router.push("/surahs");
   };
 
   const cardStyle = {

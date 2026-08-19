@@ -9,17 +9,28 @@ import { DbClassroom, ClassroomEnrollment, Course } from "@/lib/classrooms-db";
 
 // ─── Setup Required ───────────────────────────────────────────────────────────
 
-function SetupRequired() {
+function SetupRequired({ credentialsMissing = false }: { credentialsMissing?: boolean }) {
   return (
     <>
       <Header title="Classrooms" />
       <main className="max-w-xl mx-auto px-4 py-10 space-y-6">
         <div className="text-center space-y-2">
           <p className="text-3xl">🏫</p>
-          <h2 className="font-bold text-lg">Supabase required</h2>
+          <h2 className="font-bold text-lg">Supabase setup required</h2>
           <p className="text-sm text-muted-foreground">
-            The classrooms system stores courses, classrooms, and enrollments in Supabase.
-            Add your credentials to <code className="bg-muted px-1.5 py-0.5 rounded text-xs">.env.local</code>, then run the SQL below.
+            {credentialsMissing ? (
+              <>
+                The classrooms system stores courses, classrooms, and enrollments in Supabase.
+                Add your credentials to <code className="bg-muted px-1.5 py-0.5 rounded text-xs">.env.local</code>, then run the SQL below.
+              </>
+            ) : (
+              <>
+                Supabase is connected, but the <code className="bg-muted px-1.5 py-0.5 rounded text-xs">courses</code>,{" "}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">classrooms</code>, and{" "}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">classroom_students</code> tables don&apos;t exist in the
+                project yet. Run the SQL below once in the Supabase SQL Editor to create them.
+              </>
+            )}
           </p>
         </div>
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3 text-xs font-mono">
@@ -451,7 +462,7 @@ function ClassroomCard({
 export default function ClassroomsPage() {
   const { user, users } = useAuth();
   const {
-    courses, classrooms, loading, error,
+    courses, classrooms, loading, error, schemaReady,
     createCourse, removeCourse, createClassroom, removeClassroom,
     enrollStudent, unenrollStudent, joinByCode,
     getClassroomStudents, getMyClassrooms, getTeacherClassrooms,
@@ -548,7 +559,8 @@ export default function ClassroomsPage() {
     setSelectedRoom(null);
   }, [selectedRoom, removeClassroom]);
 
-  if (!isSupabaseReady) return <SetupRequired />;
+  if (!isSupabaseReady) return <SetupRequired credentialsMissing />;
+  if (!schemaReady) return <SetupRequired />;
 
   if (!user) {
     return (
