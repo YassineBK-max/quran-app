@@ -66,8 +66,14 @@ export function generateId(): string {
 }
 
 export function generateParentCode(): string {
+  return generateCode(8);
+}
+
+// Cryptographically-random alphanumeric code — used anywhere a guessable
+// code would let someone join a class or link an account they shouldn't.
+export function generateCode(length: number): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
   let result = "";
   for (let i = 0; i < bytes.length; i++) result += chars[bytes[i] % chars.length];
   return result;

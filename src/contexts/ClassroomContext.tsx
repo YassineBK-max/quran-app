@@ -3,13 +3,14 @@ import { createContext, useContext, ReactNode, useCallback } from "react";
 import { ClassRoom, Assignment } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "./AuthContext";
+import { generateCode } from "@/lib/crypto";
 
 function genId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 function genCode() {
-  return Math.random().toString(36).toUpperCase().slice(2, 8);
+  return generateCode(6);
 }
 
 interface ClassroomContextType {

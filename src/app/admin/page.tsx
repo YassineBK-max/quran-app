@@ -558,6 +558,18 @@ export default function AdminPage() {
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--gold)" }} className="shrink-0"><path d="m9 18 6-6-6-6"/></svg>
           </Link>
+
+          <Link
+            href="/payments"
+            className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors"
+          >
+            <span className="text-xl shrink-0">💰</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Teacher Payments</p>
+              <p className="text-xs text-muted-foreground">Monthly accrued pay per teacher &amp; deposit history</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+          </Link>
           </div>
         )}
 

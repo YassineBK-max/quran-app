@@ -325,7 +325,7 @@ export default function ClassroomPage() {
 
             {activeClass && (
               <>
-                <div className="bg-card border border-border rounded-xl p-4">
+                <div className="bg-card border border-border rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="font-bold text-lg">{activeClass.name}</h2>
@@ -335,6 +335,13 @@ export default function ClassroomPage() {
                       <p className="text-xs text-muted-foreground">{t.classroom_join_code}</p>
                       <p className="font-mono font-bold text-xl tracking-widest text-primary">{activeClass.code}</p>
                     </div>
+                  </div>
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Attendance, progress notes and payments are tracked per-classroom in{" "}
+                      <Link href="/classrooms" className="text-primary font-medium hover:underline">Course Classrooms</Link>
+                      {" "}— this legacy class list doesn&apos;t sync across devices.
+                    </p>
                   </div>
                 </div>
 

@@ -48,11 +48,14 @@ export function Header({ title, showBack, showHome = true, extra }: HeaderProps)
           </Link>
         )}
 
-        <h1
-          className="text-base font-semibold truncate flex-1 tracking-wide"
-          style={{ fontFamily: '"Cairo", sans-serif' }}
-        >
-          {title}
+        <h1 className="flex-1 min-w-0">
+          <Link
+            href="/"
+            className="block text-base font-semibold truncate tracking-wide hover:opacity-80 transition-opacity"
+            style={{ fontFamily: '"Cairo", sans-serif' }}
+          >
+            {title}
+          </Link>
         </h1>
 
         {extra && <div className="shrink-0">{extra}</div>}

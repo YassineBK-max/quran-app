@@ -1,11 +1,16 @@
 "use client";
 import { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroomsDb } from "@/contexts/ClassroomsDbContext";
 import { isSupabaseReady } from "@/lib/supabase";
-import { DbClassroom, ClassroomEnrollment, Course } from "@/lib/classrooms-db";
+import { DbClassroom, ClassroomEnrollment, Course, DbAssignment, DbAttendanceStatus } from "@/lib/classrooms-db";
+
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
 
 // ─── Setup Required ───────────────────────────────────────────────────────────
 
@@ -34,38 +39,11 @@ function SetupRequired({ credentialsMissing = false }: { credentialsMissing?: bo
           </p>
         </div>
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3 text-xs font-mono">
-          <p className="font-semibold text-sm text-foreground">SQL Editor — run once</p>
-          <pre className="bg-muted rounded-lg p-3 overflow-x-auto leading-relaxed whitespace-pre-wrap text-muted-foreground">{`create table if not exists courses (
-  id uuid primary key default gen_random_uuid(),
-  name text not null, description text,
-  created_by text not null,
-  created_at timestamptz not null default now()
-);
-create table if not exists classrooms (
-  id uuid primary key default gen_random_uuid(),
-  course_id uuid references courses(id) on delete set null,
-  name text not null,
-  teacher_id text not null, teacher_name text not null,
-  description text, join_code text unique not null,
-  created_at timestamptz not null default now()
-);
-create table if not exists classroom_students (
-  id uuid primary key default gen_random_uuid(),
-  classroom_id uuid not null references classrooms(id) on delete cascade,
-  student_id text not null, student_name text not null,
-  student_email text,
-  enrolled_at timestamptz not null default now(),
-  unique (classroom_id, student_id)
-);
-alter table courses            enable row level security;
-alter table classrooms         enable row level security;
-alter table classroom_students enable row level security;
-create policy "all_courses"     on courses            for all using (true) with check (true);
-create policy "all_rooms"       on classrooms         for all using (true) with check (true);
-create policy "all_enrollments" on classroom_students for all using (true) with check (true);
-alter publication supabase_realtime add table courses;
-alter publication supabase_realtime add table classrooms;
-alter publication supabase_realtime add table classroom_students;`}</pre>
+          <p className="font-semibold text-sm text-foreground">SQL Editor — run once (safe to re-run)</p>
+          <p className="text-muted-foreground font-sans">
+            The full script is in the comment block at the top of <code className="bg-muted px-1.5 py-0.5 rounded">src/lib/classrooms-db.ts</code> —
+            copy it from there. It covers courses, classrooms, enrollments, assignments, attendance, progress notes and payments in one idempotent script.
+          </p>
         </div>
       </main>
     </>
@@ -248,6 +226,247 @@ function AddStudentModal({
   );
 }
 
+// ─── Hourly rate (admin-only edit) ────────────────────────────────────────────
+
+function RateEditor({ classroom, isAdmin }: { classroom: DbClassroom; isAdmin: boolean }) {
+  const { updateRate } = useClassroomsDb();
+  const [value, setValue] = useState(classroom.hourly_rate != null ? String(classroom.hourly_rate) : "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  if (!isAdmin) {
+    return (
+      <div className="mx-4 mt-3 flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Rate per hour</span>
+        <span className="font-medium">{classroom.hourly_rate ? `$${classroom.hourly_rate.toFixed(2)}/hr` : "Not set — contact an admin"}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-4 mt-3 flex items-center gap-2">
+      <span className="text-xs text-muted-foreground shrink-0">Rate per hour</span>
+      <input
+        type="number" min={0} step="0.01" value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="0.00"
+        className="w-24 bg-muted border border-border rounded-lg px-2 py-1.5 text-xs"
+      />
+      <button
+        onClick={async () => {
+          setSaving(true);
+          await updateRate(classroom.id, parseFloat(value) || 0);
+          setSaving(false);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        }}
+        disabled={saving}
+        className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium min-h-[32px] disabled:opacity-50"
+      >
+        {saving ? "…" : "Save"}
+      </button>
+      {saved && <span className="text-primary text-xs">Saved</span>}
+    </div>
+  );
+}
+
+// ─── Assignments panel ────────────────────────────────────────────────────────
+
+function AssignmentsPanel({ classroomId, canManage }: { classroomId: string; canManage: boolean }) {
+  const { getAssignmentsForClassroom, addAssignment, editAssignment, removeAssignment } = useClassroomsDb();
+  const list = getAssignmentsForClassroom(classroomId);
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [due, setDue] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  return (
+    <div className="p-4 space-y-2">
+      {canManage && (
+        adding ? (
+          <div className="border border-primary/30 bg-primary/5 rounded-xl p-3 space-y-2">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder="Assignment title"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
+            <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Description (optional)"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
+            <input type="date" value={due} onChange={(e) => setDue(e.target.value)}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
+            <div className="flex gap-2">
+              <button onClick={() => { setAdding(false); setTitle(""); setDesc(""); setDue(""); }}
+                className="flex-1 py-2 rounded-lg bg-muted text-xs font-medium min-h-[36px]">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!title.trim()) return;
+                  await addAssignment(classroomId, title.trim(), desc.trim() || undefined, due || undefined);
+                  setAdding(false); setTitle(""); setDesc(""); setDue("");
+                }}
+                className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold min-h-[36px]">Add</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setAdding(true)} className="text-xs text-primary font-medium hover:underline">+ Add assignment</button>
+        )
+      )}
+
+      {list.length === 0 && !adding ? (
+        <p className="text-sm text-muted-foreground text-center py-6">No assignments yet.</p>
+      ) : (
+        list.map((a: DbAssignment) => (
+          editingId === a.id ? (
+            <EditAssignmentRow key={a.id} assignment={a} onCancel={() => setEditingId(null)}
+              onSave={async (patch) => { await editAssignment(a.id, patch); setEditingId(null); }} />
+          ) : (
+            <div key={a.id} className="flex items-start gap-2 border border-border rounded-xl p-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{a.title}</p>
+                {a.description && <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>}
+                {a.due_date && <p className="text-xs text-primary mt-1 font-medium">📅 Due {a.due_date}</p>}
+              </div>
+              {canManage && (
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => setEditingId(a.id)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted min-w-[32px] min-h-[32px]">✎</button>
+                  <button onClick={() => removeAssignment(a.id)} className="p-2 rounded-lg text-muted-foreground hover:text-red-500 min-w-[32px] min-h-[32px]">✕</button>
+                </div>
+              )}
+            </div>
+          )
+        ))
+      )}
+    </div>
+  );
+}
+
+function EditAssignmentRow({ assignment, onSave, onCancel }: {
+  assignment: DbAssignment;
+  onSave: (patch: { title: string; description?: string; dueDate?: string }) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(assignment.title);
+  const [desc, setDesc] = useState(assignment.description ?? "");
+  const [due, setDue] = useState(assignment.due_date ?? "");
+  return (
+    <div className="border border-primary/30 bg-primary/5 rounded-xl p-3 space-y-2">
+      <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
+      <input value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
+      <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2 rounded-lg bg-muted text-xs font-medium min-h-[36px]">Cancel</button>
+        <button onClick={() => title.trim() && onSave({ title: title.trim(), description: desc || undefined, dueDate: due || undefined })}
+          className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold min-h-[36px]">Save</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Per-student attendance + progress (teacher/admin view) ──────────────────
+
+function StudentInstructorPanel({ classroomId, studentEmail, studentName }: { classroomId: string; studentEmail: string; studentName: string }) {
+  const { markAttendance, getAttendanceRecord, getStudentCompletedHours, getClassroomHeldHours, getProgressNote, setProgressNote } = useClassroomsDb();
+  const date = todayStr();
+  const record = getAttendanceRecord(classroomId, studentEmail, date);
+  const note = getProgressNote(classroomId, studentEmail);
+
+  const [hours, setHours] = useState(record?.hours != null ? String(record.hours) : "1");
+  const [completed, setCompleted] = useState(note?.completed ?? "");
+  const [assigned, setAssigned] = useState(note?.assigned ?? "");
+  const [nextUp, setNextUp] = useState(note?.next_up ?? "");
+  const [savedNote, setSavedNote] = useState(false);
+  const [marking, setMarking] = useState(false);
+
+  const STATUS_STYLES: Record<DbAttendanceStatus, string> = {
+    present: "bg-green-500 text-white",
+    late: "bg-yellow-500 text-white",
+    absent: "bg-red-500 text-white",
+    excused: "bg-muted-foreground text-white",
+  };
+
+  return (
+    <div className="px-4 pb-3 space-y-3 bg-muted/30">
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Attendance — {date}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {(["present", "late", "absent", "excused"] as const).map((s) => (
+            <button
+              key={s}
+              disabled={marking}
+              onClick={async () => {
+                setMarking(true);
+                await markAttendance(classroomId, studentEmail, studentName, date, s, parseFloat(hours) || 1);
+                setMarking(false);
+              }}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors min-h-[32px] disabled:opacity-50 ${
+                record?.status === s ? STATUS_STYLES[s] : "bg-card border border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+          <input type="number" min={0.25} step="0.25" value={hours} onChange={(e) => setHours(e.target.value)}
+            title="Session hours" className="w-16 bg-card border border-border rounded-lg px-2 py-1.5 text-xs" />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">Hours completed:</span>
+        <span className="font-semibold text-primary">{getStudentCompletedHours(classroomId, studentEmail)}</span>
+        <span className="text-muted-foreground">/ {getClassroomHeldHours(classroomId)} held</span>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Student progress</p>
+        <input value={completed} onChange={(e) => setCompleted(e.target.value)} placeholder="What they've completed"
+          className="w-full bg-card border border-border rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-primary" />
+        <input value={assigned} onChange={(e) => setAssigned(e.target.value)} placeholder="What they've been assigned"
+          className="w-full bg-card border border-border rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-primary" />
+        <input value={nextUp} onChange={(e) => setNextUp(e.target.value)} placeholder="What they'll present next"
+          className="w-full bg-card border border-border rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-primary" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              await setProgressNote(classroomId, studentEmail, { completed, assigned, next_up: nextUp });
+              setSavedNote(true);
+              setTimeout(() => setSavedNote(false), 2000);
+            }}
+            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium min-h-[32px]"
+          >
+            Save
+          </button>
+          {savedNote && <span className="text-primary text-xs">Saved</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Student's own progress (student view, read-only) ────────────────────────
+
+function MyProgressPanel({ classroomId, studentEmail }: { classroomId: string; studentEmail: string }) {
+  const { getProgressNote, getStudentCompletedHours, getClassroomHeldHours } = useClassroomsDb();
+  const note = getProgressNote(classroomId, studentEmail);
+  const completedHours = getStudentCompletedHours(classroomId, studentEmail);
+  const heldHours = getClassroomHeldHours(classroomId);
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">Hours attended:</span>
+        <span className="font-semibold text-primary">{completedHours}</span>
+        <span className="text-muted-foreground">/ {heldHours} held</span>
+      </div>
+      {note ? (
+        <div className="space-y-2 text-sm">
+          {note.completed && <p><span className="text-muted-foreground">Completed: </span>{note.completed}</p>}
+          {note.assigned && <p><span className="text-muted-foreground">Assigned: </span>{note.assigned}</p>}
+          {note.next_up && <p><span className="text-muted-foreground">Next up: </span>{note.next_up}</p>}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Your teacher hasn&apos;t added progress notes yet.</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Classroom Detail Sheet ───────────────────────────────────────────────────
 
 function ClassroomDetailSheet({
@@ -255,6 +474,9 @@ function ClassroomDetailSheet({
   course,
   students,
   canManage,
+  isAdmin,
+  viewerEmail,
+  isMyEnrollment,
   onAddStudent,
   onRemoveStudent,
   onDeleteClassroom,
@@ -264,6 +486,9 @@ function ClassroomDetailSheet({
   course: Course | undefined;
   students: ClassroomEnrollment[];
   canManage: boolean;
+  isAdmin: boolean;
+  viewerEmail: string | undefined;
+  isMyEnrollment: boolean;
   onAddStudent: () => void;
   onRemoveStudent: (enrollmentId: string) => void;
   onDeleteClassroom: () => void;
@@ -271,6 +496,8 @@ function ClassroomDetailSheet({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<"students" | "assignments">("students");
+  const [openStudent, setOpenStudent] = useState<string | null>(null);
 
   const copyCode = () => {
     navigator.clipboard.writeText(classroom.join_code).then(() => {
@@ -309,55 +536,100 @@ function ClassroomDetailSheet({
           </button>
         </div>
 
-        {/* Student list */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-            <p className="text-sm font-semibold">Students ({students.length})</p>
-            {canManage && (
-              <button onClick={onAddStudent}
-                className="flex items-center gap-1.5 text-xs text-primary font-medium hover:underline">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                Add student
-              </button>
-            )}
-          </div>
+        {/* Rate — visible to the teacher(s) of this classroom and admins */}
+        {(canManage || isAdmin) && <RateEditor classroom={classroom} isAdmin={isAdmin} />}
 
-          {students.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              <p className="text-2xl mb-2">👥</p>
-              <p>No students enrolled yet.</p>
-              {canManage && (
-                <button onClick={onAddStudent} className="mt-2 text-primary text-xs font-medium hover:underline">
-                  Add a student →
-                </button>
+        {/* Tabs */}
+        <div className="grid grid-cols-2 gap-1 mx-4 mt-3 p-1 bg-muted rounded-xl shrink-0">
+          {(["students", "assignments"] as const).map((tb) => (
+            <button key={tb} onClick={() => setTab(tb)}
+              className={`py-2 rounded-lg text-xs font-medium transition-colors ${tab === tb ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              {tb === "students" ? `Students (${students.length})` : "Assignments"}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* ── Students tab ── */}
+          {tab === "students" && (
+            <>
+              <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+                <p className="text-sm font-semibold">Roster</p>
+                {canManage && (
+                  <button onClick={onAddStudent}
+                    className="flex items-center gap-1.5 text-xs text-primary font-medium hover:underline">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Add student
+                  </button>
+                )}
+              </div>
+
+              {/* Student's own progress, shown above the roster when they're enrolled here */}
+              {isMyEnrollment && viewerEmail && !canManage && (
+                <div className="mx-4 mb-2 border border-border rounded-xl overflow-hidden">
+                  <p className="text-xs font-semibold px-3 pt-2 text-muted-foreground">My progress</p>
+                  <MyProgressPanel classroomId={classroom.id} studentEmail={viewerEmail} />
+                </div>
               )}
-            </div>
-          ) : (
-            <div className="divide-y divide-border mx-0">
-              {students.map((s) => (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
-                    {s.student_name[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{s.student_name}</p>
-                    {s.student_email && <p className="text-xs text-muted-foreground truncate">{s.student_email}</p>}
-                    <p className="text-[10px] text-muted-foreground">
-                      Enrolled {new Date(s.enrolled_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
+
+              {students.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm">
+                  <p className="text-2xl mb-2">👥</p>
+                  <p>No students enrolled yet.</p>
                   {canManage && (
-                    <button
-                      onClick={() => onRemoveStudent(s.id)}
-                      aria-label={`Remove ${s.student_name}`}
-                      className="p-2 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <button onClick={onAddStudent} className="mt-2 text-primary text-xs font-medium hover:underline">
+                      Add a student →
                     </button>
                   )}
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="divide-y divide-border mx-0">
+                  {students.map((s) => {
+                    const isOpen = openStudent === s.id;
+                    return (
+                      <div key={s.id}>
+                        <div className="flex items-center gap-3 px-4 py-3">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                            {s.student_name[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{s.student_name}</p>
+                            {s.student_email && <p className="text-xs text-muted-foreground truncate">{s.student_email}</p>}
+                            <p className="text-[10px] text-muted-foreground">
+                              Enrolled {new Date(s.enrolled_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            </p>
+                          </div>
+                          {canManage && s.student_email && (
+                            <button onClick={() => setOpenStudent(isOpen ? null : s.id)}
+                              title="Attendance & progress"
+                              className={`p-2 rounded-xl transition-colors shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center ${isOpen ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </button>
+                          )}
+                          {canManage && (
+                            <button
+                              onClick={() => onRemoveStudent(s.id)}
+                              aria-label={`Remove ${s.student_name}`}
+                              className="p-2 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                          )}
+                        </div>
+                        {isOpen && s.student_email && (
+                          <StudentInstructorPanel classroomId={classroom.id} studentEmail={s.student_email} studentName={s.student_name} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Assignments tab ── */}
+          {tab === "assignments" && (
+            <AssignmentsPanel classroomId={classroom.id} canManage={canManage} />
           )}
         </div>
 
@@ -466,7 +738,7 @@ export default function ClassroomsPage() {
     createCourse, removeCourse, createClassroom, removeClassroom,
     enrollStudent, unenrollStudent, joinByCode,
     getClassroomStudents, getMyClassrooms, getTeacherClassrooms,
-    getCourseClassrooms, getStandaloneClassrooms,
+    getCourseClassrooms, getStandaloneClassrooms, isMyClassroom, isEnrolled,
   } = useClassroomsDb();
   const router = useRouter();
 
@@ -505,8 +777,8 @@ export default function ClassroomsPage() {
   );
 
   const canManageSelected = useMemo(
-    () => !!selectedRoom && (isAdmin || (isTeacher && selectedRoom.teacher_id === user?.id)),
-    [selectedRoom, isAdmin, isTeacher, user]
+    () => !!selectedRoom && (isAdmin || (isTeacher && isMyClassroom(selectedRoom))),
+    [selectedRoom, isAdmin, isTeacher, isMyClassroom]
   );
 
   // Teacher's classrooms (and all if admin)
@@ -591,7 +863,7 @@ export default function ClassroomsPage() {
   const standalone = isAdmin ? getStandaloneClassrooms() : isTeacher ? getTeacherClassrooms().filter((c) => !c.course_id) : [];
   const teacherCourses = isAdmin ? courses : courses.filter((c) => {
     if (!isTeacher) return false;
-    return classrooms.some((r) => r.course_id === c.id && r.teacher_id === user!.id);
+    return classrooms.some((r) => r.course_id === c.id && isMyClassroom(r));
   });
 
   return (
@@ -630,6 +902,12 @@ export default function ClassroomsPage() {
               </button>
             </div>
 
+            <div className="flex justify-end">
+              <Link href="/payments" className="text-xs text-primary font-medium hover:underline">
+                Payments →
+              </Link>
+            </div>
+
             {/* Main tab — course-grouped classrooms */}
             {tab === "main" && (
               <>
@@ -647,7 +925,7 @@ export default function ClassroomsPage() {
                     {teacherCourses.map((course) => {
                       const courseRooms = isAdmin
                         ? getCourseClassrooms(course.id)
-                        : getCourseClassrooms(course.id).filter((r) => r.teacher_id === user!.id);
+                        : getCourseClassrooms(course.id).filter((r) => isMyClassroom(r));
                       if (courseRooms.length === 0 && !isAdmin) return null;
                       return (
                         <section key={course.id} className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -818,7 +1096,7 @@ export default function ClassroomsPage() {
       )}
       {showRoomModal && (
         <CreateClassroomModal
-          courses={isAdmin ? courses : courses.filter((c) => classrooms.some((r) => r.course_id === c.id && r.teacher_id === user?.id) || true)}
+          courses={isAdmin ? courses : teacherCourses}
           defaultCourseId={defaultCourseId}
           onSave={handleCreateClassroom}
           onCancel={() => setShowRoomModal(false)}
@@ -841,6 +1119,9 @@ export default function ClassroomsPage() {
           course={selectedRoomCourse}
           students={selectedRoomStudents}
           canManage={canManageSelected}
+          isAdmin={isAdmin}
+          viewerEmail={user?.email}
+          isMyEnrollment={isEnrolled(selectedRoom.id)}
           onAddStudent={() => setShowAddStudentModal(true)}
           onRemoveStudent={handleRemoveStudent}
           onDeleteClassroom={handleDeleteClassroom}
