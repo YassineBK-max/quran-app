@@ -15,7 +15,7 @@ import { AuthPageShell, authCardStyle, authPrimaryButtonStyle } from "@/componen
 function VerifyInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const { markEmailVerified } = useAuth();
+  const { logout } = useAuth();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -33,7 +33,10 @@ function VerifyInner() {
           setStatus("error");
           return;
         }
-        markEmailVerified(email);
+        // authConfirmEmail already established a real Supabase session; sign
+        // back out so the user goes through the normal login form next,
+        // matching the redirect below.
+        logout();
         setVerifiedEmail(email);
         setStatus("success");
       })

@@ -1,42 +1,19 @@
 /*
- * ─── Supabase Setup — run once in the SQL Editor ────────────────────────────
+ * ─── Database schema ─────────────────────────────────────────────────────────
+ * The full, canonical schema (tables, RLS policies) lives in
+ * supabase/migration.sql — run that once in the Supabase SQL Editor.
  *
- * create table if not exists availability_slots (
- *   id           uuid primary key default gen_random_uuid(),
- *   teacher_id   text not null,
- *   teacher_name text not null,
- *   class_id     text,
- *   class_name   text,
- *   date         text not null,        -- YYYY-MM-DD
- *   start_time   text not null,        -- HH:MM
- *   end_time     text not null,        -- HH:MM
- *   title        text not null default 'Study Session',
- *   notes        text,
- *   max_bookings smallint not null default 1,
- *   created_at   timestamptz not null default now()
- * );
+ * teacher_id/student_id are real Supabase Auth ids (profiles.id), enforced
+ * server-side: a teacher can only write their own slots, a student can only
+ * book/cancel their own bookings, and reading a slot's bookings is limited
+ * to the student who made it, the teacher who owns the slot, or an admin —
+ * this used to be fully open ("using (true)") to anyone holding the public
+ * anon key, logged in or not.
  *
- * create table if not exists bookings (
- *   id           uuid primary key default gen_random_uuid(),
- *   slot_id      uuid not null references availability_slots(id) on delete cascade,
- *   student_id   text not null,
- *   student_name text not null,
- *   status       text not null default 'confirmed'
- *                  check (status in ('confirmed','cancelled')),
- *   notes        text,
- *   created_at   timestamptz not null default now(),
- *   unique (slot_id, student_id)
- * );
- *
- * -- Permissive RLS (this app uses custom localStorage auth, not Supabase Auth)
- * alter table availability_slots enable row level security;
- * alter table bookings enable row level security;
- * create policy "all_slots"    on availability_slots for all using (true) with check (true);
- * create policy "all_bookings" on bookings           for all using (true) with check (true);
- *
- * -- Enable Realtime (Postgres Changes)
- * alter publication supabase_realtime add table availability_slots;
- * alter publication supabase_realtime add table bookings;
+ * Because a student can no longer see other students' bookings on a shared
+ * slot, `booked_count` is a denormalized total kept in sync by a trigger
+ * (sync_slot_booked_count in migration.sql) so "N of M booked" / "is this
+ * slot full" still works for everyone without exposing who else booked it.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -54,6 +31,7 @@ export interface AvailabilitySlot {
   title: string;
   notes: string | null;
   max_bookings: number;
+  booked_count: number;
   created_at: string;
 }
 
@@ -71,7 +49,7 @@ export interface BookingWithSlot extends SlotBooking {
   slot: AvailabilitySlot | undefined;
 }
 
-export type CreateSlotInput = Omit<AvailabilitySlot, "id" | "created_at">;
+export type CreateSlotInput = Omit<AvailabilitySlot, "id" | "created_at" | "booked_count">;
 
 export async function fetchAllSlots(): Promise<AvailabilitySlot[]> {
   if (!supabase) return [];

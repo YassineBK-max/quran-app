@@ -139,9 +139,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     [bookings]
   );
 
+  // Reads the denormalized, trigger-maintained count on the slot itself
+  // rather than counting rows out of `bookings` — a student's own view of
+  // that array only ever contains their own bookings (see the RLS note at
+  // the top of booking.ts), so counting it directly would undercount a
+  // shared slot for anyone but the teacher who owns it.
   const slotBookingCount = useCallback(
-    (slotId: string) => activeBookings.filter((b) => b.slot_id === slotId).length,
-    [activeBookings]
+    (slotId: string) => slots.find((s) => s.id === slotId)?.booked_count ?? 0,
+    [slots]
   );
 
   const getSlotBookings = useCallback(

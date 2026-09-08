@@ -411,37 +411,12 @@ function SetupRequired() {
           <p className="font-semibold text-foreground text-sm">1. Add to .env.local</p>
           <pre className="bg-muted rounded-lg p-3 overflow-x-auto leading-relaxed">{`NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key`}</pre>
-          <p className="font-semibold text-foreground text-sm pt-1">2. Run in Supabase SQL Editor</p>
-          <pre className="bg-muted rounded-lg p-3 overflow-x-auto leading-relaxed whitespace-pre-wrap">{`create table availability_slots (
-  id           uuid primary key default gen_random_uuid(),
-  teacher_id   text not null,
-  teacher_name text not null,
-  class_id     text, class_name text,
-  date         text not null,
-  start_time   text not null,
-  end_time     text not null,
-  title        text not null default 'Study Session',
-  notes        text,
-  max_bookings smallint not null default 1,
-  created_at   timestamptz not null default now()
-);
-create table bookings (
-  id           uuid primary key default gen_random_uuid(),
-  slot_id      uuid not null references availability_slots(id) on delete cascade,
-  student_id   text not null,
-  student_name text not null,
-  status       text not null default 'confirmed'
-               check (status in ('confirmed','cancelled')),
-  notes        text,
-  created_at   timestamptz not null default now(),
-  unique (slot_id, student_id)
-);
-alter table availability_slots enable row level security;
-alter table bookings enable row level security;
-create policy "all_slots"    on availability_slots for all using (true) with check (true);
-create policy "all_bookings" on bookings           for all using (true) with check (true);
-alter publication supabase_realtime add table availability_slots;
-alter publication supabase_realtime add table bookings;`}</pre>
+          <p className="font-semibold text-foreground text-sm pt-1">2. Run supabase/migration.sql</p>
+          <p className="text-muted-foreground font-sans normal-case">
+            Copy the full script from <code className="bg-muted px-1.5 py-0.5 rounded">supabase/migration.sql</code> in
+            the repo into the Supabase SQL Editor and run it once — it covers this booking system along with accounts,
+            classrooms, attendance and payments in one idempotent script.
+          </p>
         </div>
       </main>
     </>

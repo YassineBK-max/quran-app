@@ -207,8 +207,8 @@ export function ProfileView() {
                   className="flex-1 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm font-mono tracking-widest uppercase"
                 />
                 <button
-                  onClick={() => {
-                    const err = linkChildToParent(addChildCode);
+                  onClick={async () => {
+                    const err = await linkChildToParent(addChildCode);
                     if (err) { setAddChildError(err); } else { setAddChildSuccess(true); setAddChildCode(""); setTimeout(() => setAddChildSuccess(false), 3000); }
                   }}
                   disabled={addChildCode.length < 8}

@@ -1,5 +1,10 @@
 /*
- * ─── Supabase Auth — Email Verification & Password Reset ─────────────────────
+ * ─── Supabase Auth — accounts, email verification & password reset ─────────
+ *
+ * This is the app's ONLY account system — Supabase Auth stores and verifies
+ * every password; the `profiles` table (see supabase/migration.sql) holds
+ * everything else (role, display name, etc), auto-created by a database
+ * trigger when signUp() succeeds.
  *
  * Dashboard setup (one-time):
  *   Authentication → URL Configuration
@@ -8,10 +13,6 @@
  *                    https://your-app.com/auth/reset-password
  *                    http://localhost:3000/auth/verify      (local dev)
  *                    http://localhost:3000/auth/reset-password
- *
- * All functions return null on success and an error string on failure.
- * When Supabase is not configured (!isSupabaseReady), functions return safe
- * no-ops so the app degrades gracefully to the localStorage-only flow.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { supabase, isSupabaseReady } from "./supabase";
@@ -21,23 +22,23 @@ import { supabase, isSupabaseReady } from "./supabase";
 export async function authSignUp(
   email: string,
   password: string,
+  name: string,
+  role: string,
   emailRedirectTo: string
 ): Promise<{ needsVerification: boolean; error: string | null }> {
   if (!supabase || !isSupabaseReady) {
-    return { needsVerification: false, error: null };
+    return { needsVerification: false, error: "Supabase is not configured." };
   }
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo },
+    options: { emailRedirectTo, data: { name, role } },
   });
   if (error) {
     if (error.message.toLowerCase().includes("already registered")) {
-      return { needsVerification: false, error: null };
+      return { needsVerification: false, error: "An account with this email already exists." };
     }
-    // Supabase auth failure doesn't break localStorage auth — just skip verification
-    console.warn("Supabase signUp:", error.message);
-    return { needsVerification: false, error: null };
+    return { needsVerification: false, error: error.message };
   }
   // session is null when Supabase requires email confirmation
   const needsVerification = !!data.user && !data.session && !data.user.email_confirmed_at;

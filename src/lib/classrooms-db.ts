@@ -1,124 +1,12 @@
 /*
- * ─── Supabase Setup — run once in the SQL Editor (safe to re-run) ───────────
+ * ─── Database schema ─────────────────────────────────────────────────────────
+ * The full, canonical schema (tables, RLS policies, triggers) lives in
+ * supabase/migration.sql — run that once in the Supabase SQL Editor. It's
+ * idempotent, so re-running it after a future change is always safe.
  *
- * create table if not exists courses (
- *   id          uuid primary key default gen_random_uuid(),
- *   name        text not null,
- *   description text,
- *   created_by  text not null,      -- User.id of creator
- *   created_at  timestamptz not null default now()
- * );
- *
- * create table if not exists classrooms (
- *   id            uuid primary key default gen_random_uuid(),
- *   course_id     uuid references courses(id) on delete set null,
- *   name          text not null,
- *   teacher_id    text not null,     -- User.id (legacy — may not resolve across devices)
- *   teacher_name  text not null,
- *   teacher_email text,              -- stable cross-device identity for the teacher
- *   description   text,
- *   join_code     text unique not null,
- *   hourly_rate   numeric,           -- pay rate for this class, admin-set
- *   created_at    timestamptz not null default now()
- * );
- * alter table classrooms add column if not exists teacher_email text;
- * alter table classrooms add column if not exists hourly_rate numeric;
- *
- * create table if not exists classroom_students (
- *   id            uuid primary key default gen_random_uuid(),
- *   classroom_id  uuid not null references classrooms(id) on delete cascade,
- *   student_id    text not null,    -- User.id (legacy — may not resolve across devices)
- *   student_name  text not null,
- *   student_email text,             -- stable cross-device identity for the student
- *   enrolled_at   timestamptz not null default now(),
- *   unique (classroom_id, student_id)
- * );
- *
- * create table if not exists classroom_assignments (
- *   id           uuid primary key default gen_random_uuid(),
- *   classroom_id uuid not null references classrooms(id) on delete cascade,
- *   title        text not null,
- *   description  text,
- *   due_date     date,
- *   created_at   timestamptz not null default now()
- * );
- *
- * create table if not exists classroom_attendance (
- *   id             uuid primary key default gen_random_uuid(),
- *   classroom_id   uuid not null references classrooms(id) on delete cascade,
- *   student_email  text not null,
- *   student_name   text not null,
- *   date           date not null,
- *   status         text not null check (status in ('present','late','absent','excused')),
- *   hours          numeric not null default 1,
- *   marked_by_email text,
- *   marked_at      timestamptz not null default now(),
- *   unique (classroom_id, student_email, date)
- * );
- *
- * create table if not exists classroom_progress_notes (
- *   classroom_id    uuid not null references classrooms(id) on delete cascade,
- *   student_email   text not null,
- *   completed       text,
- *   assigned        text,
- *   next_up         text,
- *   updated_by_email text,
- *   updated_at      timestamptz not null default now(),
- *   primary key (classroom_id, student_email)
- * );
- *
- * create table if not exists classroom_payments (
- *   id             uuid primary key default gen_random_uuid(),
- *   teacher_email  text not null,
- *   month          text not null,   -- 'YYYY-MM'
- *   amount         numeric not null,
- *   status         text not null check (status in ('pending','paid')),
- *   paid_at        timestamptz,
- *   paid_by_email  text,
- *   created_at     timestamptz not null default now(),
- *   unique (teacher_email, month)
- * );
- *
- * alter table courses                 enable row level security;
- * alter table classrooms              enable row level security;
- * alter table classroom_students      enable row level security;
- * alter table classroom_assignments   enable row level security;
- * alter table classroom_attendance    enable row level security;
- * alter table classroom_progress_notes enable row level security;
- * alter table classroom_payments      enable row level security;
- *
- * drop policy if exists "all_courses"     on courses;
- * drop policy if exists "all_rooms"       on classrooms;
- * drop policy if exists "all_enrollments" on classroom_students;
- * drop policy if exists "all_assignments" on classroom_assignments;
- * drop policy if exists "all_attendance"  on classroom_attendance;
- * drop policy if exists "all_progress"    on classroom_progress_notes;
- * drop policy if exists "all_payments"    on classroom_payments;
- * create policy "all_courses"     on courses                  for all using (true) with check (true);
- * create policy "all_rooms"       on classrooms                for all using (true) with check (true);
- * create policy "all_enrollments" on classroom_students        for all using (true) with check (true);
- * create policy "all_assignments" on classroom_assignments     for all using (true) with check (true);
- * create policy "all_attendance"  on classroom_attendance      for all using (true) with check (true);
- * create policy "all_progress"    on classroom_progress_notes  for all using (true) with check (true);
- * create policy "all_payments"    on classroom_payments        for all using (true) with check (true);
- *
- * do $$ begin
- *   alter publication supabase_realtime add table courses;
- *   alter publication supabase_realtime add table classrooms;
- *   alter publication supabase_realtime add table classroom_students;
- *   alter publication supabase_realtime add table classroom_assignments;
- *   alter publication supabase_realtime add table classroom_attendance;
- *   alter publication supabase_realtime add table classroom_progress_notes;
- *   alter publication supabase_realtime add table classroom_payments;
- * exception when duplicate_object then null; end $$;
- *
- * NOTE on identity: this app's accounts live in browser localStorage, not a
- * shared users table, so a person's User.id is different on every device
- * they sign up from. Anything that must resolve correctly across devices
- * (which teacher owns a class, which student is enrolled) is matched by
- * EMAIL, not by User.id — see teacher_email / student_email above and the
- * matching helpers in ClassroomsDbContext. User.id columns are kept only as
- * legacy/display fields.
+ * Everything below assumes real Supabase Auth: teacher_id/student_id/
+ * created_by/teacher_id columns are auth.users ids (== profiles.id ==
+ * User.id in the app), not the localStorage ids the app used before.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -139,11 +27,17 @@ export interface DbClassroom {
   name: string;
   teacher_id: string;
   teacher_name: string;
-  teacher_email: string | null;
   description: string | null;
+  created_at: string;
+}
+
+// Only readable by the classroom's teacher(s) or an admin (see
+// classroom_private's RLS policy in migration.sql) — never merged into
+// DbClassroom, which any authenticated user can read in full.
+export interface ClassroomPrivate {
+  classroom_id: string;
   join_code: string;
   hourly_rate: number | null;
-  created_at: string;
 }
 
 export interface ClassroomEnrollment {
@@ -169,22 +63,22 @@ export interface DbAssignment {
 export interface DbAttendanceRecord {
   id: string;
   classroom_id: string;
-  student_email: string;
+  student_id: string;
   student_name: string;
   date: string;
   status: DbAttendanceStatus;
   hours: number;
-  marked_by_email: string | null;
+  marked_by: string | null;
   marked_at: string;
 }
 
 export interface DbProgressNote {
   classroom_id: string;
-  student_email: string;
+  student_id: string;
   completed: string | null;
   assigned: string | null;
   next_up: string | null;
-  updated_by_email: string | null;
+  updated_by: string | null;
   updated_at: string;
 }
 
@@ -192,12 +86,12 @@ export type DbPaymentStatus = "pending" | "paid";
 
 export interface DbPayment {
   id: string;
-  teacher_email: string;
+  teacher_id: string;
   month: string;
   amount: number;
   status: DbPaymentStatus;
   paid_at: string | null;
-  paid_by_email: string | null;
+  paid_by: string | null;
   created_at: string;
 }
 
@@ -210,6 +104,16 @@ export function genJoinCode(): string {
 export async function fetchCourses(): Promise<Course[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from("courses").select("*").order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Scoped variant: only courses referenced by the classrooms passed in (a
+// teacher/student's own), instead of every course on the platform — see the
+// scoping note above fetchClassroomsForTeacher/fetchClassroomsByIds below.
+export async function fetchCoursesByIds(ids: string[]): Promise<Course[]> {
+  if (!supabase || ids.length === 0) return [];
+  const { data, error } = await supabase.from("courses").select("*").in("id", ids).order("created_at");
   if (error) throw error;
   return data ?? [];
 }
@@ -229,9 +133,30 @@ export async function deleteCourseById(id: string): Promise<void> {
 
 // ── Classrooms ────────────────────────────────────────────────────────────────
 
+// Unscoped — every classroom on the platform. classrooms_select's RLS is
+// broad (any authenticated user, so lookups like "join by code" still
+// resolve), but that doesn't mean every client should request the whole
+// table on every load: reserved for admins, who actually need the full
+// picture. Teachers/students use the scoped variants below instead, so a
+// growing platform doesn't mean a growing payload for people uninvolved
+// with most of it.
 export async function fetchClassrooms(): Promise<DbClassroom[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from("classrooms").select("*").order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchClassroomsForTeacher(teacherId: string): Promise<DbClassroom[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("classrooms").select("*").eq("teacher_id", teacherId).order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchClassroomsByIds(ids: string[]): Promise<DbClassroom[]> {
+  if (!supabase || ids.length === 0) return [];
+  const { data, error } = await supabase.from("classrooms").select("*").in("id", ids).order("created_at");
   if (error) throw error;
   return data ?? [];
 }
@@ -249,17 +174,43 @@ export async function deleteClassroomById(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function fetchClassroomByCode(code: string): Promise<DbClassroom | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.from("classrooms").select("*").eq("join_code", code.toUpperCase()).maybeSingle();
+// ── Classroom private data (join code + pay rate) ───────────────────────────
+// Only visible to the classroom's own teacher(s) or an admin — see the
+// security note at the top of migration.sql for why these aren't columns on
+// `classrooms` itself.
+
+export async function fetchClassroomPrivates(): Promise<ClassroomPrivate[]> {
+  if (!supabase) return [];
+  // RLS scopes this to classrooms the caller manages; a student sees none.
+  const { data, error } = await supabase.from("classroom_private").select("*");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function insertClassroomPrivate(classroomId: string, joinCode: string): Promise<ClassroomPrivate> {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { data, error } = await supabase
+    .from("classroom_private")
+    .insert({ classroom_id: classroomId, join_code: joinCode, hourly_rate: null })
+    .select()
+    .single();
   if (error) throw error;
   return data;
 }
 
-export async function updateClassroomRate(id: string, hourlyRate: number): Promise<void> {
+export async function updateClassroomRate(classroomId: string, hourlyRate: number): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase.from("classrooms").update({ hourly_rate: hourlyRate }).eq("id", id);
+  const { error } = await supabase.from("classroom_private").update({ hourly_rate: hourlyRate }).eq("classroom_id", classroomId);
   if (error) throw error;
+}
+
+// Validates the code server-side and enrolls the caller — never exposes
+// classroom_private to the client (see join_classroom_by_code in migration.sql).
+export async function joinClassroomByCode(code: string): Promise<string> {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { data, error } = await supabase.rpc("join_classroom_by_code", { p_code: code.toUpperCase() });
+  if (error) throw error;
+  return data as string; // the classroom id
 }
 
 // ── Enrollments ───────────────────────────────────────────────────────────────
@@ -344,17 +295,17 @@ export async function fetchAttendance(): Promise<DbAttendanceRecord[]> {
 
 export async function upsertAttendance(input: {
   classroom_id: string;
-  student_email: string;
+  student_id: string;
   student_name: string;
   date: string;
   status: DbAttendanceStatus;
   hours: number;
-  marked_by_email: string;
+  marked_by: string;
 }): Promise<DbAttendanceRecord> {
   if (!supabase) throw new Error("Supabase not configured");
   const { data, error } = await supabase
     .from("classroom_attendance")
-    .upsert(input, { onConflict: "classroom_id,student_email,date" })
+    .upsert(input, { onConflict: "classroom_id,student_id,date" })
     .select()
     .single();
   if (error) throw error;
@@ -372,16 +323,16 @@ export async function fetchProgressNotes(): Promise<DbProgressNote[]> {
 
 export async function upsertProgressNote(input: {
   classroom_id: string;
-  student_email: string;
+  student_id: string;
   completed?: string | null;
   assigned?: string | null;
   next_up?: string | null;
-  updated_by_email: string;
+  updated_by: string;
 }): Promise<DbProgressNote> {
   if (!supabase) throw new Error("Supabase not configured");
   const { data, error } = await supabase
     .from("classroom_progress_notes")
-    .upsert(input, { onConflict: "classroom_id,student_email" })
+    .upsert(input, { onConflict: "classroom_id,student_id" })
     .select()
     .single();
   if (error) throw error;
@@ -398,17 +349,17 @@ export async function fetchPayments(): Promise<DbPayment[]> {
 }
 
 export async function markPaymentPaid(input: {
-  teacher_email: string;
+  teacher_id: string;
   month: string;
   amount: number;
-  paid_by_email: string;
+  paid_by: string;
 }): Promise<DbPayment> {
   if (!supabase) throw new Error("Supabase not configured");
   const { data, error } = await supabase
     .from("classroom_payments")
     .upsert(
       { ...input, status: "paid" as const, paid_at: new Date().toISOString() },
-      { onConflict: "teacher_email,month" }
+      { onConflict: "teacher_id,month" }
     )
     .select()
     .single();

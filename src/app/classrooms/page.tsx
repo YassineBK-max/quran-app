@@ -229,8 +229,9 @@ function AddStudentModal({
 // ─── Hourly rate (admin-only edit) ────────────────────────────────────────────
 
 function RateEditor({ classroom, isAdmin }: { classroom: DbClassroom; isAdmin: boolean }) {
-  const { updateRate } = useClassroomsDb();
-  const [value, setValue] = useState(classroom.hourly_rate != null ? String(classroom.hourly_rate) : "");
+  const { updateRate, getClassroomPrivate } = useClassroomsDb();
+  const hourlyRate = getClassroomPrivate(classroom.id)?.hourly_rate ?? null;
+  const [value, setValue] = useState(hourlyRate != null ? String(hourlyRate) : "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -238,7 +239,7 @@ function RateEditor({ classroom, isAdmin }: { classroom: DbClassroom; isAdmin: b
     return (
       <div className="mx-4 mt-3 flex items-center justify-between text-xs">
         <span className="text-muted-foreground">Rate per hour</span>
-        <span className="font-medium">{classroom.hourly_rate ? `$${classroom.hourly_rate.toFixed(2)}/hr` : "Not set — contact an admin"}</span>
+        <span className="font-medium">{hourlyRate ? `$${hourlyRate.toFixed(2)}/hr` : "Not set — contact an admin"}</span>
       </div>
     );
   }
@@ -361,11 +362,11 @@ function EditAssignmentRow({ assignment, onSave, onCancel }: {
 
 // ─── Per-student attendance + progress (teacher/admin view) ──────────────────
 
-function StudentInstructorPanel({ classroomId, studentEmail, studentName }: { classroomId: string; studentEmail: string; studentName: string }) {
+function StudentInstructorPanel({ classroomId, studentId, studentName }: { classroomId: string; studentId: string; studentName: string }) {
   const { markAttendance, getAttendanceRecord, getStudentCompletedHours, getClassroomHeldHours, getProgressNote, setProgressNote } = useClassroomsDb();
   const date = todayStr();
-  const record = getAttendanceRecord(classroomId, studentEmail, date);
-  const note = getProgressNote(classroomId, studentEmail);
+  const record = getAttendanceRecord(classroomId, studentId, date);
+  const note = getProgressNote(classroomId, studentId);
 
   const [hours, setHours] = useState(record?.hours != null ? String(record.hours) : "1");
   const [completed, setCompleted] = useState(note?.completed ?? "");
@@ -392,7 +393,7 @@ function StudentInstructorPanel({ classroomId, studentEmail, studentName }: { cl
               disabled={marking}
               onClick={async () => {
                 setMarking(true);
-                await markAttendance(classroomId, studentEmail, studentName, date, s, parseFloat(hours) || 1);
+                await markAttendance(classroomId, studentId, studentName, date, s, parseFloat(hours) || 1);
                 setMarking(false);
               }}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors min-h-[32px] disabled:opacity-50 ${
@@ -409,7 +410,7 @@ function StudentInstructorPanel({ classroomId, studentEmail, studentName }: { cl
 
       <div className="flex items-center gap-2 text-xs">
         <span className="text-muted-foreground">Hours completed:</span>
-        <span className="font-semibold text-primary">{getStudentCompletedHours(classroomId, studentEmail)}</span>
+        <span className="font-semibold text-primary">{getStudentCompletedHours(classroomId, studentId)}</span>
         <span className="text-muted-foreground">/ {getClassroomHeldHours(classroomId)} held</span>
       </div>
 
@@ -424,7 +425,7 @@ function StudentInstructorPanel({ classroomId, studentEmail, studentName }: { cl
         <div className="flex items-center gap-2">
           <button
             onClick={async () => {
-              await setProgressNote(classroomId, studentEmail, { completed, assigned, next_up: nextUp });
+              await setProgressNote(classroomId, studentId, { completed, assigned, next_up: nextUp });
               setSavedNote(true);
               setTimeout(() => setSavedNote(false), 2000);
             }}
@@ -441,10 +442,10 @@ function StudentInstructorPanel({ classroomId, studentEmail, studentName }: { cl
 
 // ─── Student's own progress (student view, read-only) ────────────────────────
 
-function MyProgressPanel({ classroomId, studentEmail }: { classroomId: string; studentEmail: string }) {
+function MyProgressPanel({ classroomId, studentId }: { classroomId: string; studentId: string }) {
   const { getProgressNote, getStudentCompletedHours, getClassroomHeldHours } = useClassroomsDb();
-  const note = getProgressNote(classroomId, studentEmail);
-  const completedHours = getStudentCompletedHours(classroomId, studentEmail);
+  const note = getProgressNote(classroomId, studentId);
+  const completedHours = getStudentCompletedHours(classroomId, studentId);
   const heldHours = getClassroomHeldHours(classroomId);
 
   return (
@@ -475,7 +476,7 @@ function ClassroomDetailSheet({
   students,
   canManage,
   isAdmin,
-  viewerEmail,
+  viewerId,
   isMyEnrollment,
   onAddStudent,
   onRemoveStudent,
@@ -487,20 +488,27 @@ function ClassroomDetailSheet({
   students: ClassroomEnrollment[];
   canManage: boolean;
   isAdmin: boolean;
-  viewerEmail: string | undefined;
+  viewerId: string | undefined;
   isMyEnrollment: boolean;
   onAddStudent: () => void;
   onRemoveStudent: (enrollmentId: string) => void;
   onDeleteClassroom: () => void;
   onClose: () => void;
 }) {
+  const { getClassroomPrivate } = useClassroomsDb();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<"students" | "assignments">("students");
   const [openStudent, setOpenStudent] = useState<string | null>(null);
 
+  // Only populated for classrooms this viewer manages — see the security
+  // note at the top of migration.sql for why join_code/hourly_rate aren't
+  // on the classroom row itself.
+  const joinCode = getClassroomPrivate(classroom.id)?.join_code;
+
   const copyCode = () => {
-    navigator.clipboard.writeText(classroom.join_code).then(() => {
+    if (!joinCode) return;
+    navigator.clipboard.writeText(joinCode).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -524,17 +532,19 @@ function ClassroomDetailSheet({
           </button>
         </div>
 
-        {/* Join code */}
-        <div className="mx-4 mt-4 flex items-center gap-3 p-3 rounded-xl bg-muted/60 shrink-0">
-          <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Join Code</p>
-            <p className="font-mono font-bold text-xl tracking-widest text-primary">{classroom.join_code}</p>
+        {/* Join code — only visible to this classroom's own teacher(s)/admin */}
+        {joinCode && (
+          <div className="mx-4 mt-4 flex items-center gap-3 p-3 rounded-xl bg-muted/60 shrink-0">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Join Code</p>
+              <p className="font-mono font-bold text-xl tracking-widest text-primary">{joinCode}</p>
+            </div>
+            <button onClick={copyCode}
+              className="ml-auto text-xs px-3 py-2 rounded-xl border border-border hover:bg-muted transition-colors font-medium min-h-[36px]">
+              {copied ? "Copied!" : "Copy"}
+            </button>
           </div>
-          <button onClick={copyCode}
-            className="ml-auto text-xs px-3 py-2 rounded-xl border border-border hover:bg-muted transition-colors font-medium min-h-[36px]">
-            {copied ? "Copied!" : "Copy"}
-          </button>
-        </div>
+        )}
 
         {/* Rate — visible to the teacher(s) of this classroom and admins */}
         {(canManage || isAdmin) && <RateEditor classroom={classroom} isAdmin={isAdmin} />}
@@ -565,10 +575,10 @@ function ClassroomDetailSheet({
               </div>
 
               {/* Student's own progress, shown above the roster when they're enrolled here */}
-              {isMyEnrollment && viewerEmail && !canManage && (
+              {isMyEnrollment && viewerId && !canManage && (
                 <div className="mx-4 mb-2 border border-border rounded-xl overflow-hidden">
                   <p className="text-xs font-semibold px-3 pt-2 text-muted-foreground">My progress</p>
-                  <MyProgressPanel classroomId={classroom.id} studentEmail={viewerEmail} />
+                  <MyProgressPanel classroomId={classroom.id} studentId={viewerId} />
                 </div>
               )}
 
@@ -599,7 +609,7 @@ function ClassroomDetailSheet({
                               Enrolled {new Date(s.enrolled_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                             </p>
                           </div>
-                          {canManage && s.student_email && (
+                          {canManage && (
                             <button onClick={() => setOpenStudent(isOpen ? null : s.id)}
                               title="Attendance & progress"
                               className={`p-2 rounded-xl transition-colors shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center ${isOpen ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
@@ -616,8 +626,8 @@ function ClassroomDetailSheet({
                             </button>
                           )}
                         </div>
-                        {isOpen && s.student_email && (
-                          <StudentInstructorPanel classroomId={classroom.id} studentEmail={s.student_email} studentName={s.student_name} />
+                        {isOpen && (
+                          <StudentInstructorPanel classroomId={classroom.id} studentId={s.student_id} studentName={s.student_name} />
                         )}
                       </div>
                     );
@@ -705,6 +715,8 @@ function ClassroomCard({
   studentCount: number;
   onClick: () => void;
 }) {
+  const { getClassroomPrivate } = useClassroomsDb();
+  const joinCode = getClassroomPrivate(classroom.id)?.join_code;
   return (
     <button
       onClick={onClick}
@@ -716,7 +728,7 @@ function ClassroomCard({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold group-hover:text-primary transition-colors">{classroom.name}</p>
         <p className="text-xs text-muted-foreground">
-          {studentCount} student{studentCount !== 1 ? "s" : ""} · Code: <span className="font-mono font-bold text-primary">{classroom.join_code}</span>
+          {studentCount} student{studentCount !== 1 ? "s" : ""}{joinCode && <> · Code: <span className="font-mono font-bold text-primary">{joinCode}</span></>}
         </p>
         {classroom.description && (
           <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{classroom.description}</p>
@@ -1120,7 +1132,7 @@ export default function ClassroomsPage() {
           students={selectedRoomStudents}
           canManage={canManageSelected}
           isAdmin={isAdmin}
-          viewerEmail={user?.email}
+          viewerId={user?.id}
           isMyEnrollment={isEnrolled(selectedRoom.id)}
           onAddStudent={() => setShowAddStudentModal(true)}
           onRemoveStudent={handleRemoveStudent}

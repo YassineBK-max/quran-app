@@ -3,13 +3,11 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClassroom } from "@/contexts/ClassroomContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/hooks/useT";
-import { isSupabaseReady } from "@/lib/supabase";
-import { authSignUp, authResendVerification } from "@/lib/supabase-auth";
+import { authResendVerification } from "@/lib/supabase-auth";
 
 // ── Geometric background ──────────────────────────────────────────────────────
 function SignatureBg() {
@@ -225,7 +223,7 @@ function StepDots({ current }: { current: number }) {
 
 // ── Main signup form ──────────────────────────────────────────────────────────
 function SignupForm() {
-  const { signup, signupGoogle, updateUser, logout, user } = useAuth();
+  const { signup, signupGoogle } = useAuth();
   const { joinClass } = useClassroom();
   const { settings, updateSettings } = useSettings();
   const t = useT();
@@ -263,10 +261,6 @@ function SignupForm() {
     setStep("role");
   };
 
-  const handleGoogleSignup = async () => {
-    await signIn("google", { callbackUrl: "/auth/google-callback" });
-  };
-
   const handleResend = async () => {
     setResendLoading(true);
     setResendMsg("");
@@ -281,14 +275,14 @@ function SignupForm() {
     setError("");
     setLoading(true);
 
-    let err: string | null;
     if (isGoogle) {
-      err = signupGoogle(name, email, role);
-    } else {
-      err = await signup(name, email, password, role, code || undefined);
+      setError(signupGoogle(name, email, role) ?? "Google sign-in isn't available right now.");
+      setLoading(false);
+      return;
     }
 
-    if (err) { setError(err); setLoading(false); return; }
+    const { error: signupError, needsVerification } = await signup(name, email, password, role, code || undefined);
+    if (signupError) { setError(signupError); setLoading(false); return; }
 
     if (role === "student" && code && code.length === 6) {
       const joinErr = joinClass(code);
@@ -297,18 +291,11 @@ function SignupForm() {
       }
     }
 
-    if (!isGoogle && isSupabaseReady) {
-      const redirectTo = `${window.location.origin}/auth/verify`;
-      const { needsVerification } = await authSignUp(email, password, redirectTo);
-      if (needsVerification) {
-        const uid = user?.id ?? "";
-        if (uid) updateUser(uid, { emailVerified: false });
-        logout();
-        setPendingEmail(email);
-        setLoading(false);
-        setStep("verify-email");
-        return;
-      }
+    if (needsVerification) {
+      setPendingEmail(email);
+      setLoading(false);
+      setStep("verify-email");
+      return;
     }
 
     setLoading(false);
@@ -553,40 +540,6 @@ function SignupForm() {
                     {t.next} →
                   </button>
                 </form>
-
-                {/* Divider */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t" style={{ borderColor: "rgba(0,184,212,0.2)" }} />
-                  </div>
-                  <div className="relative flex justify-center">
-                    <span className="px-3 text-sm" style={{ color: "rgba(0,130,160,0.55)", background: "rgba(240,248,255,0.95)", fontFamily: '"Cairo", sans-serif' }}>
-                      {t.or}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Google signup */}
-                <button
-                  onClick={handleGoogleSignup}
-                  className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-semibold text-base transition-all hover:opacity-90 active:scale-[.98]"
-                  style={{
-                    background: "rgba(255,255,255,0.95)",
-                    border: "1.5px solid rgba(0,0,0,0.12)",
-                    color: "#1f1f1f",
-                    fontFamily: '"Cairo", sans-serif',
-                    minHeight: "56px",
-                    boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill="#EA4335" d="M5.26 9.77C5.84 8.1 6.97 6.74 8.4 5.84L5.68 3.12A11.89 11.89 0 0 0 .5 12c0 1.94.47 3.77 1.3 5.38l2.77-2.16A7.01 7.01 0 0 1 5.26 9.77z"/>
-                    <path fill="#FBBC05" d="M12 5c1.52 0 2.88.51 3.97 1.35l2.56-2.56A11.93 11.93 0 0 0 12 0C7.52 0 3.65 2.62 1.68 6.38l2.96 2.3A7.03 7.03 0 0 1 12 5z"/>
-                    <path fill="#34A853" d="M12 19c-2.3 0-4.33-1.13-5.6-2.85l-2.78 2.17A11.9 11.9 0 0 0 12 24c3.08 0 5.87-1.16 8-3.06l-2.77-2.16A7.02 7.02 0 0 1 12 19z"/>
-                    <path fill="#4285F4" d="M23.5 12c0-.79-.07-1.56-.2-2.31H12v4.64h6.46A5.54 5.54 0 0 1 17.23 18l2.77 2.16A11.95 11.95 0 0 0 23.5 12z"/>
-                  </svg>
-                  {t.google_signin}
-                </button>
               </div>
             )}
 

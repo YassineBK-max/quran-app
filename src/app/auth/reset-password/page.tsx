@@ -3,8 +3,8 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@/contexts/AuthContext";
 import { authExchangeResetCode, authSetNewPassword } from "@/lib/supabase-auth";
+import { supabase } from "@/lib/supabase";
 import { AuthPageShell, authCardStyle, authPrimaryButtonStyle } from "@/components/auth/AuthBackground";
 
 // Supabase sends the password-reset link to this route.
@@ -22,7 +22,6 @@ const inputStyle = {
 function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const { updatePassword } = useAuth();
 
   const [phase, setPhase] = useState<"loading" | "form" | "success" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -78,10 +77,9 @@ function ResetPasswordInner() {
       return;
     }
 
-    // Sync the new password into the localStorage account (hashed)
-    if (sessionEmail) {
-      await updatePassword(sessionEmail, newPassword);
-    }
+    // The recovery link left us signed in; sign back out so the redirect
+    // below lands on a normal login form rather than an already-authed one.
+    await supabase?.auth.signOut();
 
     setPhase("success");
     setTimeout(() => router.replace("/login"), 3000);

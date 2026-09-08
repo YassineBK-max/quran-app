@@ -1,7 +1,6 @@
 "use client";
 import { ReactNode, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { SessionProvider } from "next-auth/react";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { BookmarkProvider } from "@/contexts/BookmarkContext";
 import { PinnedSurahsProvider } from "@/contexts/PinnedSurahsContext";
@@ -79,42 +78,40 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
-      <SettingsProvider>
-        <ViewModeProvider>
-        <AuthProvider>
-          <BookmarkProvider>
-            <PinnedSurahsProvider>
-              <AudioProvider>
-                <MemorizationProvider>
-                  <ClassroomProvider>
-                    <ClassroomsDbProvider>
-                    <BookingProvider>
-                    <CalendarProvider>
-                      <MessageProvider>
-                        <NotificationProvider>
-                          <ActivityProvider>
-                            <StreakProvider>
-                              <AuthGuard>
-                                <Shell>
-                                  {children}
-                                </Shell>
-                              </AuthGuard>
-                            </StreakProvider>
-                          </ActivityProvider>
-                        </NotificationProvider>
-                      </MessageProvider>
-                    </CalendarProvider>
-                    </BookingProvider>
-                    </ClassroomsDbProvider>
-                  </ClassroomProvider>
-                </MemorizationProvider>
-              </AudioProvider>
-            </PinnedSurahsProvider>
-          </BookmarkProvider>
-        </AuthProvider>
-        </ViewModeProvider>
-      </SettingsProvider>
-    </SessionProvider>
+    <SettingsProvider>
+      <ViewModeProvider>
+      <AuthProvider>
+        <BookmarkProvider>
+          <PinnedSurahsProvider>
+            <AudioProvider>
+              <MemorizationProvider>
+                <ClassroomProvider>
+                  <ClassroomsDbProvider>
+                  <BookingProvider>
+                  <CalendarProvider>
+                    <MessageProvider>
+                      <NotificationProvider>
+                        <ActivityProvider>
+                          <StreakProvider>
+                            <AuthGuard>
+                              <Shell>
+                                {children}
+                              </Shell>
+                            </AuthGuard>
+                          </StreakProvider>
+                        </ActivityProvider>
+                      </NotificationProvider>
+                    </MessageProvider>
+                  </CalendarProvider>
+                  </BookingProvider>
+                  </ClassroomsDbProvider>
+                </ClassroomProvider>
+              </MemorizationProvider>
+            </AudioProvider>
+          </PinnedSurahsProvider>
+        </BookmarkProvider>
+      </AuthProvider>
+      </ViewModeProvider>
+    </SettingsProvider>
   );
 }

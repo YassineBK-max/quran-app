@@ -7,11 +7,13 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { supabase, isSupabaseReady } from "@/lib/supabase";
 import {
   Course,
   DbClassroom,
+  ClassroomPrivate,
   ClassroomEnrollment,
   DbAssignment,
   DbAttendanceRecord,
@@ -20,14 +22,19 @@ import {
   DbPayment,
   genJoinCode,
   fetchCourses,
+  fetchCoursesByIds,
   fetchClassrooms,
+  fetchClassroomsForTeacher,
+  fetchClassroomsByIds,
   fetchEnrollments,
   insertCourse,
   deleteCourseById,
   insertClassroom,
   deleteClassroomById,
-  fetchClassroomByCode,
+  fetchClassroomPrivates,
+  insertClassroomPrivate,
   updateClassroomRate,
+  joinClassroomByCode,
   insertEnrollment,
   deleteEnrollmentById,
   fetchAssignments,
@@ -43,20 +50,10 @@ import {
 } from "@/lib/classrooms-db";
 import { useAuth } from "./AuthContext";
 
-// A classroom/enrollment row "belongs" to the current user if its email
-// column matches — falling back to the legacy per-device User.id only for
-// rows created before the email columns existed. See the identity note at
-// the top of classrooms-db.ts.
-function ownsClassroom(c: DbClassroom, email: string, id: string): boolean {
-  return c.teacher_email ? c.teacher_email.toLowerCase() === email.toLowerCase() : c.teacher_id === id;
-}
-function ownsEnrollment(e: ClassroomEnrollment, email: string, id: string): boolean {
-  return e.student_email ? e.student_email.toLowerCase() === email.toLowerCase() : e.student_id === id;
-}
-
 interface ClassroomsDbContextType {
   courses: Course[];
   classrooms: DbClassroom[];
+  classroomPrivates: ClassroomPrivate[];
   enrollments: ClassroomEnrollment[];
   assignments: DbAssignment[];
   attendance: DbAttendanceRecord[];
@@ -73,6 +70,7 @@ interface ClassroomsDbContextType {
   unenrollStudent: (enrollmentId: string) => Promise<void>;
   joinByCode: (code: string) => Promise<DbClassroom>;
   updateRate: (classroomId: string, hourlyRate: number) => Promise<void>;
+  getClassroomPrivate: (classroomId: string) => ClassroomPrivate | undefined;
   getClassroomStudents: (classroomId: string) => ClassroomEnrollment[];
   getMyEnrollments: () => ClassroomEnrollment[];
   getMyClassrooms: () => DbClassroom[];
@@ -88,24 +86,24 @@ interface ClassroomsDbContextType {
   removeAssignment: (id: string) => Promise<void>;
   getAssignmentsForClassroom: (classroomId: string) => DbAssignment[];
   // Attendance
-  markAttendance: (classroomId: string, studentEmail: string, studentName: string, date: string, status: DbAttendanceStatus, hours: number) => Promise<void>;
+  markAttendance: (classroomId: string, studentId: string, studentName: string, date: string, status: DbAttendanceStatus, hours: number) => Promise<void>;
   getAttendanceForClassroom: (classroomId: string) => DbAttendanceRecord[];
-  getAttendanceRecord: (classroomId: string, studentEmail: string, date: string) => DbAttendanceRecord | undefined;
-  getStudentCompletedHours: (classroomId: string, studentEmail: string, month?: string) => number;
+  getAttendanceRecord: (classroomId: string, studentId: string, date: string) => DbAttendanceRecord | undefined;
+  getStudentCompletedHours: (classroomId: string, studentId: string, month?: string) => number;
   getClassroomHeldHours: (classroomId: string, month?: string) => number;
   // Progress notes
-  getProgressNote: (classroomId: string, studentEmail: string) => DbProgressNote | undefined;
-  setProgressNote: (classroomId: string, studentEmail: string, patch: { completed?: string; assigned?: string; next_up?: string }) => Promise<void>;
+  getProgressNote: (classroomId: string, studentId: string) => DbProgressNote | undefined;
+  setProgressNote: (classroomId: string, studentId: string, patch: { completed?: string; assigned?: string; next_up?: string }) => Promise<void>;
   // Payments
-  getPaymentsForTeacher: (teacherEmail: string) => DbPayment[];
-  getPaymentForMonth: (teacherEmail: string, month: string) => DbPayment | undefined;
+  getPaymentsForTeacher: (teacherId: string) => DbPayment[];
+  getPaymentForMonth: (teacherId: string, month: string) => DbPayment | undefined;
   getClassroomDueForMonth: (classroomId: string, month: string) => number;
-  getTeacherDueForMonth: (teacherEmail: string, month: string) => number;
-  markPaid: (teacherEmail: string, month: string, amount: number) => Promise<void>;
+  getTeacherDueForMonth: (teacherId: string, month: string) => number;
+  markPaid: (teacherId: string, month: string, amount: number) => Promise<void>;
 }
 
 const ClassroomsDbCtx = createContext<ClassroomsDbContextType>({
-  courses: [], classrooms: [], enrollments: [], assignments: [], attendance: [], progressNotes: [], payments: [],
+  courses: [], classrooms: [], classroomPrivates: [], enrollments: [], assignments: [], attendance: [], progressNotes: [], payments: [],
   loading: false, error: null, schemaReady: true,
   createCourse: async () => { throw new Error("not ready"); },
   removeCourse: async () => {},
@@ -115,6 +113,7 @@ const ClassroomsDbCtx = createContext<ClassroomsDbContextType>({
   unenrollStudent: async () => {},
   joinByCode: async () => { throw new Error("not ready"); },
   updateRate: async () => {},
+  getClassroomPrivate: () => undefined,
   getClassroomStudents: () => [],
   getMyEnrollments: () => [],
   getMyClassrooms: () => [],
@@ -143,8 +142,7 @@ const ClassroomsDbCtx = createContext<ClassroomsDbContextType>({
 });
 
 // Supabase returns this when a table referenced by the app hasn't been created
-// in the connected project yet (i.e. the setup SQL at the top of classrooms-db.ts
-// was never run) — distinguish that from a real runtime/network error.
+// in the connected project yet (i.e. supabase/migration.sql was never run).
 function isMissingTableError(e: unknown): boolean {
   const err = e as { code?: string; message?: string } | null;
   return err?.code === "PGRST205" || !!err?.message?.includes("schema cache");
@@ -154,6 +152,7 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [classrooms, setClassrooms] = useState<DbClassroom[]>([]);
+  const [classroomPrivates, setClassroomPrivates] = useState<ClassroomPrivate[]>([]);
   const [enrollments, setEnrollments] = useState<ClassroomEnrollment[]>([]);
   const [assignments, setAssignments] = useState<DbAssignment[]>([]);
   const [attendance, setAttendance] = useState<DbAttendanceRecord[]>([]);
@@ -164,15 +163,46 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   const [schemaReady, setSchemaReady] = useState(true);
 
   const load = useCallback(async () => {
-    if (!isSupabaseReady) return;
+    if (!isSupabaseReady || !user) return;
+    // Course Classrooms has no UI for parents (or any other role) at all —
+    // don't fetch a dataset nothing will read. Admins get everything;
+    // teachers/students get only what's theirs, so the payload stays
+    // proportional to that one person's actual involvement rather than
+    // growing with the whole platform.
+    if (user.role !== "admin" && user.role !== "teacher" && user.role !== "student") {
+      setLoading(false);
+      setSchemaReady(true);
+      return;
+    }
     setLoading(true);
     try {
-      const [c, r, e, a, att, pn, pay] = await Promise.all([
-        fetchCourses(), fetchClassrooms(), fetchEnrollments(),
-        fetchAssignments(), fetchAttendance(), fetchProgressNotes(), fetchPayments(),
+      // classroom_students' RLS already scopes this to "my own enrollments"
+      // (student) or "enrollments in classes I manage" (teacher/admin)
+      // regardless of query shape, so one fetch covers everyone — and gives
+      // students the classroom ids needed to scope the fetch below.
+      const e = await fetchEnrollments();
+
+      let r: DbClassroom[];
+      let c: Course[];
+      if (user.role === "admin") {
+        [r, c] = await Promise.all([fetchClassrooms(), fetchCourses()]);
+      } else if (user.role === "teacher") {
+        r = await fetchClassroomsForTeacher(user.id);
+        const courseIds = Array.from(new Set(r.map((x) => x.course_id).filter((id): id is string => !!id)));
+        c = await fetchCoursesByIds(courseIds);
+      } else {
+        const myClassroomIds = Array.from(new Set(e.map((x) => x.classroom_id)));
+        r = await fetchClassroomsByIds(myClassroomIds);
+        const courseIds = Array.from(new Set(r.map((x) => x.course_id).filter((id): id is string => !!id)));
+        c = await fetchCoursesByIds(courseIds);
+      }
+
+      const [cp, a, att, pn, pay] = await Promise.all([
+        fetchClassroomPrivates(), fetchAssignments(), fetchAttendance(), fetchProgressNotes(), fetchPayments(),
       ]);
       setCourses(c);
       setClassrooms(r);
+      setClassroomPrivates(cp);
       setEnrollments(e);
       setAssignments(a);
       setAttendance(att);
@@ -190,45 +220,127 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
+  // Latest state for the realtime handlers below to read without needing to
+  // tear down and recreate the subscription every time one of these changes
+  // (the effect only depends on `user`, so a plain closure over the state
+  // variables would go stale after the first render).
+  const classroomsRef = useRef(classrooms);
+  const coursesRef = useRef(courses);
+  const enrollmentsRef = useRef(enrollments);
+  useEffect(() => { classroomsRef.current = classrooms; }, [classrooms]);
+  useEffect(() => { coursesRef.current = courses; }, [courses]);
+  useEffect(() => { enrollmentsRef.current = enrollments; }, [enrollments]);
+
   // Realtime subscriptions
   useEffect(() => {
-    if (!supabase || !isSupabaseReady) return;
+    if (!supabase || !isSupabaseReady || !user) return;
+    if (user.role !== "admin" && user.role !== "teacher" && user.role !== "student") return;
+
+    // courses_select/classrooms_select grant any authenticated user SELECT
+    // on every row (needed for e.g. join-by-code lookups), so unlike the
+    // per-user-scoped tables below, RLS alone won't stop this channel from
+    // delivering every OTHER teacher's new classroom too — filter those out
+    // client-side so a non-admin's local state doesn't quietly re-accumulate
+    // the whole-platform dataset that `load()` above deliberately avoided
+    // fetching in the first place. Updates/deletes to something already in
+    // local state are still applied either way (harmless either way,
+    // needed if it's actually relevant).
+    const isRelevantClassroom = (row: DbClassroom) =>
+      user.role === "admin" ||
+      row.teacher_id === user.id ||
+      classroomsRef.current.some((c) => c.id === row.id) ||
+      enrollmentsRef.current.some((e) => e.classroom_id === row.id && e.student_id === user.id);
+    const isRelevantCourse = (row: Course) =>
+      user.role === "admin" ||
+      coursesRef.current.some((c) => c.id === row.id) ||
+      classroomsRef.current.some((c) => c.course_id === row.id);
+
     const ch = supabase
       .channel("classrooms-db-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, (p) => {
-        if (p.eventType === "INSERT") setCourses((prev) => [...prev, p.new as Course]);
-        else if (p.eventType === "DELETE") setCourses((prev) => prev.filter((c) => c.id !== (p.old as { id: string }).id));
-        else if (p.eventType === "UPDATE") setCourses((prev) => prev.map((c) => c.id === (p.new as Course).id ? p.new as Course : c));
+        if (p.eventType === "DELETE") {
+          setCourses((prev) => prev.filter((c) => c.id !== (p.old as { id: string }).id));
+          return;
+        }
+        const row = p.new as Course;
+        if (!isRelevantCourse(row)) return;
+        setCourses((prev) => {
+          const idx = prev.findIndex((c) => c.id === row.id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev]; next[idx] = row; return next;
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "classrooms" }, (p) => {
-        if (p.eventType === "INSERT") setClassrooms((prev) => [...prev, p.new as DbClassroom]);
-        else if (p.eventType === "DELETE") setClassrooms((prev) => prev.filter((c) => c.id !== (p.old as { id: string }).id));
-        else if (p.eventType === "UPDATE") setClassrooms((prev) => prev.map((c) => c.id === (p.new as DbClassroom).id ? p.new as DbClassroom : c));
+        if (p.eventType === "DELETE") {
+          setClassrooms((prev) => prev.filter((c) => c.id !== (p.old as { id: string }).id));
+          return;
+        }
+        const row = p.new as DbClassroom;
+        if (!isRelevantClassroom(row)) return;
+        setClassrooms((prev) => {
+          const idx = prev.findIndex((c) => c.id === row.id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev]; next[idx] = row; return next;
+        });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "classroom_private" }, (p) => {
+        if (p.eventType === "DELETE") {
+          const oldId = (p.old as { classroom_id: string }).classroom_id;
+          setClassroomPrivates((prev) => prev.filter((cp) => cp.classroom_id !== oldId));
+          return;
+        }
+        const row = p.new as ClassroomPrivate;
+        setClassroomPrivates((prev) => {
+          const idx = prev.findIndex((cp) => cp.classroom_id === row.classroom_id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev]; next[idx] = row; return next;
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "classroom_students" }, (p) => {
-        if (p.eventType === "INSERT") setEnrollments((prev) => [...prev, p.new as ClassroomEnrollment]);
-        else if (p.eventType === "DELETE") setEnrollments((prev) => prev.filter((e) => e.id !== (p.old as { id: string }).id));
-        else if (p.eventType === "UPDATE") setEnrollments((prev) => prev.map((e) => e.id === (p.new as ClassroomEnrollment).id ? p.new as ClassroomEnrollment : e));
+        if (p.eventType === "DELETE") {
+          setEnrollments((prev) => prev.filter((e) => e.id !== (p.old as { id: string }).id));
+          return;
+        }
+        const row = p.new as ClassroomEnrollment;
+        setEnrollments((prev) => {
+          const idx = prev.findIndex((e) => e.id === row.id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev]; next[idx] = row; return next;
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "classroom_assignments" }, (p) => {
-        if (p.eventType === "INSERT") setAssignments((prev) => [...prev, p.new as DbAssignment]);
-        else if (p.eventType === "DELETE") setAssignments((prev) => prev.filter((a) => a.id !== (p.old as { id: string }).id));
-        else if (p.eventType === "UPDATE") setAssignments((prev) => prev.map((a) => a.id === (p.new as DbAssignment).id ? p.new as DbAssignment : a));
+        if (p.eventType === "DELETE") {
+          setAssignments((prev) => prev.filter((a) => a.id !== (p.old as { id: string }).id));
+          return;
+        }
+        const row = p.new as DbAssignment;
+        setAssignments((prev) => {
+          const idx = prev.findIndex((a) => a.id === row.id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev]; next[idx] = row; return next;
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "classroom_attendance" }, (p) => {
-        if (p.eventType === "INSERT") setAttendance((prev) => [...prev, p.new as DbAttendanceRecord]);
-        else if (p.eventType === "DELETE") setAttendance((prev) => prev.filter((a) => a.id !== (p.old as { id: string }).id));
-        else if (p.eventType === "UPDATE") setAttendance((prev) => prev.map((a) => a.id === (p.new as DbAttendanceRecord).id ? p.new as DbAttendanceRecord : a));
+        if (p.eventType === "DELETE") {
+          setAttendance((prev) => prev.filter((a) => a.id !== (p.old as { id: string }).id));
+          return;
+        }
+        const row = p.new as DbAttendanceRecord;
+        setAttendance((prev) => {
+          const idx = prev.findIndex((a) => a.id === row.id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev]; next[idx] = row; return next;
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "classroom_progress_notes" }, (p) => {
         if (p.eventType === "DELETE") return;
         const row = p.new as DbProgressNote;
         setProgressNotes((prev) => {
-          const idx = prev.findIndex((n) => n.classroom_id === row.classroom_id && n.student_email === row.student_email);
+          const idx = prev.findIndex((n) => n.classroom_id === row.classroom_id && n.student_id === row.student_id);
           if (idx < 0) return [...prev, row];
           const next = [...prev]; next[idx] = row; return next;
         });
@@ -244,7 +356,7 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
     return () => { supabase!.removeChannel(ch); };
-  }, []);
+  }, [user]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -276,12 +388,33 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
         name,
         teacher_id: user.id,
         teacher_name: user.name,
-        teacher_email: user.email,
         description: description ?? null,
-        join_code: genJoinCode(),
-        hourly_rate: null,
       });
       setClassrooms((prev) => [...prev, room]);
+
+      // genJoinCode()'s keyspace is large but finite — as more classrooms
+      // get created, an actual collision with someone else's code becomes
+      // a matter of when, not if. Retry a few times with a fresh code
+      // rather than erroring out on the first unlucky draw.
+      let priv = null;
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5 && !priv; attempt++) {
+        try {
+          priv = await insertClassroomPrivate(room.id, genJoinCode());
+        } catch (e) {
+          lastError = e;
+          if ((e as { code?: string } | null)?.code !== "23505") throw e; // not a collision — don't retry
+        }
+      }
+      if (!priv) {
+        // Out of retries — don't leave this classroom stuck with no way to
+        // ever get a join code; remove it and surface a clear error instead.
+        await deleteClassroomById(room.id).catch(() => {});
+        setClassrooms((prev) => prev.filter((c) => c.id !== room.id));
+        throw lastError instanceof Error ? lastError : new Error("Could not create the classroom — please try again.");
+      }
+
+      setClassroomPrivates((prev) => [...prev, priv!]);
       return room;
     } catch (e) {
       if (isMissingTableError(e)) setSchemaReady(false);
@@ -307,20 +440,36 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
     setEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
   }, []);
 
+  // The code is validated server-side (join_classroom_by_code RPC) — the
+  // client never reads classroom_private, so there's nothing to check
+  // client-side beyond "did the server accept it." The resulting enrollment
+  // row arrives via the realtime subscription below rather than being
+  // inserted into local state here, to avoid a duplicate entry once it does.
   const joinByCode = useCallback(async (code: string): Promise<DbClassroom> => {
     if (!user) throw new Error("Not logged in");
-    const room = await fetchClassroomByCode(code);
-    if (!room) throw new Error("Classroom not found. Check the code and try again.");
-    const alreadyIn = enrollments.some((e) => e.classroom_id === room.id && ownsEnrollment(e, user.email, user.id));
-    if (alreadyIn) throw new Error("You are already enrolled in this classroom.");
-    await enrollStudent(room.id, user.id, user.name, user.email);
-    return room;
-  }, [user, enrollments, enrollStudent]);
+    const classroomId = await joinClassroomByCode(code);
+    const room = classrooms.find((c) => c.id === classroomId);
+    if (room) return room;
+    // Joined successfully but this classroom wasn't in our already-loaded
+    // list yet (edge case, since classrooms_select is visible to everyone
+    // regardless of enrollment this shouldn't normally happen) — fetch fresh
+    // rather than trust the stale closure over `classrooms`.
+    const fresh = await fetchClassrooms();
+    setClassrooms(fresh);
+    const found = fresh.find((c) => c.id === classroomId);
+    if (!found) throw new Error("Joined, but couldn't load the classroom details. Try refreshing.");
+    return found;
+  }, [user, classrooms]);
 
   const updateRate = useCallback(async (classroomId: string, hourlyRate: number) => {
     await updateClassroomRate(classroomId, hourlyRate);
-    setClassrooms((prev) => prev.map((c) => c.id === classroomId ? { ...c, hourly_rate: hourlyRate } : c));
+    setClassroomPrivates((prev) => prev.map((cp) => cp.classroom_id === classroomId ? { ...cp, hourly_rate: hourlyRate } : cp));
   }, []);
+
+  const getClassroomPrivate = useCallback(
+    (classroomId: string) => classroomPrivates.find((cp) => cp.classroom_id === classroomId),
+    [classroomPrivates]
+  );
 
   // ── Assignments ──────────────────────────────────────────────────────────
 
@@ -352,15 +501,15 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   // ── Attendance ───────────────────────────────────────────────────────────
 
   const markAttendance = useCallback(async (
-    classroomId: string, studentEmail: string, studentName: string, date: string, status: DbAttendanceStatus, hours: number
+    classroomId: string, studentId: string, studentName: string, date: string, status: DbAttendanceStatus, hours: number
   ) => {
     if (!user) return;
     const rec = await upsertAttendance({
-      classroom_id: classroomId, student_email: studentEmail, student_name: studentName,
-      date, status, hours, marked_by_email: user.email,
+      classroom_id: classroomId, student_id: studentId, student_name: studentName,
+      date, status, hours, marked_by: user.id,
     });
     setAttendance((prev) => {
-      const idx = prev.findIndex((r) => r.classroom_id === classroomId && r.student_email === studentEmail && r.date === date);
+      const idx = prev.findIndex((r) => r.classroom_id === classroomId && r.student_id === studentId && r.date === date);
       if (idx < 0) return [...prev, rec];
       const next = [...prev]; next[idx] = rec; return next;
     });
@@ -372,17 +521,17 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   );
 
   const getAttendanceRecord = useCallback(
-    (classroomId: string, studentEmail: string, date: string) =>
-      attendance.find((r) => r.classroom_id === classroomId && r.student_email.toLowerCase() === studentEmail.toLowerCase() && r.date === date),
+    (classroomId: string, studentId: string, date: string) =>
+      attendance.find((r) => r.classroom_id === classroomId && r.student_id === studentId && r.date === date),
     [attendance]
   );
 
   const getStudentCompletedHours = useCallback(
-    (classroomId: string, studentEmail: string, month?: string) =>
+    (classroomId: string, studentId: string, month?: string) =>
       attendance
         .filter((r) =>
           r.classroom_id === classroomId &&
-          r.student_email.toLowerCase() === studentEmail.toLowerCase() &&
+          r.student_id === studentId &&
           (r.status === "present" || r.status === "late") &&
           (!month || r.date.startsWith(month))
         )
@@ -409,22 +558,22 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   // ── Progress notes ───────────────────────────────────────────────────────
 
   const getProgressNote = useCallback(
-    (classroomId: string, studentEmail: string) =>
-      progressNotes.find((n) => n.classroom_id === classroomId && n.student_email.toLowerCase() === studentEmail.toLowerCase()),
+    (classroomId: string, studentId: string) =>
+      progressNotes.find((n) => n.classroom_id === classroomId && n.student_id === studentId),
     [progressNotes]
   );
 
   const setProgressNote = useCallback(async (
-    classroomId: string, studentEmail: string, patch: { completed?: string; assigned?: string; next_up?: string }
+    classroomId: string, studentId: string, patch: { completed?: string; assigned?: string; next_up?: string }
   ) => {
     if (!user) return;
     const note = await upsertProgressNote({
-      classroom_id: classroomId, student_email: studentEmail,
+      classroom_id: classroomId, student_id: studentId,
       completed: patch.completed, assigned: patch.assigned, next_up: patch.next_up,
-      updated_by_email: user.email,
+      updated_by: user.id,
     });
     setProgressNotes((prev) => {
-      const idx = prev.findIndex((n) => n.classroom_id === classroomId && n.student_email === studentEmail);
+      const idx = prev.findIndex((n) => n.classroom_id === classroomId && n.student_id === studentId);
       if (idx < 0) return [...prev, note];
       const next = [...prev]; next[idx] = note; return next;
     });
@@ -433,38 +582,38 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   // ── Payments ─────────────────────────────────────────────────────────────
 
   const getPaymentsForTeacher = useCallback(
-    (teacherEmail: string) => payments.filter((p) => p.teacher_email.toLowerCase() === teacherEmail.toLowerCase()),
+    (teacherId: string) => payments.filter((p) => p.teacher_id === teacherId),
     [payments]
   );
 
   const getPaymentForMonth = useCallback(
-    (teacherEmail: string, month: string) =>
-      payments.find((p) => p.teacher_email.toLowerCase() === teacherEmail.toLowerCase() && p.month === month),
+    (teacherId: string, month: string) =>
+      payments.find((p) => p.teacher_id === teacherId && p.month === month),
     [payments]
   );
 
   const getClassroomDueForMonth = useCallback(
     (classroomId: string, month: string) => {
-      const room = classrooms.find((c) => c.id === classroomId);
-      if (!room?.hourly_rate) return 0;
-      return getClassroomHeldHours(classroomId, month) * room.hourly_rate;
+      const rate = classroomPrivates.find((cp) => cp.classroom_id === classroomId)?.hourly_rate;
+      if (!rate) return 0;
+      return getClassroomHeldHours(classroomId, month) * rate;
     },
-    [classrooms, getClassroomHeldHours]
+    [classroomPrivates, getClassroomHeldHours]
   );
 
   const getTeacherDueForMonth = useCallback(
-    (teacherEmail: string, month: string) => {
-      const taught = classrooms.filter((c) => ownsClassroom(c, teacherEmail, ""));
+    (teacherId: string, month: string) => {
+      const taught = classrooms.filter((c) => c.teacher_id === teacherId);
       return taught.reduce((sum, c) => sum + getClassroomDueForMonth(c.id, month), 0);
     },
     [classrooms, getClassroomDueForMonth]
   );
 
-  const markPaid = useCallback(async (teacherEmail: string, month: string, amount: number) => {
+  const markPaid = useCallback(async (teacherId: string, month: string, amount: number) => {
     if (!user) return;
-    const p = await markPaymentPaid({ teacher_email: teacherEmail, month, amount, paid_by_email: user.email });
+    const p = await markPaymentPaid({ teacher_id: teacherId, month, amount, paid_by: user.id });
     setPayments((prev) => {
-      const idx = prev.findIndex((x) => x.teacher_email === teacherEmail && x.month === month);
+      const idx = prev.findIndex((x) => x.teacher_id === teacherId && x.month === month);
       if (idx < 0) return [p, ...prev];
       const next = [...prev]; next[idx] = p; return next;
     });
@@ -478,7 +627,7 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   );
 
   const getMyEnrollments = useCallback(
-    () => (user ? enrollments.filter((e) => ownsEnrollment(e, user.email, user.id)) : []),
+    () => (user ? enrollments.filter((e) => e.student_id === user.id) : []),
     [enrollments, user]
   );
 
@@ -489,7 +638,7 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   }, [classrooms, getMyEnrollments, user]);
 
   const getTeacherClassrooms = useCallback(
-    () => (user ? classrooms.filter((c) => ownsClassroom(c, user.email, user.id)) : []),
+    () => (user ? classrooms.filter((c) => c.teacher_id === user.id) : []),
     [classrooms, user]
   );
 
@@ -504,20 +653,20 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
   );
 
   const isEnrolled = useCallback(
-    (classroomId: string) => !!user && enrollments.some((e) => e.classroom_id === classroomId && ownsEnrollment(e, user.email, user.id)),
+    (classroomId: string) => !!user && enrollments.some((e) => e.classroom_id === classroomId && e.student_id === user.id),
     [enrollments, user]
   );
 
   const isMyClassroom = useCallback(
-    (classroom: DbClassroom) => !!user && ownsClassroom(classroom, user.email, user.id),
+    (classroom: DbClassroom) => !!user && classroom.teacher_id === user.id,
     [user]
   );
 
   const value = useMemo(() => ({
-    courses, classrooms, enrollments, assignments, attendance, progressNotes, payments,
+    courses, classrooms, classroomPrivates, enrollments, assignments, attendance, progressNotes, payments,
     loading, error, schemaReady,
     createCourse, removeCourse, createClassroom, removeClassroom,
-    enrollStudent, unenrollStudent, joinByCode, updateRate,
+    enrollStudent, unenrollStudent, joinByCode, updateRate, getClassroomPrivate,
     getClassroomStudents, getMyEnrollments, getMyClassrooms,
     getTeacherClassrooms, getCourseClassrooms, getStandaloneClassrooms,
     isEnrolled, isMyClassroom, refresh: load,
@@ -526,10 +675,10 @@ export function ClassroomsDbProvider({ children }: { children: ReactNode }) {
     getProgressNote, setProgressNote,
     getPaymentsForTeacher, getPaymentForMonth, getClassroomDueForMonth, getTeacherDueForMonth, markPaid,
   }), [
-    courses, classrooms, enrollments, assignments, attendance, progressNotes, payments,
+    courses, classrooms, classroomPrivates, enrollments, assignments, attendance, progressNotes, payments,
     loading, error, schemaReady,
     createCourse, removeCourse, createClassroom, removeClassroom,
-    enrollStudent, unenrollStudent, joinByCode, updateRate,
+    enrollStudent, unenrollStudent, joinByCode, updateRate, getClassroomPrivate,
     getClassroomStudents, getMyEnrollments, getMyClassrooms,
     getTeacherClassrooms, getCourseClassrooms, getStandaloneClassrooms,
     isEnrolled, isMyClassroom, load,

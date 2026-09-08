@@ -15,14 +15,14 @@ function monthLabel(month: string) {
 }
 
 // ── Teacher view: this month's accrued pay + deposit history ──────────────────
-function TeacherPayments({ teacherEmail }: { teacherEmail: string }) {
-  const { getTeacherClassrooms, getClassroomDueForMonth, getTeacherDueForMonth, getPaymentsForTeacher, getPaymentForMonth } = useClassroomsDb();
+function TeacherPayments({ teacherId }: { teacherId: string }) {
+  const { getTeacherClassrooms, getClassroomPrivate, getClassroomDueForMonth, getTeacherDueForMonth, getPaymentsForTeacher, getPaymentForMonth } = useClassroomsDb();
   const month = currentMonth();
 
   const myClassrooms = getTeacherClassrooms();
-  const totalDue = getTeacherDueForMonth(teacherEmail, month);
-  const thisMonthPayment = getPaymentForMonth(teacherEmail, month);
-  const history = getPaymentsForTeacher(teacherEmail).filter((p) => p.month !== month);
+  const totalDue = getTeacherDueForMonth(teacherId, month);
+  const thisMonthPayment = getPaymentForMonth(teacherId, month);
+  const history = getPaymentsForTeacher(teacherId).filter((p) => p.month !== month);
 
   return (
     <div className="space-y-4">
@@ -44,7 +44,7 @@ function TeacherPayments({ teacherEmail }: { teacherEmail: string }) {
           <div className="mt-3 pt-3 border-t border-border space-y-2">
             {myClassrooms.map((c) => (
               <div key={c.id} className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{c.name}{!c.hourly_rate ? " (no rate set)" : ""}</span>
+                <span className="text-muted-foreground">{c.name}{!getClassroomPrivate(c.id)?.hourly_rate ? " (no rate set)" : ""}</span>
                 <span className="font-medium">${getClassroomDueForMonth(c.id, month).toFixed(2)}</span>
               </div>
             ))}
@@ -82,17 +82,12 @@ function TeacherPayments({ teacherEmail }: { teacherEmail: string }) {
 function AdminPayments() {
   const { classrooms, getTeacherDueForMonth, getPaymentForMonth, markPaid } = useClassroomsDb();
   const month = currentMonth();
-  const [confirmedEmail, setConfirmedEmail] = useState<string | null>(null);
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
 
-  // Teacher roster comes straight from the classrooms table (teacher_email/
-  // teacher_name), not the local users list — that list is per-device and
-  // may not include teachers who signed up on a different browser.
+  // Teacher roster comes straight from the classrooms table, which is
+  // shared across devices via Supabase (unlike a per-device local list).
   const teachers = Array.from(
-    new Map(
-      classrooms
-        .filter((c) => c.teacher_email)
-        .map((c) => [c.teacher_email!.toLowerCase(), { email: c.teacher_email!, name: c.teacher_name }])
-    ).values()
+    new Map(classrooms.map((c) => [c.teacher_id, { id: c.teacher_id, name: c.teacher_name }])).values()
   );
 
   return (
@@ -102,17 +97,17 @@ function AdminPayments() {
         <p className="text-sm text-muted-foreground text-center py-8">No teachers with active classrooms yet.</p>
       ) : (
         teachers.map((t) => {
-          const due = getTeacherDueForMonth(t.email, month);
-          const payment = getPaymentForMonth(t.email, month);
+          const due = getTeacherDueForMonth(t.id, month);
+          const payment = getPaymentForMonth(t.id, month);
           const isPaid = payment?.status === "paid";
           return (
-            <div key={t.email} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+            <div key={t.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
                 {t.name[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{t.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{t.email} · ${due.toFixed(2)} accrued</p>
+                <p className="text-xs text-muted-foreground truncate">${due.toFixed(2)} accrued</p>
               </div>
               {isPaid ? (
                 <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/10 text-green-600 border border-green-500/20 font-medium shrink-0">
@@ -121,14 +116,14 @@ function AdminPayments() {
               ) : (
                 <button
                   onClick={() => {
-                    markPaid(t.email, month, due);
-                    setConfirmedEmail(t.email);
-                    setTimeout(() => setConfirmedEmail((e) => (e === t.email ? null : e)), 2000);
+                    markPaid(t.id, month, due);
+                    setConfirmedId(t.id);
+                    setTimeout(() => setConfirmedId((id) => (id === t.id ? null : id)), 2000);
                   }}
                   disabled={due <= 0}
                   className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40 min-h-[36px] shrink-0"
                 >
-                  {confirmedEmail === t.email ? "Deposited ✓" : "Mark as Paid"}
+                  {confirmedId === t.id ? "Deposited ✓" : "Mark as Paid"}
                 </button>
               )}
             </div>
@@ -172,7 +167,7 @@ export default function PaymentsPage() {
     <>
       <Header title="Payments" showBack />
       <main className="max-w-3xl mx-auto px-4 py-4">
-        {user.role === "admin" ? <AdminPayments /> : <TeacherPayments teacherEmail={user.email} />}
+        {user.role === "admin" ? <AdminPayments /> : <TeacherPayments teacherId={user.id} />}
       </main>
     </>
   );

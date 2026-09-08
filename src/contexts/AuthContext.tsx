@@ -1,18 +1,66 @@
 "use client";
-import { createContext, useContext, ReactNode, useCallback, useEffect, useLayoutEffect, useState, useRef } from "react";
-
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+import { createContext, useContext, ReactNode, useCallback, useEffect, useState } from "react";
 import { User, UserRole } from "@/lib/types";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { broadcastUserActivity } from "@/lib/supabase";
-import { hashPassword, verifyPassword, generateId, generateParentCode } from "@/lib/crypto";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
+import { authSignUp } from "@/lib/supabase-auth";
 
-// Admin emails seeded by role only — no passwords in source code.
-// These accounts have no password; they must log in via Google OAuth.
-const SEEDED_ADMIN_EMAILS: Array<{ email: string; name: string }> = [
-  { email: "kassab.salaheddine@gmail.com", name: "Salah" },
-  { email: "yassinebouaoudatekhaffane@gmail.com", name: "Yassine" },
-];
+// ─── Accounts live entirely in Supabase Auth + the `profiles` table ──────────
+// (see supabase/migration.sql). There is no local/localStorage account store
+// any more: a password is hashed and verified by Supabase itself, and role
+// assignment (including who gets 'admin') is enforced by a database trigger,
+// not by this client code — so nothing here can be used to self-promote.
+
+interface ProfileRow {
+  id: string;
+  email: string;
+  name: string;
+  display_name: string | null;
+  role: UserRole;
+  profile_photo: string | null;
+  class_id: string | null;
+  class_ids: string[];
+  parent_ids: string[];
+  linked_child_id: string | null;
+  linked_child_ids: string[];
+  created_at: string;
+}
+
+// parentCode is intentionally NOT a column on `profiles` — it lives in the
+// separate `parent_codes` table (RLS: readable only by its own student), so
+// it's only ever passed in here for the CURRENT user's own row, never for
+// anyone else in the roster. See the security note in supabase/migration.sql.
+function rowToUser(row: ProfileRow, emailVerified?: boolean, parentCode?: string | null): User {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    classId: row.class_id ?? undefined,
+    classIds: row.class_ids?.length ? row.class_ids : undefined,
+    createdAt: new Date(row.created_at).getTime(),
+    parentCode: parentCode ?? undefined,
+    parentIds: row.parent_ids?.length ? row.parent_ids : undefined,
+    linkedChildId: row.linked_child_id ?? undefined,
+    linkedChildIds: row.linked_child_ids?.length ? row.linked_child_ids : undefined,
+    displayName: row.display_name ?? undefined,
+    profilePhoto: row.profile_photo ?? undefined,
+    emailVerified,
+  };
+}
+
+function userPatchToRow(patch: Partial<User>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  if (patch.displayName !== undefined) row.display_name = patch.displayName;
+  if (patch.profilePhoto !== undefined) row.profile_photo = patch.profilePhoto;
+  if (patch.classId !== undefined) row.class_id = patch.classId;
+  if (patch.classIds !== undefined) row.class_ids = patch.classIds;
+  if (patch.parentIds !== undefined) row.parent_ids = patch.parentIds;
+  if (patch.linkedChildId !== undefined) row.linked_child_id = patch.linkedChildId;
+  if (patch.linkedChildIds !== undefined) row.linked_child_ids = patch.linkedChildIds;
+  if (patch.role !== undefined) row.role = patch.role; // only takes effect if the caller is an admin — enforced by RLS + trigger
+  if (patch.name !== undefined) row.name = patch.name;
+  return row;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -20,15 +68,19 @@ interface AuthContextType {
   isLoaded: boolean;
   login: (email: string, password: string) => Promise<string | null>;
   loginWithEmail: (email: string) => string | null;
-  signup: (name: string, email: string, password: string, role: UserRole, code?: string) => Promise<string | null>;
+  signup: (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole,
+    code?: string
+  ) => Promise<{ error: string | null; needsVerification: boolean }>;
   signupGoogle: (name: string, email: string, role: UserRole) => string | null;
   logout: () => void;
   getUserById: (id: string) => User | undefined;
   updateUser: (id: string, partial: Partial<User>) => void;
   deleteUser: (id: string) => void;
-  linkChildToParent: (studentCode: string) => string | null;
-  markEmailVerified: (email: string) => void;
-  updatePassword: (email: string, newPassword: string) => Promise<void>;
+  linkChildToParent: (studentCode: string) => Promise<string | null>;
 }
 
 const AuthCtx = createContext<AuthContextType>({
@@ -37,21 +89,14 @@ const AuthCtx = createContext<AuthContextType>({
   isLoaded: false,
   login: async () => null,
   loginWithEmail: () => null,
-  signup: async () => null,
+  signup: async () => ({ error: "not ready", needsVerification: false }),
   signupGoogle: () => null,
   logout: () => {},
   getUserById: () => undefined,
   updateUser: () => {},
   deleteUser: () => {},
-  linkChildToParent: () => null,
-  markEmailVerified: () => {},
-  updatePassword: async () => {},
+  linkChildToParent: async () => null,
 });
-
-interface StoredUser extends User {
-  passwordHash?: string;
-  isGoogle?: boolean;
-}
 
 export function getLinkedChildIds(user: User): string[] {
   if (user.linkedChildIds && user.linkedChildIds.length > 0) return user.linkedChildIds;
@@ -59,267 +104,217 @@ export function getLinkedChildIds(user: User): string[] {
   return [];
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [storedUsers, setStoredUsers] = useLocalStorage<StoredUser[]>("quran-users", []);
-  const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>("quran-current-user", null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const seededRef = useRef(false);
-  // Per-email login attempt tracking: { count, lockedUntil timestamp }
-  const loginAttemptsRef = useRef<Record<string, { count: number; lockedUntil: number }>>({});
+const GOOGLE_UNAVAILABLE = "Google sign-in isn't available right now — please use email and password.";
 
-  useIsomorphicLayoutEffect(() => {
-    setIsLoaded(true);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [sessionUserId, setSessionUserId] = useState<string | null | undefined>(undefined); // undefined = not checked yet
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [myParentCode, setMyParentCode] = useState<string | null>(null);
+  const [allProfiles, setAllProfiles] = useState<ProfileRow[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Restore/track the Supabase Auth session.
+  useEffect(() => {
+    if (!supabase) { setSessionChecked(true); return; }
+    let active = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setSessionUserId(data.session?.user?.id ?? null);
+      setEmailConfirmed(!!data.session?.user?.email_confirmed_at);
+      setSessionChecked(true);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSessionUserId(newSession?.user?.id ?? null);
+      setEmailConfirmed(!!newSession?.user?.email_confirmed_at);
+      setSessionChecked(true);
+    });
+
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  // Seed admin roles by email only — no passwords stored in source
+  // Once we know who (if anyone) is signed in, load their profile + the roster.
   useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    setStoredUsers((prev) => {
-      const updated = [...prev];
-      for (const admin of SEEDED_ADMIN_EMAILS) {
-        const exists = updated.find((u) => u.email.toLowerCase() === admin.email.toLowerCase());
-        if (!exists) {
-          updated.push({
-            id: generateId(),
-            email: admin.email,
-            name: admin.name,
-            role: "admin",
-            createdAt: Date.now(),
-          });
-        } else if (exists.role !== "admin") {
-          const idx = updated.indexOf(exists);
-          updated[idx] = { ...exists, role: "admin" };
-        }
-      }
-      return updated;
-    });
-  }, [setStoredUsers]);
+    if (!sessionChecked) return;
+    if (!supabase || !sessionUserId) {
+      setProfile(null);
+      setMyParentCode(null);
+      setAllProfiles([]);
+      setIsLoaded(true);
+      return;
+    }
+    let active = true;
+    (async () => {
+      const [{ data: mine }, { data: all }, { data: myCode }] = await Promise.all([
+        supabase!.from("profiles").select("*").eq("id", sessionUserId).maybeSingle(),
+        supabase!.from("profiles").select("*"),
+        supabase!.from("parent_codes").select("code").eq("student_id", sessionUserId).maybeSingle(),
+      ]);
+      if (!active) return;
+      setProfile(mine ?? null);
+      setMyParentCode(myCode?.code ?? null);
+      setAllProfiles(all ?? []);
+      setIsLoaded(true);
+    })();
+    return () => { active = false; };
+  }, [sessionChecked, sessionUserId]);
 
-  const user = storedUsers.find((u) => u.id === currentUserId) ?? null;
-  const getUserById = useCallback((id: string) => storedUsers.find((u) => u.id === id), [storedUsers]);
+  // Keep the roster (and own profile) live across devices/tabs.
+  useEffect(() => {
+    if (!supabase || !sessionUserId) return;
+    const ch = supabase
+      .channel("profiles-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const oldId = (payload.old as { id: string }).id;
+          setAllProfiles((prev) => prev.filter((row) => row.id !== oldId));
+          return;
+        }
+        const row = payload.new as ProfileRow;
+        setAllProfiles((prev) => {
+          const idx = prev.findIndex((r) => r.id === row.id);
+          if (idx < 0) return [...prev, row];
+          const next = [...prev];
+          next[idx] = row;
+          return next;
+        });
+        if (row.id === sessionUserId) setProfile(row);
+      })
+      .subscribe();
+    return () => { supabase!.removeChannel(ch); };
+  }, [sessionUserId]);
+
+  const user: User | null = profile ? rowToUser(profile, emailConfirmed, myParentCode) : null;
+  const users: User[] = allProfiles.map((row) => rowToUser(row));
+
+  const getUserById = useCallback(
+    (id: string) => {
+      const row = allProfiles.find((p) => p.id === id);
+      return row ? rowToUser(row) : undefined;
+    },
+    [allProfiles]
+  );
 
   const updateUser = useCallback(
     (id: string, partial: Partial<User>) => {
-      setStoredUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...partial } : u)));
+      if (!supabase) return;
+      const row = userPatchToRow(partial);
+      if (Object.keys(row).length === 0) return;
+      // Optimistic local update so the UI feels instant; the write below
+      // reconciles (and, for another viewer, realtime will too).
+      setAllProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, ...row } as ProfileRow : p)));
+      setProfile((prev) => (prev && prev.id === id ? ({ ...prev, ...row } as ProfileRow) : prev));
+      supabase
+        .from("profiles")
+        .update(row)
+        .eq("id", id)
+        .then(({ error }) => {
+          if (error) console.error("Failed to update profile:", error.message);
+        });
     },
-    [setStoredUsers]
+    []
   );
 
-  const login = useCallback(
-    async (email: string, password: string): Promise<string | null> => {
-      const now = Date.now();
-      const key = email.toLowerCase();
-      const attempt = loginAttemptsRef.current[key] ?? { count: 0, lockedUntil: 0 };
+  const deleteUser = useCallback((id: string) => {
+    if (!supabase) return;
+    setAllProfiles((prev) => prev.filter((p) => p.id !== id));
+    supabase.rpc("admin_delete_user", { target_id: id }).then(({ error }) => {
+      if (error) console.error("Failed to delete user:", error.message);
+    });
+  }, []);
 
-      if (attempt.lockedUntil > now) {
-        const secs = Math.ceil((attempt.lockedUntil - now) / 1000);
-        return `Too many failed attempts. Please wait ${secs} seconds before trying again.`;
-      }
+  const linkChildToParent = useCallback(async (studentCode: string): Promise<string | null> => {
+    if (!supabase) return "Supabase is not configured.";
+    const code = studentCode.trim().toUpperCase();
+    if (!code) return "Please enter a code.";
+    const { error } = await supabase.rpc("link_child_to_parent", { code });
+    if (error) return error.message;
+    // Refresh so the newly-linked child shows up immediately.
+    if (sessionUserId) {
+      const [{ data: mine }, { data: all }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", sessionUserId).maybeSingle(),
+        supabase.from("profiles").select("*"),
+      ]);
+      setProfile(mine ?? null);
+      setAllProfiles(all ?? []);
+    }
+    return null;
+  }, [sessionUserId]);
 
-      const found = storedUsers.find((u) => u.email.toLowerCase() === key);
-      const valid = found ? await verifyPassword(password, found.passwordHash) : false;
-
-      if (!found || !valid) {
-        const count = attempt.count + 1;
-        loginAttemptsRef.current[key] = {
-          count,
-          lockedUntil: count >= 5 ? now + 60_000 : 0,
-        };
-        return "Invalid email or password.";
-      }
-
-      // Transparently migrate plaintext passwords to PBKDF2 on successful login
-      if (found.passwordHash && !found.passwordHash.startsWith("pbkdf2v1:")) {
-        const newHash = await hashPassword(password);
-        setStoredUsers((prev) =>
-          prev.map((u) => (u.id === found.id ? { ...u, passwordHash: newHash } : u))
-        );
-      }
-
-      // Clear rate limit on success
-      delete loginAttemptsRef.current[key];
-
-      if (found.emailVerified === false) {
-        return "EMAIL_NOT_VERIFIED";
-      }
-
-      setCurrentUserId(found.id);
-      broadcastUserActivity({ type: "login", userId: found.id, userName: found.name, userEmail: found.email, userRole: found.role, ts: Date.now() });
-      return null;
-    },
-    [storedUsers, setCurrentUserId, setStoredUsers]
-  );
-
-  // Used by Google OAuth callback — also enforces email verification
-  const loginWithEmail = useCallback(
-    (email: string): string | null => {
-      const found = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      if (!found) return "Account not found.";
-      if (found.emailVerified === false) return "EMAIL_NOT_VERIFIED";
-      setCurrentUserId(found.id);
-      return null;
-    },
-    [storedUsers, setCurrentUserId]
-  );
+  const login = useCallback(async (email: string, password: string): Promise<string | null> => {
+    if (!supabase) return "Supabase is not configured.";
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) return null;
+    const msg = error.message.toLowerCase();
+    if (msg.includes("confirm")) return "EMAIL_NOT_VERIFIED";
+    if (msg.includes("invalid login credentials")) return "Invalid email or password.";
+    return error.message;
+  }, []);
 
   const signup = useCallback(
-    async (name: string, email: string, password: string, role: UserRole, code?: string): Promise<string | null> => {
-      if (storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-        return "An account with this email already exists.";
+    async (
+      name: string,
+      email: string,
+      password: string,
+      role: UserRole,
+      code?: string
+    ): Promise<{ error: string | null; needsVerification: boolean }> => {
+      if (!supabase || !isSupabaseReady) {
+        return { error: "Supabase is not configured.", needsVerification: false };
       }
-      if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
-        return "This name is already taken. Please choose another.";
-      }
-
-      let firstChildId: string | undefined;
-
-      if (role === "parent") {
-        if (!code?.trim()) return "Please enter your child's parent code.";
-        const student = storedUsers.find(
-          (u) => u.parentCode === code.trim().toUpperCase() && u.role === "student"
-        );
-        if (!student) return "No student found with that code. Double-check the code and try again.";
-        firstChildId = student.id;
+      if (role === "parent" && !code?.trim()) {
+        return { error: "Please enter your child's parent code.", needsVerification: false };
       }
 
-      const passwordHash = await hashPassword(password);
+      const redirectTo = `${window.location.origin}/auth/verify`;
+      const { error, needsVerification } = await authSignUp(email, password, name, role, redirectTo);
+      if (error) return { error, needsVerification: false };
 
-      const newUser: StoredUser = {
-        id: generateId(),
-        email,
-        name,
-        role,
-        createdAt: Date.now(),
-        passwordHash,
-        ...(role === "student" ? { parentCode: generateParentCode() } : {}),
-        ...(role === "parent" && firstChildId
-          ? { linkedChildId: firstChildId, linkedChildIds: [firstChildId] }
-          : {}),
-      };
-
-      setStoredUsers((prev) => {
-        const updated = [...prev, newUser];
-        if (role === "parent" && firstChildId) {
-          return updated.map((u) =>
-            u.id === firstChildId
-              ? { ...u, parentIds: [...(u.parentIds ?? []), newUser.id] }
-              : u
-          );
-        }
-        return updated;
-      });
-      setCurrentUserId(newUser.id);
-      broadcastUserActivity({ type: "signup", userId: newUser.id, userName: newUser.name, userEmail: newUser.email, userRole: newUser.role, ts: Date.now() });
-      return null;
-    },
-    [storedUsers, setStoredUsers, setCurrentUserId]
-  );
-
-  const signupGoogle = useCallback(
-    (name: string, email: string, role: UserRole): string | null => {
-      const existing = storedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      if (existing) {
-        setCurrentUserId(existing.id);
-        return null;
+      // Only possible to link right away if signUp produced a live session
+      // (i.e. email confirmation isn't required) — otherwise the parent
+      // links their child after confirming, from Profile > Link another student.
+      if (!needsVerification && role === "parent" && code) {
+        const linkErr = await linkChildToParent(code);
+        if (linkErr) return { error: linkErr, needsVerification: false };
       }
-      if (storedUsers.find((u) => u.name.toLowerCase() === name.trim().toLowerCase())) {
-        return "This name is already taken. Please choose another.";
-      }
-      const newUser: StoredUser = {
-        id: generateId(),
-        email,
-        name,
-        role,
-        createdAt: Date.now(),
-        isGoogle: true,
-        ...(role === "student" ? { parentCode: generateParentCode() } : {}),
-      };
-      setStoredUsers((prev) => [...prev, newUser]);
-      setCurrentUserId(newUser.id);
-      broadcastUserActivity({ type: "signup", userId: newUser.id, userName: newUser.name, userEmail: newUser.email, userRole: newUser.role, ts: Date.now() });
-      return null;
+
+      return { error: null, needsVerification };
     },
-    [storedUsers, setStoredUsers, setCurrentUserId]
+    [linkChildToParent]
   );
 
-  const linkChildToParent = useCallback(
-    (studentCode: string): string | null => {
-      if (!user || user.role !== "parent") return "You must be logged in as a parent.";
-      const code = studentCode.trim().toUpperCase();
-      const student = storedUsers.find((u) => u.parentCode === code && u.role === "student");
-      if (!student) return "No student found with that code.";
+  const logout = useCallback(() => {
+    supabase?.auth.signOut();
+  }, []);
 
-      const currentChildIds = getLinkedChildIds(user);
-      if (currentChildIds.includes(student.id)) return "This student is already linked to your account.";
-
-      const updatedChildIds = [...currentChildIds, student.id];
-
-      setStoredUsers((prev) =>
-        prev.map((u) => {
-          if (u.id === user.id) {
-            return { ...u, linkedChildId: updatedChildIds[0], linkedChildIds: updatedChildIds };
-          }
-          if (u.id === student.id) {
-            return { ...u, parentIds: [...(u.parentIds ?? []), user.id] };
-          }
-          return u;
-        })
-      );
-      return null;
-    },
-    [user, storedUsers, setStoredUsers]
-  );
-
-  const markEmailVerified = useCallback(
-    (email: string) => {
-      setStoredUsers((prev) =>
-        prev.map((u) =>
-          u.email.toLowerCase() === email.toLowerCase() ? { ...u, emailVerified: true } : u
-        )
-      );
-    },
-    [setStoredUsers]
-  );
-
-  const updatePassword = useCallback(
-    async (email: string, newPassword: string): Promise<void> => {
-      const hash = await hashPassword(newPassword);
-      setStoredUsers((prev) =>
-        prev.map((u) =>
-          u.email.toLowerCase() === email.toLowerCase() ? { ...u, passwordHash: hash } : u
-        )
-      );
-    },
-    [setStoredUsers]
-  );
-
-  const logout = useCallback(() => setCurrentUserId(null), [setCurrentUserId]);
-
-  const deleteUser = useCallback(
-    (id: string) => {
-      setStoredUsers((prev) => {
-        const target = prev.find((u) => u.id === id);
-        if (!target) return prev;
-        let updated = prev.map((u) => {
-          if (u.role === "parent") {
-            const childIds = (u.linkedChildIds ?? (u.linkedChildId ? [u.linkedChildId] : [])).filter((cid) => cid !== id);
-            return { ...u, linkedChildIds: childIds, linkedChildId: childIds[0] };
-          }
-          return u;
-        });
-        updated = updated.filter((u) => u.id !== id);
-        return updated;
-      });
-    },
-    [setStoredUsers]
-  );
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const publicUsers: User[] = storedUsers.map(({ passwordHash, isGoogle, ...u }) => u);
+  // Google sign-in used to bridge a NextAuth session into a local account;
+  // that path is retired now that accounts live in Supabase Auth. Kept as a
+  // clear, typed stub so callers get an explicit message instead of silently
+  // failing while this gets reconnected (e.g. via Supabase's own Google
+  // OAuth provider).
+  const signupGoogle = useCallback((): string | null => GOOGLE_UNAVAILABLE, []);
+  const loginWithEmail = useCallback((): string | null => GOOGLE_UNAVAILABLE, []);
 
   return (
-    <AuthCtx.Provider value={{ user, users: publicUsers, isLoaded, login, loginWithEmail, signup, signupGoogle, logout, getUserById, updateUser, deleteUser, linkChildToParent, markEmailVerified, updatePassword }}>
+    <AuthCtx.Provider
+      value={{
+        user,
+        users,
+        isLoaded,
+        login,
+        loginWithEmail,
+        signup,
+        signupGoogle,
+        logout,
+        getUserById,
+        updateUser,
+        deleteUser,
+        linkChildToParent,
+      }}
+    >
       {children}
     </AuthCtx.Provider>
   );
