@@ -20,23 +20,23 @@
 -- ever exposing the secrets themselves.
 --
 -- LEGACY-TABLE SELF-HEAL: this app went through several schema shapes
--- before landing here — the very first setup used plain `text` ids, and a
--- draft in between used `student_email`/`teacher_email` columns instead of
--- `student_id`/`teacher_id`. `create table if not exists` silently skips a
--- table that's already there, so if your project has a table left over from
--- an earlier shape, the uuid-typed policies below fail against it with
--- errors like "operator does not exist: text = uuid" or "column student_id
--- does not exist" — which table, specifically, depends on which draft you
--- ran, so rather than guess, the block right below checks each table that's
--- ever changed shape and drops+rebuilds ONLY the ones that don't match the
--- current schema (detected by checking for one column the current shape
--- must have) before the real create-table statements run. Tables that
--- already match your last run of this file are left completely alone.
+-- before landing here — the very first setup used plain `text` ids (same
+-- column NAME, wrong type, e.g. courses.created_by), and a draft in between
+-- used `student_email`/`teacher_email` columns instead of
+-- `student_id`/`teacher_id` (column MISSING entirely). `create table if not
+-- exists` silently skips a table that's already there either way, so the
+-- uuid-typed policies below then fail against it — "operator does not
+-- exist: text = uuid" for the first case, "column student_id does not
+-- exist" for the second. Rather than guess which table and which failure
+-- mode, this checks every table that's ever changed shape for whether its
+-- key column both EXISTS and is actually typed uuid, and drops+rebuilds
+-- only the ones that don't match. Tables already matching are left alone.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 do $$
 declare
   t record;
+  actual_type text;
 begin
   for t in
     select * from (values
@@ -51,13 +51,13 @@ begin
       ('bookings', 'student_id')
     ) as expected(table_name, required_column)
   loop
-    if to_regclass('public.' || t.table_name) is not null
-       and not exists (
-         select 1 from information_schema.columns
-         where table_schema = 'public' and table_name = t.table_name and column_name = t.required_column
-       )
-    then
-      execute format('drop table %I cascade', t.table_name);
+    if to_regclass('public.' || t.table_name) is not null then
+      select data_type into actual_type
+        from information_schema.columns
+        where table_schema = 'public' and table_name = t.table_name and column_name = t.required_column;
+      if actual_type is null or actual_type <> 'uuid' then
+        execute format('drop table %I cascade', t.table_name);
+      end if;
     end if;
   end loop;
 end $$;
@@ -665,16 +665,25 @@ create trigger sync_slot_booked_count_trigger
   for each row execute function sync_slot_booked_count();
 
 -- ── Realtime ─────────────────────────────────────────────────────────────
+-- Each table gets its own begin/exception, not one shared around all ten —
+-- a single shared block would let "already a member" on an EARLY table
+-- (e.g. from a previous run) abort the whole block via its exception
+-- handler, silently skipping every table listed after it.
 
-do $$ begin
-  alter publication supabase_realtime add table courses;
-  alter publication supabase_realtime add table classrooms;
-  alter publication supabase_realtime add table classroom_private;
-  alter publication supabase_realtime add table classroom_students;
-  alter publication supabase_realtime add table classroom_assignments;
-  alter publication supabase_realtime add table classroom_attendance;
-  alter publication supabase_realtime add table classroom_progress_notes;
-  alter publication supabase_realtime add table classroom_payments;
-  alter publication supabase_realtime add table availability_slots;
-  alter publication supabase_realtime add table bookings;
-exception when duplicate_object then null; end $$;
+do $$
+declare
+  tbl text;
+begin
+  foreach tbl in array array[
+    'courses', 'classrooms', 'classroom_private', 'classroom_students',
+    'classroom_assignments', 'classroom_attendance', 'classroom_progress_notes',
+    'classroom_payments', 'availability_slots', 'bookings'
+  ]
+  loop
+    begin
+      execute format('alter publication supabase_realtime add table %I', tbl);
+    exception when duplicate_object then
+      null;
+    end;
+  end loop;
+end $$;
