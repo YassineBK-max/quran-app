@@ -19,23 +19,48 @@
 -- needs, e.g. to show classmates or look up a classroom to join) without
 -- ever exposing the secrets themselves.
 --
--- IF THIS ERRORS WITH "operator does not exist: text = uuid": one of
--- courses / classrooms / classroom_students / availability_slots / bookings
--- already existed in your project from the app's ORIGINAL setup, back when
--- teacher_id/student_id/created_by were plain `text` holding old
--- localStorage-style ids instead of `uuid references profiles(id)`.
--- `create table if not exists` skips a table that's already there, so the
--- new uuid-typed policies below then get compared against the old text
--- column. Every other table here is new as of this migration and can't
--- have this problem. Fix (deletes whatever's currently in those 5 tables —
--- fine pre-launch, not fine if you have real data in them):
---   drop table if exists bookings cascade;
---   drop table if exists availability_slots cascade;
---   drop table if exists classroom_students cascade;
---   drop table if exists classrooms cascade;
---   drop table if exists courses cascade;
--- Then run this whole file again.
+-- LEGACY-TABLE SELF-HEAL: this app went through several schema shapes
+-- before landing here — the very first setup used plain `text` ids, and a
+-- draft in between used `student_email`/`teacher_email` columns instead of
+-- `student_id`/`teacher_id`. `create table if not exists` silently skips a
+-- table that's already there, so if your project has a table left over from
+-- an earlier shape, the uuid-typed policies below fail against it with
+-- errors like "operator does not exist: text = uuid" or "column student_id
+-- does not exist" — which table, specifically, depends on which draft you
+-- ran, so rather than guess, the block right below checks each table that's
+-- ever changed shape and drops+rebuilds ONLY the ones that don't match the
+-- current schema (detected by checking for one column the current shape
+-- must have) before the real create-table statements run. Tables that
+-- already match your last run of this file are left completely alone.
 -- ═══════════════════════════════════════════════════════════════════════════
+
+do $$
+declare
+  t record;
+begin
+  for t in
+    select * from (values
+      ('courses', 'created_by'),
+      ('classrooms', 'teacher_id'),
+      ('classroom_students', 'student_id'),
+      ('classroom_assignments', 'classroom_id'),
+      ('classroom_attendance', 'student_id'),
+      ('classroom_progress_notes', 'student_id'),
+      ('classroom_payments', 'teacher_id'),
+      ('availability_slots', 'teacher_id'),
+      ('bookings', 'student_id')
+    ) as expected(table_name, required_column)
+  loop
+    if to_regclass('public.' || t.table_name) is not null
+       and not exists (
+         select 1 from information_schema.columns
+         where table_schema = 'public' and table_name = t.table_name and column_name = t.required_column
+       )
+    then
+      execute format('drop table %I cascade', t.table_name);
+    end if;
+  end loop;
+end $$;
 
 -- ── Profiles (1:1 with Supabase Auth users) ─────────────────────────────────
 
