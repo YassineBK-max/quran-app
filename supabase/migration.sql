@@ -18,6 +18,23 @@
 -- the general roster/classroom-list policies can stay broad (which the app
 -- needs, e.g. to show classmates or look up a classroom to join) without
 -- ever exposing the secrets themselves.
+--
+-- IF THIS ERRORS WITH "operator does not exist: text = uuid": one of
+-- courses / classrooms / classroom_students / availability_slots / bookings
+-- already existed in your project from the app's ORIGINAL setup, back when
+-- teacher_id/student_id/created_by were plain `text` holding old
+-- localStorage-style ids instead of `uuid references profiles(id)`.
+-- `create table if not exists` skips a table that's already there, so the
+-- new uuid-typed policies below then get compared against the old text
+-- column. Every other table here is new as of this migration and can't
+-- have this problem. Fix (deletes whatever's currently in those 5 tables —
+-- fine pre-launch, not fine if you have real data in them):
+--   drop table if exists bookings cascade;
+--   drop table if exists availability_slots cascade;
+--   drop table if exists classroom_students cascade;
+--   drop table if exists classrooms cascade;
+--   drop table if exists courses cascade;
+-- Then run this whole file again.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ── Profiles (1:1 with Supabase Auth users) ─────────────────────────────────
